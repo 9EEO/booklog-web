@@ -3,14 +3,27 @@
   "short_name": "북로그",
   "description": "모바일 우선 PWA 독서 타이머 앱",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f8edcf",
-  "theme_color": "#71804b",
+  "background_color": "#FCFBF7",
+  "theme_color": "#76B852",
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'booklog-timer-v1'
-const APP_SHELL = ['/', '/manifest.webmanifest', '/favicon.svg']
+const CACHE_NAME = 'booklog-timer-v2'
+const APP_SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/pwa-192.png', '/pwa-512.png']
 const IS_LOCAL_DEV = ['localhost', '127.0.0.1', '0.0.0.0'].includes(self.location.hostname)
 
 self.addEventListener('install', (event) => {
