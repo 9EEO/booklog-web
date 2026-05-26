@@ -1,0 +1,382 @@
+import { type CSSProperties, useMemo, useState } from 'react'
+import { Icon } from '../components/Icon'
+import { MiniBook } from '../components/MiniBook'
+import { PixelCard } from '../components/PixelCard'
+import focusSprout from '../assets/focus-sprout.gif'
+import focusSproutStill from '../assets/focus-sprout-still.png'
+import type { ReadingTimer } from '../hooks/useReadingTimer'
+import type { Book, ReadingCompletionInput, ReadingRecord } from '../types/reading'
+import { formatDuration } from '../utils/formatDuration'
+import { parsePageInput } from '../utils/pageInput'
+
+type SessionScreenProps = {
+  books: Book[]
+  records: ReadingRecord[]
+  currentBook: Book | null
+  dailyGoalSeconds: number
+  timer: ReadingTimer
+  onChangeBook: (bookId: string) => void
+  onSaveRecord: (input: ReadingCompletionInput) => void
+  onGoLibrary: () => void
+}
+
+const presets = [
+  { label: '5분', seconds: 5 * 60 },
+  { label: '15분', seconds: 15 * 60 },
+  { label: '30분', seconds: 30 * 60 },
+  { label: '60분', seconds: 60 * 60 },
+]
+
+const formatFocusTime = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60)
+  const remain = seconds % 60
+
+  return `${minutes.toString().padStart(2, '0')}:${remain.toString().padStart(2, '0')}`
+}
+
+const todayLabel = () =>
+  new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(new Date())
+    .replace(/\.\s?/g, '.')
+    .replace(/\.$/, '')
+
+export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, timer, onChangeBook, onSaveRecord, onGoLibrary }: SessionScreenProps) => {
+  const [isBookModalOpen, setIsBookModalOpen] = useState(false)
+  const [isCompletionOpen, setIsCompletionOpen] = useState(false)
+  const [isSentenceOpen, setIsSentenceOpen] = useState(false)
+  const [form, setForm] = useState({
+    bookId: currentBook?.id ?? '',
+    endPage: currentBook?.currentPage ?? 1,
+    sentence: '',
+    sentencePage: currentBook?.currentPage ?? 1,
+  })
+
+  const readingBooks = useMemo(() => books.filter((book) => book.status !== 'completed'), [books])
+
+  if (!currentBook) {
+    return (
+      <div className="session-screen space-y-4">
+        <header>
+          <h1 className="text-2xl font-black">독서중</h1>
+        </header>
+        <PixelCard className="bg-[#F3E8D0] text-center">
+          <Icon name="book" className="mx-auto mb-3 h-8 w-8 text-[#5F6D57]" />
+          <p className="text-lg font-black">읽을 책이 없습니다.</p>
+          <p className="mt-2 text-sm font-bold leading-relaxed text-stone-600">서재에서 첫 책을 추가한 뒤 독서를 시작해 주세요.</p>
+          <button type="button" className="primary-button mt-4 w-full" onClick={onGoLibrary}>
+            <Icon name="plus" className="h-5 w-5" />
+            서재로 이동
+          </button>
+        </PixelCard>
+      </div>
+    )
+  }
+  const isFormForCurrentBook = form.bookId === currentBook.id
+  const endPage = isFormForCurrentBook ? form.endPage : currentBook.currentPage
+  const sentence = isFormForCurrentBook ? form.sentence : ''
+  const sentencePage = isFormForCurrentBook ? form.sentencePage : currentBook.currentPage
+  const isCompletionVisible = isCompletionOpen || (timer.status === 'completed' && timer.elapsedSeconds > 0)
+  const bookProgress = Math.round((currentBook.currentPage / currentBook.totalPages) * 100)
+  const isReading = timer.status === 'running'
+  const readingActionLabel = timer.status === 'paused' ? '다시 시작' : '시작'
+  const targetMinutes = Math.round(timer.targetSeconds / 60)
+  const minimumTargetSeconds = timer.status === 'paused' ? Math.min(Math.max(timer.elapsedSeconds, 5 * 60), 120 * 60) : 5 * 60
+  const canDecreaseTarget = timer.targetSeconds > minimumTargetSeconds
+  const canIncreaseTarget = targetMinutes < 120
+  const todaySeconds = records
+    .filter((record) => record.date === todayLabel())
+    .reduce((sum, record) => sum + record.durationSeconds, 0)
+  const completionTotalSeconds = todaySeconds + timer.elapsedSeconds
+  const willMeetDailyGoal = completionTotalSeconds >= dailyGoalSeconds
+  const pagesRead = Math.max(endPage - currentBook.currentPage, 0)
+
+  const updateForm = (patch: Partial<typeof form>) => {
+    setForm((current) => ({
+      ...current,
+      bookId: currentBook.id,
+      endPage,
+      sentence,
+      sentencePage,
+      ...patch,
+    }))
+  }
+
+  const openCompletion = () => {
+    if (timer.elapsedSeconds === 0) return
+    timer.complete()
+    setIsCompletionOpen(true)
+  }
+
+  const saveCompletion = () => {
+    onSaveRecord({
+      durationSeconds: Math.max(timer.elapsedSeconds, 1),
+      endPage,
+      sentence,
+      sentencePage: sentence.trim() ? sentencePage : undefined,
+    })
+    timer.reset()
+    setForm({
+      bookId: currentBook.id,
+      endPage,
+      sentence: '',
+      sentencePage: endPage,
+    })
+    setIsCompletionOpen(false)
+  }
+
+  const closeCompletion = () => {
+    setIsCompletionOpen(false)
+    if (timer.status === 'completed') {
+      timer.reset()
+    }
+  }
+
+  const continueReading = () => {
+    setIsCompletionOpen(false)
+    timer.resume()
+  }
+
+  return (
+    <div className="session-screen space-y-4">
+      <header className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black">독서중</h1>
+        </div>
+      </header>
+
+      <section className="session-focus-panel">
+        <div className="session-book-card">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="session-book-cover" style={{ backgroundColor: currentBook.coverColor, borderColor: currentBook.accentColor }}>
+                {currentBook.thumbnail ? <img src={currentBook.thumbnail} alt="" /> : <span style={{ backgroundColor: currentBook.accentColor }} />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center">
+                  <p className="session-book-title truncate text-sm font-black">{currentBook.title}</p>
+                </div>
+                <p className="session-book-author mt-1 truncate text-xs font-bold">{currentBook.author}</p>
+              </div>
+              <button type="button" className="session-book-swap" onClick={() => setIsBookModalOpen(true)} aria-label="책 변경">
+                <Icon name="swap" className="h-4 w-4" />
+              </button>
+            </div>
+            <div>
+              <div className="session-book-progress">
+                <span style={{ width: `${bookProgress}%` }} />
+              </div>
+              <p className="session-page-count mt-1 text-right text-[11px] font-black">
+                {currentBook.currentPage}/{currentBook.totalPages}p
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="focus-timer-card">
+          <div className="relative z-10">
+            <div className="focus-ring-wrap">
+              <div className="focus-ring" style={{ '--progress': `${timer.progress}%` } as CSSProperties}>
+                <div className="focus-ring-inner">
+                  <img className="focus-character" src={timer.status === 'running' ? focusSprout : focusSproutStill} alt="" />
+                  <div className="focus-time">{formatFocusTime(timer.remainingSeconds)}</div>
+                  <p className="focus-target-label">목표 {targetMinutes}분</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="focus-controls grid grid-cols-[1fr_auto] gap-2">
+              <button
+                type="button"
+                className={`session-control-button ${isReading ? 'secondary-button' : 'primary-button'}`}
+                onClick={isReading ? timer.pause : timer.start}
+                aria-label={isReading ? '일시정지' : readingActionLabel}
+              >
+                <Icon name={isReading ? 'pause' : 'play'} className="h-8 w-8" />
+              </button>
+              <button
+                type="button"
+                className="session-control-button danger-button"
+                onClick={openCompletion}
+                disabled={timer.elapsedSeconds === 0}
+                aria-label="독서 종료"
+              >
+                <Icon name="stop" className="h-8 w-8" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="target-stepper">
+        <button
+          type="button"
+          className="target-step-button"
+          onClick={() => timer.adjustTarget(-5 * 60)}
+          disabled={isReading || !canDecreaseTarget}
+          aria-label="목표 시간 5분 줄이기"
+        >
+          <Icon name="minus" className="h-5 w-5" />
+        </button>
+        <div className="target-step-value" aria-live="polite">
+          <span>목표</span>
+          <strong>{targetMinutes}분</strong>
+        </div>
+        <button
+          type="button"
+          className="target-step-button"
+          onClick={() => timer.adjustTarget(5 * 60)}
+          disabled={isReading || !canIncreaseTarget}
+          aria-label="목표 시간 5분 늘리기"
+        >
+          <Icon name="plus" className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {presets.map((preset) => (
+          <button
+            key={preset.seconds}
+            type="button"
+            className={`preset-button ${timer.targetSeconds === preset.seconds ? 'preset-button-active' : ''}`}
+            onClick={() => timer.setPreset(preset.seconds)}
+            disabled={isReading}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      {isBookModalOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="책 변경">
+          <div className="modal-panel">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-black">읽을 책 선택</h2>
+              <button type="button" className="icon-button" onClick={() => setIsBookModalOpen(false)} aria-label="닫기">
+                <Icon name="close" className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {readingBooks.map((book) => (
+                <button
+                  key={book.id}
+                  type="button"
+                  className="w-full border-2 border-[#2F2A26] bg-[#FCFBF7] p-3 shadow-pixel transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none"
+                  onClick={() => {
+                    onChangeBook(book.id)
+                    setIsBookModalOpen(false)
+                    timer.reset()
+                  }}
+                >
+                  <MiniBook book={book} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCompletionVisible && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="독서 완료">
+          <div className="modal-panel">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-black">독서 완료</h2>
+              <button type="button" className="icon-button" onClick={closeCompletion} aria-label="닫기">
+                <Icon name="close" className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <div className="completion-summary-card bg-[#2F2A26] text-[#FFFDF8]">
+                <span>독서 시간</span>
+                <strong>{formatDuration(timer.elapsedSeconds)}</strong>
+              </div>
+              <div className="completion-summary-card bg-[#FCFBF7] text-[#2F2A26]">
+                <span>읽은 페이지</span>
+                <strong>{pagesRead}p</strong>
+              </div>
+            </div>
+
+            <div className={`mb-4 border-2 border-[#2F2A26] p-3 ${willMeetDailyGoal ? 'bg-[#DCE3D2]' : 'bg-[#F3E8D0]'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black text-stone-600">오늘 목표</p>
+                  <p className="mt-1 text-sm font-black">
+                    {formatDuration(completionTotalSeconds)} / {formatDuration(dailyGoalSeconds)}
+                  </p>
+                </div>
+                <span className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-xs font-black text-[#5F6D57]">
+                  {willMeetDailyGoal ? '달성' : '진행중'}
+                </span>
+              </div>
+            </div>
+
+            <label className="field-label" htmlFor="end-page">
+              현재 페이지
+            </label>
+            <input
+              id="end-page"
+              className="pixel-input"
+              type="text"
+              inputMode="numeric"
+              min={currentBook.currentPage}
+              max={currentBook.totalPages}
+              value={endPage}
+              onChange={(event) => updateForm({ endPage: parsePageInput(event.target.value) })}
+            />
+
+            <button type="button" className="optional-sentence-toggle" onClick={() => setIsSentenceOpen((current) => !current)}>
+              <Icon name="quote" className="h-4 w-4" />
+              {isSentenceOpen ? '문장 기록 닫기' : '기억에 남는 문장 남기기'}
+            </button>
+
+            {isSentenceOpen && (
+              <div className="mt-3 border-2 border-[#2F2A26] bg-[#FCFBF7]">
+                <div className="flex items-center justify-between gap-3 border-b-2 border-[#2F2A26] bg-[#F3E8D0] px-3 py-2">
+                  <label className="text-xs font-black text-[#2F2A26]" htmlFor="sentence">
+                    선택 기록
+                  </label>
+                  <label className="flex shrink-0 items-center gap-1 text-xs font-black text-[#2F2A26]" htmlFor="sentence-page">
+                    <span>페이지</span>
+                    <input
+                      id="sentence-page"
+                      className="w-16 border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-right font-black text-stone-900 outline-none focus:bg-[#FCFBF7]"
+                      type="text"
+                      inputMode="numeric"
+                      min={1}
+                      max={currentBook.totalPages}
+                      value={sentencePage}
+                      onChange={(event) => updateForm({ sentencePage: parsePageInput(event.target.value) })}
+                    />
+                    <span>p</span>
+                  </label>
+                </div>
+                <textarea
+                  id="sentence"
+                  className="min-h-28 w-full resize-none bg-[#FCFBF7] p-3 text-sm font-bold leading-relaxed text-stone-900 outline-none focus:bg-[#FCFBF7]"
+                  placeholder="기억하고 싶은 문장을 남겨보세요."
+                  value={sentence}
+                  onChange={(event) => updateForm({ sentence: event.target.value })}
+                />
+              </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" className="secondary-button" onClick={continueReading}>
+                <Icon name="play" className="h-5 w-5" />
+                이어서 독서
+              </button>
+              <button type="button" className="primary-button" onClick={saveCompletion}>
+                <Icon name="save" className="h-5 w-5" />
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

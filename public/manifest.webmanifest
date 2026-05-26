@@ -1,0 +1,17 @@
+{
+  "name": "북로그 타이머",
+  "short_name": "북로그",
+  "description": "모바일 우선 PWA 독서 타이머 앱",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8edcf",
+  "theme_color": "#71804b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
