@@ -23,14 +23,27 @@ export const useAuth = (): AuthState => {
     }
 
     let isMounted = true
+    const loadingTimeout = window.setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false)
+      }
+    }, 8000)
 
-    supabase.auth.getSession().then(({ data, error: sessionError }) => {
-      if (!isMounted) return
+    supabase.auth
+      .getSession()
+      .then(({ data, error: sessionError }) => {
+        if (!isMounted) return
 
-      setUser(data.session?.user ?? null)
-      setError(sessionError?.message ?? null)
-      setIsLoading(false)
-    })
+        setUser(data.session?.user ?? null)
+        setError(sessionError?.message ?? null)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (!isMounted) return
+
+        setError('로그인 상태를 확인하지 못했습니다. 네트워크를 확인해주세요.')
+        setIsLoading(false)
+      })
 
     const {
       data: { subscription },
@@ -41,6 +54,7 @@ export const useAuth = (): AuthState => {
 
     return () => {
       isMounted = false
+      window.clearTimeout(loadingTimeout)
       subscription.unsubscribe()
     }
   }, [])
