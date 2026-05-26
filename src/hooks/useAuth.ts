@@ -6,7 +6,9 @@ type AuthState = {
   user: User | null
   isLoading: boolean
   error: string | null
-  sendMagicLink: (email: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<void>
+  resetPassword: (email: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -43,23 +45,59 @@ export const useAuth = (): AuthState => {
     }
   }, [])
 
-  const sendMagicLink = async (email: string) => {
+  const signIn = async (email: string, password: string) => {
     if (!supabase) {
       setError('Supabase 환경변수가 설정되지 않았습니다.')
       return
     }
 
     setError(null)
-    const { error: signInError } = await supabase.auth.signInWithOtp({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
+      password,
     })
 
     if (signInError) {
       setError(signInError.message)
       throw signInError
+    }
+  }
+
+  const signUp = async (email: string, password: string) => {
+    if (!supabase) {
+      setError('Supabase 환경변수가 설정되지 않았습니다.')
+      return
+    }
+
+    setError(null)
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    })
+
+    if (signUpError) {
+      setError(signUpError.message)
+      throw signUpError
+    }
+  }
+
+  const resetPassword = async (email: string) => {
+    if (!supabase) {
+      setError('Supabase 환경변수가 설정되지 않았습니다.')
+      return
+    }
+
+    setError(null)
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+
+    if (resetError) {
+      setError(resetError.message)
+      throw resetError
     }
   }
 
@@ -79,7 +117,9 @@ export const useAuth = (): AuthState => {
     user,
     isLoading,
     error,
-    sendMagicLink,
+    signIn,
+    signUp,
+    resetPassword,
     signOut,
   }
 }

@@ -350,7 +350,7 @@ function App() {
   }
 
   if (!auth.user) {
-    return <AuthScreen error={auth.error} onSendMagicLink={auth.sendMagicLink} />
+    return <AuthScreen error={auth.error} onSignIn={auth.signIn} onSignUp={auth.signUp} onResetPassword={auth.resetPassword} />
   }
 
   return <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />
