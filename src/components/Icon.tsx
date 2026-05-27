@@ -21,6 +21,7 @@ export type IconName =
   | 'trash'
   | 'plus'
   | 'minus'
+  | 'tier'
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName
@@ -47,6 +48,7 @@ const paths: Record<IconName, ReactNode> = {
   trash: <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 12H7.7L7 9Zm2.1 2 .5 8h4.8l.5-8H9.1Zm1.4 1h2v6h-2v-6Z" />,
   plus: <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />,
   minus: <path d="M5 11h14v2H5v-2Z" />,
+  tier: <path d="M4 5h16v4H4V5Zm2 2h12V7H6Zm-2 4h13v4H4v-4Zm2 2h9v-.1H6v.1Zm-2 4h10v4H4v-4Zm2 2h6v-.1H6v.1Z" />,
 }
 
 export const Icon = ({ name, className = 'h-5 w-5', ...props }: IconProps) => (

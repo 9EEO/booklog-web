@@ -55,6 +55,52 @@ button {
   padding: 16px;
 }
 
+.pixel-card.completed-book-card {
+  overflow: hidden;
+  padding: 0;
+  box-shadow: 2px 2px 0 rgba(47, 42, 38, 0.84);
+}
+
+.completed-book-card-inner {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+}
+
+.completed-book-cover {
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  border-bottom: 2px solid var(--ink);
+  background: var(--paper);
+}
+
+.completed-book-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.completed-book-title-bar {
+  display: grid;
+  min-height: 36px;
+  place-items: center;
+  background: var(--paper-soft);
+  padding: 5px 3px;
+}
+
+.completed-book-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .shadow-pixel {
   box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.78);
 }
