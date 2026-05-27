@@ -1,6 +1,7 @@
 import { Icon } from '../components/Icon'
 import { PixelCard } from '../components/PixelCard'
 import type { Book, ReadingRecord } from '../types/reading'
+import { buildInfo } from '../utils/buildInfo'
 import { formatDuration } from '../utils/formatDuration'
 
 type ProfileScreenProps = {
@@ -134,6 +135,13 @@ export const ProfileScreen = ({ userEmail, books, records, dailyGoalSeconds, wee
       <button type="button" className="secondary-button w-full" onClick={() => void onSignOut()}>
         로그아웃
       </button>
+
+      <div className="border-2 border-dashed border-stone-300 bg-[#FCFBF7] px-3 py-2 text-[11px] font-black leading-relaxed text-stone-500">
+        <p>버전 {buildInfo.version}</p>
+        <p>
+          배포 {buildInfo.commit} · {buildInfo.builtAt}
+        </p>
+      </div>
     </div>
   )
 }
