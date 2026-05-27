@@ -23,6 +23,7 @@ export const defaultWeeklyGoalDays = 5
 
 export const readingStorageKeys = {
   activeTab: 'booklog-active-tab',
+  dataOwnerUserId: 'booklog-data-owner-user-id',
   books: 'booklog-books',
   records: 'booklog-records',
   currentBookId: 'booklog-current-book-id',
@@ -64,6 +65,24 @@ export const getInitialActiveTab = (): TabKey => {
 export const saveActiveTab = (tab: TabKey) => {
   try {
     window.sessionStorage.setItem(readingStorageKeys.activeTab, tab)
+  } catch {
+    // Storage can fail in private browsing or quota-limited environments.
+  }
+}
+
+export const getStoredDataOwnerUserId = () => {
+  if (typeof window === 'undefined') return ''
+
+  try {
+    return window.localStorage.getItem(readingStorageKeys.dataOwnerUserId) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export const saveDataOwnerUserId = (userId: string) => {
+  try {
+    window.localStorage.setItem(readingStorageKeys.dataOwnerUserId, userId)
   } catch {
     // Storage can fail in private browsing or quota-limited environments.
   }

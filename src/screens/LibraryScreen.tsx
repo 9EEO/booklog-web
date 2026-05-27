@@ -10,12 +10,12 @@ import { parsePageInput } from '../utils/pageInput'
 type LibraryScreenProps = {
   books: Book[]
   records: ReadingRecord[]
-  onAddBook: (input: NewBookInput) => string
-  onAddSentence: (bookId: string, text: string, page: number) => void
-  onUpdateSentence: (bookId: string, sentenceId: string, text: string, page: number) => void
-  onDeleteSentence: (bookId: string, sentenceId: string) => void
-  onDeleteBook: (bookId: string) => void
-  onUpdateBookPage: (bookId: string, page: number) => void
+  onAddBook: (input: NewBookInput) => Promise<string>
+  onAddSentence: (bookId: string, text: string, page: number) => Promise<void>
+  onUpdateSentence: (bookId: string, sentenceId: string, text: string, page: number) => Promise<void>
+  onDeleteSentence: (bookId: string, sentenceId: string) => Promise<void>
+  onDeleteBook: (bookId: string) => Promise<void>
+  onUpdateBookPage: (bookId: string, page: number) => Promise<void>
   shouldOpenBookForm: boolean
 }
 
@@ -81,6 +81,7 @@ export const LibraryScreen = ({ books, records, onAddBook, onAddSentence, onUpda
   const [bookSearchMessage, setBookSearchMessage] = useState('')
   const [bookSearchResults, setBookSearchResults] = useState<BookSearchResult[]>([])
   const [bookDateError, setBookDateError] = useState('')
+  const [isMutating, setIsMutating] = useState(false)
   const selectedBook = selectedBookId ? books.find((book) => book.id === selectedBookId) : null
   const deleteSentence = selectedBook?.sentences.find((sentence) => sentence.id === deleteSentenceId)
   const deleteBook = deleteBookId ? books.find((book) => book.id === deleteBookId) : null
@@ -170,48 +171,83 @@ export const LibraryScreen = ({ books, records, onAddBook, onAddSentence, onUpda
     setDraftSentence('')
   }
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!selectedBook || !editingSentenceId || draftSentence.trim().length === 0) return
+    if (isMutating) return
 
-    onUpdateSentence(selectedBook.id, editingSentenceId, draftSentence, draftPage)
-    setEditingSentenceId(null)
-  }
+    setIsMutating(true)
 
-  const saveAdd = () => {
-    if (!selectedBook || draftSentence.trim().length === 0) return
-
-    onAddSentence(selectedBook.id, draftSentence, draftPage)
-    setIsAddingSentence(false)
-    setDraftSentence('')
-  }
-
-  const saveCurrentPage = () => {
-    if (!selectedBook) return
-
-    const nextPage = Math.min(Math.max(Math.floor(currentPageDraft) || 1, 1), selectedBook.totalPages)
-
-    setCurrentPageDraft(nextPage)
-    onUpdateBookPage(selectedBook.id, nextPage)
-  }
-
-  const confirmDelete = () => {
-    if (!selectedBook || !deleteSentenceId) return
-
-    onDeleteSentence(selectedBook.id, deleteSentenceId)
-    setDeleteSentenceId(null)
-    if (editingSentenceId === deleteSentenceId) {
+    try {
+      await onUpdateSentence(selectedBook.id, editingSentenceId, draftSentence, draftPage)
       setEditingSentenceId(null)
+    } finally {
+      setIsMutating(false)
     }
   }
 
-  const confirmDeleteBook = () => {
-    if (!deleteBookId) return
+  const saveAdd = async () => {
+    if (!selectedBook || draftSentence.trim().length === 0) return
+    if (isMutating) return
 
-    onDeleteBook(deleteBookId)
-    setDeleteBookId(null)
-    setSelectedBookId(null)
-    setEditingSentenceId(null)
-    setIsAddingSentence(false)
+    setIsMutating(true)
+
+    try {
+      await onAddSentence(selectedBook.id, draftSentence, draftPage)
+      setIsAddingSentence(false)
+      setDraftSentence('')
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  const saveCurrentPage = async () => {
+    if (!selectedBook) return
+    if (isMutating) return
+
+    const nextPage = Math.min(Math.max(Math.floor(currentPageDraft) || 1, 1), selectedBook.totalPages)
+
+    setIsMutating(true)
+
+    try {
+      setCurrentPageDraft(nextPage)
+      await onUpdateBookPage(selectedBook.id, nextPage)
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!selectedBook || !deleteSentenceId) return
+    if (isMutating) return
+
+    setIsMutating(true)
+
+    try {
+      await onDeleteSentence(selectedBook.id, deleteSentenceId)
+      setDeleteSentenceId(null)
+      if (editingSentenceId === deleteSentenceId) {
+        setEditingSentenceId(null)
+      }
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  const confirmDeleteBook = async () => {
+    if (!deleteBookId) return
+    if (isMutating) return
+
+    setIsMutating(true)
+
+    try {
+      await onDeleteBook(deleteBookId)
+      setDeleteBookId(null)
+      setSelectedBookId(null)
+      setEditingSentenceId(null)
+      setIsAddingSentence(false)
+    } finally {
+      setIsMutating(false)
+    }
   }
 
   const closeBookForm = () => {
@@ -224,8 +260,9 @@ export const LibraryScreen = ({ books, records, onAddBook, onAddSentence, onUpda
     setBookDateError('')
   }
 
-  const saveBook = () => {
+  const saveBook = async () => {
     if (newBook.title.trim().length === 0) return
+    if (isMutating) return
 
     const totalPages = Math.max(Math.floor(newBook.totalPages) || 1, 1)
     const currentPage = newBook.status === 'completed' ? totalPages : Math.min(Math.max(Math.floor(newBook.currentPage) || 1, 1), totalPages)
@@ -247,17 +284,23 @@ export const LibraryScreen = ({ books, records, onAddBook, onAddSentence, onUpda
       return
     }
 
-    const newBookId = onAddBook({
-      ...newBook,
-      totalPages,
-      currentPage,
-      startedAt: startedAt ?? undefined,
-      completedAt: completedAt ?? undefined,
-    })
+    setIsMutating(true)
 
-    setSelectedBookId(newBookId)
-    setCurrentPageDraft(currentPage)
-    closeBookForm()
+    try {
+      const newBookId = await onAddBook({
+        ...newBook,
+        totalPages,
+        currentPage,
+        startedAt: startedAt ?? undefined,
+        completedAt: completedAt ?? undefined,
+      })
+
+      setSelectedBookId(newBookId)
+      setCurrentPageDraft(currentPage)
+      closeBookForm()
+    } finally {
+      setIsMutating(false)
+    }
   }
 
   const submitBookSearch = async () => {

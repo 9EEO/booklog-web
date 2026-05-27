@@ -16,7 +16,7 @@ type SessionScreenProps = {
   dailyGoalSeconds: number
   timer: ReadingTimer
   onChangeBook: (bookId: string) => void
-  onSaveRecord: (input: ReadingCompletionInput) => void
+  onSaveRecord: (input: ReadingCompletionInput) => Promise<void>
   onGoLibrary: () => void
 }
 
@@ -48,6 +48,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const [isBookModalOpen, setIsBookModalOpen] = useState(false)
   const [isCompletionOpen, setIsCompletionOpen] = useState(false)
   const [isSentenceOpen, setIsSentenceOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? '',
     endPage: currentBook?.currentPage ?? 1,
@@ -111,21 +112,29 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
     setIsCompletionOpen(true)
   }
 
-  const saveCompletion = () => {
-    onSaveRecord({
-      durationSeconds: Math.max(timer.elapsedSeconds, 1),
-      endPage,
-      sentence,
-      sentencePage: sentence.trim() ? sentencePage : undefined,
-    })
-    timer.reset()
-    setForm({
-      bookId: currentBook.id,
-      endPage,
-      sentence: '',
-      sentencePage: endPage,
-    })
-    setIsCompletionOpen(false)
+  const saveCompletion = async () => {
+    if (isSaving) return
+
+    setIsSaving(true)
+
+    try {
+      await onSaveRecord({
+        durationSeconds: Math.max(timer.elapsedSeconds, 1),
+        endPage,
+        sentence,
+        sentencePage: sentence.trim() ? sentencePage : undefined,
+      })
+      timer.reset()
+      setForm({
+        bookId: currentBook.id,
+        endPage,
+        sentence: '',
+        sentencePage: endPage,
+      })
+      setIsCompletionOpen(false)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const closeCompletion = () => {
@@ -369,9 +378,9 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                 <Icon name="play" className="h-5 w-5" />
                 이어서 독서
               </button>
-              <button type="button" className="primary-button" onClick={saveCompletion}>
+              <button type="button" className="primary-button" onClick={() => void saveCompletion()} disabled={isSaving}>
                 <Icon name="save" className="h-5 w-5" />
-                저장
+                {isSaving ? '저장 중' : '저장'}
               </button>
             </div>
           </div>
