@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
+import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import { hasKakaoBookApiKey, searchKakaoBooks } from "../services/kakaoBooks";
 import type {
   Book,
@@ -447,6 +448,24 @@ export const LibraryScreen = ({
       thumbnail: book.thumbnail,
     }));
   };
+
+  useBackNavigationLayer(
+    libraryView === "tier",
+    () => setLibraryView("shelf"),
+    "library-tier",
+  );
+  useBackNavigationLayer(Boolean(selectedBook), closeDetail, "library-detail");
+  useBackNavigationLayer(
+    Boolean(selectedBook && deleteSentence),
+    () => setDeleteSentenceId(null),
+    "library-delete-sentence",
+  );
+  useBackNavigationLayer(
+    Boolean(deleteBook),
+    () => setDeleteBookId(null),
+    "library-delete-book",
+  );
+  useBackNavigationLayer(isBookFormOpen, closeBookForm, "library-book-form");
 
   return (
     <div className="space-y-4">

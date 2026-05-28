@@ -4,6 +4,7 @@ import { MiniBook } from '../components/MiniBook'
 import { PixelCard } from '../components/PixelCard'
 import focusSprout from '../assets/focus-sprout.gif'
 import focusSproutStill from '../assets/focus-sprout-still.png'
+import { useBackNavigationLayer } from '../hooks/useBackNavigationLayer'
 import type { ReadingTimer } from '../hooks/useReadingTimer'
 import type { Book, ReadingCompletionInput, ReadingRecord } from '../types/reading'
 import { formatDuration } from '../utils/formatDuration'
@@ -55,6 +56,18 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
     sentence: '',
     sentencePage: currentBook?.currentPage ?? 1,
   })
+
+  useBackNavigationLayer(isBookModalOpen, () => setIsBookModalOpen(false), 'session-book-modal')
+  useBackNavigationLayer(
+    isCompletionOpen || (timer.status === 'completed' && timer.elapsedSeconds > 0),
+    () => {
+      setIsCompletionOpen(false)
+      if (timer.status === 'completed') {
+        timer.reset()
+      }
+    },
+    'session-completion',
+  )
 
   const readingBooks = useMemo(() => books.filter((book) => book.status !== 'completed'), [books])
 
