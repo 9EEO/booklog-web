@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { Icon } from './Icon'
 import type { IconName } from './Icon'
 import type { TabKey } from '../types/reading'
@@ -22,16 +23,18 @@ export const BottomTabs = ({ activeTab, onChange }: BottomTabsProps) => (
         const isActive = activeTab === tab.key
 
         return (
-          <button
+          <motion.button
             key={tab.key}
             type="button"
             className={`tab-button ${isActive ? 'tab-button-active' : ''}`}
             onClick={() => onChange(tab.key)}
             aria-current={isActive ? 'page' : undefined}
+            whileTap={{ scale: 0.94, y: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 28 }}
           >
             <Icon name={tab.icon} className="h-5 w-5" />
             <span>{tab.label}</span>
-          </button>
+          </motion.button>
         )
       })}
     </div>

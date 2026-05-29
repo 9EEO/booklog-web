@@ -1,4 +1,6 @@
-import { type CSSProperties, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { BottomSheetModal } from '../components/BottomSheetModal'
 import { Icon } from '../components/Icon'
 import { MiniBook } from '../components/MiniBook'
 import { PixelCard } from '../components/PixelCard'
@@ -22,6 +24,7 @@ type SessionScreenProps = {
 }
 
 const presets = [
+  { label: '10초', seconds: 10 },
   { label: '5분', seconds: 5 * 60 },
   { label: '15분', seconds: 15 * 60 },
   { label: '30분', seconds: 30 * 60 },
@@ -50,6 +53,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const [isCompletionOpen, setIsCompletionOpen] = useState(false)
   const [isSentenceOpen, setIsSentenceOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const endPageInputRef = useRef<HTMLInputElement | null>(null)
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? '',
     endPage: currentBook?.currentPage ?? 1,
@@ -70,6 +74,24 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   )
 
   const readingBooks = useMemo(() => books.filter((book) => book.status !== 'completed'), [books])
+  const isCompletionVisible = isCompletionOpen || (timer.status === 'completed' && timer.elapsedSeconds > 0)
+
+  useEffect(() => {
+    if (!currentBook || !isCompletionVisible || typeof navigator === 'undefined') return
+
+    navigator.vibrate?.([18, 26, 18])
+  }, [currentBook, isCompletionVisible])
+
+  useEffect(() => {
+    if (!isCompletionVisible) return
+
+    const focusTimer = window.setTimeout(() => {
+      endPageInputRef.current?.focus()
+      endPageInputRef.current?.select()
+    }, 220)
+
+    return () => window.clearTimeout(focusTimer)
+  }, [isCompletionVisible])
 
   if (!currentBook) {
     return (
@@ -93,7 +115,6 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const endPage = isFormForCurrentBook ? form.endPage : currentBook.currentPage
   const sentence = isFormForCurrentBook ? form.sentence : ''
   const sentencePage = isFormForCurrentBook ? form.sentencePage : currentBook.currentPage
-  const isCompletionVisible = isCompletionOpen || (timer.status === 'completed' && timer.elapsedSeconds > 0)
   const bookProgress = Math.round((currentBook.currentPage / currentBook.totalPages) * 100)
   const isReading = timer.status === 'running'
   const readingActionLabel = timer.status === 'paused' ? '다시 시작' : '시작'
@@ -258,7 +279,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         {presets.map((preset) => (
           <button
             key={preset.seconds}
@@ -272,9 +293,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
         ))}
       </div>
 
-      {isBookModalOpen && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="책 변경">
-          <div className="modal-panel">
+      <BottomSheetModal isOpen={isBookModalOpen} ariaLabel="책 변경">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-black">읽을 책 선택</h2>
               <button type="button" className="icon-button" onClick={() => setIsBookModalOpen(false)} aria-label="닫기">
@@ -297,13 +316,9 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheetModal>
 
-      {isCompletionVisible && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="독서 완료">
-          <div className="modal-panel">
+      <BottomSheetModal isOpen={isCompletionVisible} ariaLabel="독서 완료">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-black">독서 완료</h2>
               <button type="button" className="icon-button" onClick={closeCompletion} aria-label="닫기">
@@ -340,6 +355,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
               현재 페이지
             </label>
             <input
+              ref={endPageInputRef}
               id="end-page"
               className="pixel-input"
               type="text"
@@ -350,41 +366,49 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
               onChange={(event) => updateForm({ endPage: parsePageInput(event.target.value) })}
             />
 
-            <button type="button" className="optional-sentence-toggle" onClick={() => setIsSentenceOpen((current) => !current)}>
+            <button type="button" className="optional-sentence-toggle mt-4" onClick={() => setIsSentenceOpen((current) => !current)}>
               <Icon name="quote" className="h-4 w-4" />
               {isSentenceOpen ? '문장 기록 닫기' : '기억에 남는 문장 남기기'}
             </button>
 
-            {isSentenceOpen && (
-              <div className="mt-3 border-2 border-[#2F2A26] bg-[#FCFBF7]">
-                <div className="flex items-center justify-between gap-3 border-b-2 border-[#2F2A26] bg-[#F3E8D0] px-3 py-2">
-                  <label className="text-xs font-black text-[#2F2A26]" htmlFor="sentence">
-                    선택 기록
-                  </label>
-                  <label className="flex shrink-0 items-center gap-1 text-xs font-black text-[#2F2A26]" htmlFor="sentence-page">
-                    <span>페이지</span>
-                    <input
-                      id="sentence-page"
-                      className="w-16 border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-right font-black text-stone-900 outline-none focus:bg-[#FCFBF7]"
-                      type="text"
-                      inputMode="numeric"
-                      min={1}
-                      max={currentBook.totalPages}
-                      value={sentencePage}
-                      onChange={(event) => updateForm({ sentencePage: parsePageInput(event.target.value) })}
-                    />
-                    <span>p</span>
-                  </label>
-                </div>
-                <textarea
-                  id="sentence"
-                  className="min-h-28 w-full resize-none bg-[#FCFBF7] p-3 text-sm font-bold leading-relaxed text-stone-900 outline-none focus:bg-[#FCFBF7]"
-                  placeholder="기억하고 싶은 문장을 남겨보세요."
-                  value={sentence}
-                  onChange={(event) => updateForm({ sentence: event.target.value })}
-                />
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {isSentenceOpen && (
+                <motion.div
+                  className="mt-3 overflow-hidden border-2 border-[#2F2A26] bg-[#FCFBF7]"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                >
+                  <div className="flex items-center justify-between gap-3 border-b-2 border-[#2F2A26] bg-[#F3E8D0] px-3 py-2">
+                    <label className="text-xs font-black text-[#2F2A26]" htmlFor="sentence">
+                      선택 기록
+                    </label>
+                    <label className="flex shrink-0 items-center gap-1 text-xs font-black text-[#2F2A26]" htmlFor="sentence-page">
+                      <span>페이지</span>
+                      <input
+                        id="sentence-page"
+                        className="w-16 border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-right font-black text-stone-900 outline-none focus:bg-[#FCFBF7]"
+                        type="text"
+                        inputMode="numeric"
+                        min={1}
+                        max={currentBook.totalPages}
+                        value={sentencePage}
+                        onChange={(event) => updateForm({ sentencePage: parsePageInput(event.target.value) })}
+                      />
+                      <span>p</span>
+                    </label>
+                  </div>
+                  <textarea
+                    id="sentence"
+                    className="min-h-28 w-full resize-none bg-[#FCFBF7] p-3 text-sm font-bold leading-relaxed text-stone-900 outline-none focus:bg-[#FCFBF7]"
+                    placeholder="기억하고 싶은 문장을 남겨보세요."
+                    value={sentence}
+                    onChange={(event) => updateForm({ sentence: event.target.value })}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button type="button" className="secondary-button" onClick={continueReading}>
@@ -396,9 +420,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                 {isSaving ? '저장 중' : '저장'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheetModal>
     </div>
   )
 }

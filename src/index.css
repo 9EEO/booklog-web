@@ -56,9 +56,35 @@ button {
 }
 
 .pixel-card.completed-book-card {
+  position: relative;
   overflow: hidden;
   padding: 0;
-  box-shadow: 2px 2px 0 rgba(47, 42, 38, 0.84);
+  box-shadow:
+    2px 2px 0 rgba(47, 42, 38, 0.9),
+    inset 0 -5px 0 rgba(47, 42, 38, 0.08);
+}
+
+.completed-library-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 2px solid var(--ink);
+  background: var(--paper-soft);
+  box-shadow: 2px 2px 0 rgba(47, 42, 38, 0.68);
+  padding: 10px 12px;
+}
+
+.completed-library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  border: 3px solid var(--ink);
+  background:
+    linear-gradient(180deg, transparent calc(100% - 10px), rgba(47, 42, 38, 0.2) calc(100% - 10px)),
+    var(--paper-deep);
+  box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.72);
+  padding: 6px;
 }
 
 .completed-book-card-inner {
@@ -68,10 +94,25 @@ button {
 }
 
 .completed-book-cover {
+  position: relative;
   aspect-ratio: 3 / 4;
   width: 100%;
   border-bottom: 2px solid var(--ink);
   background: var(--paper);
+}
+
+.completed-book-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  border: 2px solid var(--ink);
+  background: rgba(255, 253, 248, 0.92);
+  padding: 1px 3px;
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .completed-book-cover img {
@@ -579,7 +620,6 @@ button {
   color: rgba(21, 21, 21, 0.58);
 }
 
-
 .primary-button,
 .secondary-button,
 .danger-button,
@@ -628,8 +668,10 @@ button {
 .secondary-button:active,
 .danger-button:active,
 .preset-button:active,
-.icon-button:active {
-  transform: translate(3px, 3px);
+.tab-button:active,
+.icon-button:active,
+.mini-icon-button:active {
+  transform: translate(2px, 2px) scale(0.98);
   box-shadow: none;
 }
 
@@ -803,11 +845,12 @@ button {
   position: fixed;
   inset: 0;
   z-index: 40;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  display: grid;
+  align-items: end;
+  justify-items: center;
   background: rgba(47, 42, 38, 0.46);
-  padding: 16px;
+  padding: 0 10px max(10px, env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
 }
 
 .modal-backdrop-top {
@@ -816,13 +859,16 @@ button {
 
 .modal-panel {
   width: min(100%, 398px);
-  max-height: min(86svh, 720px);
+  max-height: calc(100svh - max(24px, env(safe-area-inset-top)));
   overflow-y: auto;
   border: 3px solid var(--ink);
-  border-radius: 8px;
+  border-radius: 18px 18px 0 0;
   background: var(--app-surface);
   box-shadow: 4px 4px 0 rgba(47, 42, 38, 0.82);
   padding: 16px;
+  margin-top: auto;
+  touch-action: pan-y;
+  will-change: transform;
 }
 
 .book-detail-panel {

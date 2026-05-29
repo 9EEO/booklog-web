@@ -11,6 +11,17 @@ const buildTime = new Date().toISOString()
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('framer-motion')) {
+            return 'motion'
+          }
+        },
+      },
+    },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
     __APP_COMMIT_SHA__: JSON.stringify(commitSha),

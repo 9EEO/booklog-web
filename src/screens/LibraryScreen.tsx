@@ -1,4 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from "react";
+import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
@@ -569,14 +570,13 @@ export const LibraryScreen = ({
         </div>
       )}
 
-      {selectedBook && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="책 상세"
-        >
-          <div className="modal-panel book-detail-panel">
+      <BottomSheetModal
+        isOpen={Boolean(selectedBook)}
+        ariaLabel="책 상세"
+        panelClassName="book-detail-panel"
+      >
+        {selectedBook && (
+          <>
             <div className="book-detail-header flex items-center justify-between gap-3">
               <MiniBook book={selectedBook} />
               <button
@@ -671,33 +671,33 @@ export const LibraryScreen = ({
                 </div>
               </div>
 
-              <div className="mt-5">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-black">최근 독서 기록</h2>
-                  <span className="text-xs font-black text-stone-500">
+              <div className="mt-4">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h2 className="text-base font-black">최근 독서 기록</h2>
+                  <span className="text-[11px] font-black text-stone-500">
                     {selectedBookStats.recordedPages}p 기록
                   </span>
                 </div>
                 {recentBookRecords.length === 0 ? (
-                  <p className="border-2 border-[#2F2A26] bg-[#F3E8D0] p-3 text-sm font-black text-stone-600">
+                  <p className="border-2 border-dashed border-stone-500 bg-[#F3E8D0] px-3 py-2 text-xs font-black text-stone-600">
                     아직 이 책의 독서 기록이 없습니다.
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="divide-y-2 divide-[#2F2A26] border-2 border-[#2F2A26] bg-[#FCFBF7]">
                     {recentBookRecords.map((record) => (
                       <div
                         key={record.id}
-                        className="border-2 border-[#2F2A26] bg-[#FCFBF7] p-3"
+                        className="grid grid-cols-[1fr_auto] items-center gap-2 px-2 py-1.5"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-black">{record.date}</p>
-                          <span className="border-2 border-[#2F2A26] bg-[#2F2A26] px-2 py-1 text-xs font-black leading-none text-[#FFFDF8]">
-                            {formatDuration(record.durationSeconds)}
+                        <p className="truncate text-xs font-black text-stone-800">
+                          {record.date}
+                          <span className="ml-2 text-stone-500">
+                            {record.startPage}p → {record.endPage}p
                           </span>
-                        </div>
-                        <p className="mt-2 text-xs font-black text-stone-500">
-                          {record.startPage}p → {record.endPage}p
                         </p>
+                        <span className="text-[11px] font-black text-[#5F6D57]">
+                          {formatDuration(record.durationSeconds)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -911,18 +911,19 @@ export const LibraryScreen = ({
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </BottomSheetModal>
 
-      {selectedBook && deleteSentence && (
-        <div
-          className="modal-backdrop modal-backdrop-top"
-          role="alertdialog"
-          aria-modal="true"
-          aria-label="문장 삭제 확인"
-        >
-          <div className="w-full max-w-[360px] border-2 border-[#2F2A26] bg-[#FCFBF7] p-4 shadow-[4px_4px_0_rgba(47,42,38,0.82)]">
+      <BottomSheetModal
+        isOpen={Boolean(selectedBook && deleteSentence)}
+        ariaLabel="문장 삭제 확인"
+        role="alertdialog"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="max-w-[360px]"
+      >
+        {deleteSentence && (
+          <>
             <div className="mb-3 flex items-center gap-2">
               <div className="grid h-10 w-10 place-items-center border-2 border-[#2F2A26] bg-[#B58A7A] text-[#FFFDF8]">
                 <Icon name="trash" className="h-5 w-5" />
@@ -957,18 +958,19 @@ export const LibraryScreen = ({
                 삭제
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </BottomSheetModal>
 
-      {deleteBook && (
-        <div
-          className="modal-backdrop modal-backdrop-top"
-          role="alertdialog"
-          aria-modal="true"
-          aria-label="책 삭제 확인"
-        >
-          <div className="w-full max-w-[360px] border-2 border-[#2F2A26] bg-[#FCFBF7] p-4 shadow-[4px_4px_0_rgba(47,42,38,0.82)]">
+      <BottomSheetModal
+        isOpen={Boolean(deleteBook)}
+        ariaLabel="책 삭제 확인"
+        role="alertdialog"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="max-w-[360px]"
+      >
+        {deleteBook && (
+          <>
             <div className="mb-3 flex items-center gap-2">
               <div className="grid h-10 w-10 place-items-center border-2 border-[#2F2A26] bg-[#B58A7A] text-[#FFFDF8]">
                 <Icon name="trash" className="h-5 w-5" />
@@ -1003,18 +1005,15 @@ export const LibraryScreen = ({
                 삭제
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </BottomSheetModal>
 
-      {isBookFormOpen && (
-        <div
-          className="modal-backdrop modal-backdrop-top"
-          role="dialog"
-          aria-modal="true"
-          aria-label="새 책 추가"
-        >
-          <div className="modal-panel">
+      <BottomSheetModal
+        isOpen={isBookFormOpen}
+        ariaLabel="새 책 추가"
+        backdropClassName="modal-backdrop-top"
+      >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <p className="pixel-label">NEW BOOK</p>
@@ -1310,9 +1309,7 @@ export const LibraryScreen = ({
                 추가
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheetModal>
     </div>
   );
 };
@@ -1327,86 +1324,111 @@ const BookShelfSection = ({
   tone,
   books,
   onSelectBook,
-}: BookShelfSectionProps) => (
-  <section>
-    {books.length === 0 ? (
-      <div className="border-2 border-dashed border-stone-500 bg-[#F3E8D0] p-4 text-center text-sm font-black text-stone-600">
-        {tone === "reading"
-          ? "읽는 중인 책이 없습니다."
-          : "완독한 책이 없습니다."}
-      </div>
-    ) : tone === "completed" ? (
-      <div className="grid grid-cols-3 gap-1.5">
-        {books.map((book) => (
-          <button
-            key={book.id}
-            type="button"
-            className="h-full w-full text-left"
-            onClick={() => onSelectBook(book.id)}
-          >
-            <PixelCard className="completed-book-card h-full bg-[#FCFBF7]">
-              <div className="completed-book-card-inner">
-                <div
-                  className="completed-book-cover"
-                  style={{ backgroundColor: book.coverColor }}
-                >
-                  {book.thumbnail ? (
-                    <img src={book.thumbnail} alt="" />
-                  ) : (
-                    <div
-                      className="h-full w-full"
-                      style={{ backgroundColor: book.accentColor }}
-                    />
-                  )}
-                </div>
-                <div className="completed-book-title-bar">
-                  <p className="completed-book-title">{book.title}</p>
-                </div>
-              </div>
-            </PixelCard>
-          </button>
-        ))}
-      </div>
-    ) : (
-      <div className="grid gap-3">
-        {books.map((book) => {
-          const progress = Math.round(
-            (book.currentPage / book.totalPages) * 100,
-          );
+}: BookShelfSectionProps) => {
+  const completedPages = books.reduce((sum, book) => sum + book.totalPages, 0);
 
-          return (
-            <button
-              key={book.id}
-              type="button"
-              className="text-left"
-              onClick={() => onSelectBook(book.id)}
-            >
-              <PixelCard
-                className={tone === "reading" ? "bg-[#FCFBF7]" : "bg-[#F3E8D0]"}
+  return (
+    <section>
+      {books.length === 0 ? (
+        <div className="border-2 border-dashed border-stone-500 bg-[#F3E8D0] p-4 text-center text-sm font-black text-stone-600">
+          {tone === "reading"
+            ? "읽는 중인 책이 없습니다."
+            : "완독한 책이 없습니다."}
+        </div>
+      ) : tone === "completed" ? (
+        <div className="space-y-3">
+          <div className="completed-library-hero">
+            <div>
+              <h2 className="text-lg font-black">완독 컬렉션</h2>
+              <p className="mt-1 text-xs font-black text-stone-500">
+                읽어낸 책들이 쌓이고 있어요.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-black">{books.length}권</p>
+              <p className="mt-1 text-xs font-black text-stone-500">
+                총 {completedPages.toLocaleString()}p
+              </p>
+            </div>
+          </div>
+          <div className="completed-library-grid">
+            {books.map((book, index) => (
+              <button
+                key={book.id}
+                type="button"
+                className="h-full w-full text-left"
+                onClick={() => onSelectBook(book.id)}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <MiniBook book={book} />
-                  <span
-                    className={`shrink-0 border-2 border-[#2F2A26] px-2 py-1 text-sm font-black ${tone === "reading" ? "bg-[#DCE3D2] text-[#5F6D57]" : "bg-[#2F2A26] text-[#FFFDF8]"}`}
-                  >
-                    {progress}%
-                  </span>
-                </div>
-                <div className="mt-3 h-3 rounded-full border-2 border-[#2F2A26] bg-[#F3E8D0]">
-                  <div
-                    className={
-                      tone === "reading"
-                        ? "h-full rounded-full bg-[#5F6D57]"
-                        : "h-full rounded-full bg-[#2F2A26]"
-                    }
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </PixelCard>
-            </button>
-          );
-        })}
-      </div>
-    )}
-  </section>
-);
+                <PixelCard className="completed-book-card h-full bg-[#FCFBF7]">
+                  <div className="completed-book-card-inner">
+                    <div
+                      className="completed-book-cover"
+                      style={{ backgroundColor: book.coverColor }}
+                    >
+                      <span className="completed-book-badge">
+                        #{index + 1}
+                      </span>
+                      {book.thumbnail ? (
+                        <img src={book.thumbnail} alt="" />
+                      ) : (
+                        <div
+                          className="h-full w-full"
+                          style={{ backgroundColor: book.accentColor }}
+                        />
+                      )}
+                    </div>
+                    <div className="completed-book-title-bar">
+                      <p className="completed-book-title">{book.title}</p>
+                    </div>
+                  </div>
+                </PixelCard>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {books.map((book) => {
+            const progress = Math.round(
+              (book.currentPage / book.totalPages) * 100,
+            );
+
+            return (
+              <button
+                key={book.id}
+                type="button"
+                className="text-left"
+                onClick={() => onSelectBook(book.id)}
+              >
+                <PixelCard
+                  className={
+                    tone === "reading" ? "bg-[#FCFBF7]" : "bg-[#F3E8D0]"
+                  }
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <MiniBook book={book} />
+                    <span
+                      className={`shrink-0 border-2 border-[#2F2A26] px-2 py-1 text-sm font-black ${tone === "reading" ? "bg-[#DCE3D2] text-[#5F6D57]" : "bg-[#2F2A26] text-[#FFFDF8]"}`}
+                    >
+                      {progress}%
+                    </span>
+                  </div>
+                  <div className="mt-3 h-3 rounded-full border-2 border-[#2F2A26] bg-[#F3E8D0]">
+                    <div
+                      className={
+                        tone === "reading"
+                          ? "h-full rounded-full bg-[#5F6D57]"
+                          : "h-full rounded-full bg-[#2F2A26]"
+                      }
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </PixelCard>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+};

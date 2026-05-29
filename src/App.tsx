@@ -409,6 +409,61 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
     }
   }
 
+  const activeScreen = (
+    <>
+      {activeTab === 'home' && (
+        <HomeScreen
+          books={books}
+          records={records}
+          currentBook={currentBook}
+          dailyGoalSeconds={dailyGoalSeconds}
+          weeklyGoalDays={weeklyGoalDays}
+          onStart={() => setActiveTab('session')}
+          onAddFirstBook={openBookFormFromHome}
+        />
+      )}
+      {activeTab === 'session' && (
+        <SessionScreen
+          books={books}
+          records={records}
+          currentBook={currentBook}
+          dailyGoalSeconds={dailyGoalSeconds}
+          timer={readingTimer}
+          onChangeBook={setCurrentBookId}
+          onSaveRecord={handleSaveRecord}
+          onGoLibrary={() => setActiveTab('library')}
+        />
+      )}
+      {activeTab === 'records' && <RecordScreen books={books} records={records} />}
+      {activeTab === 'library' && (
+        <LibraryScreen
+          key={bookFormOpenRequest}
+          books={books}
+          records={records}
+          onAddBook={handleAddBook}
+          onAddSentence={handleAddSentence}
+          onUpdateSentence={handleUpdateSentence}
+          onDeleteSentence={handleDeleteSentence}
+          onDeleteBook={handleDeleteBook}
+          onUpdateBookPage={handleUpdateBookPage}
+          shouldOpenBookForm={bookFormOpenRequest > 0 && books.length === 0}
+        />
+      )}
+      {activeTab === 'profile' && (
+        <ProfileScreen
+          userEmail={user.email ?? ''}
+          books={books}
+          records={records}
+          dailyGoalSeconds={dailyGoalSeconds}
+          weeklyGoalDays={weeklyGoalDays}
+          onAdjustDailyGoal={handleAdjustDailyGoal}
+          onAdjustWeeklyGoal={handleAdjustWeeklyGoal}
+          onSignOut={onSignOut}
+        />
+      )}
+    </>
+  )
+
   if (isDataLoading) {
     return (
       <main className="grid min-h-svh place-items-center bg-[#F8F8F5] px-4 text-stone-900">
@@ -428,56 +483,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
               {syncError}
             </div>
           )}
-          {activeTab === 'home' && (
-            <HomeScreen
-              books={books}
-              records={records}
-              currentBook={currentBook}
-              dailyGoalSeconds={dailyGoalSeconds}
-              weeklyGoalDays={weeklyGoalDays}
-              onStart={() => setActiveTab('session')}
-              onAddFirstBook={openBookFormFromHome}
-            />
-          )}
-          {activeTab === 'session' && (
-            <SessionScreen
-              books={books}
-              records={records}
-              currentBook={currentBook}
-              dailyGoalSeconds={dailyGoalSeconds}
-              timer={readingTimer}
-              onChangeBook={setCurrentBookId}
-              onSaveRecord={handleSaveRecord}
-              onGoLibrary={() => setActiveTab('library')}
-            />
-          )}
-          {activeTab === 'records' && <RecordScreen books={books} records={records} />}
-          {activeTab === 'library' && (
-            <LibraryScreen
-              key={bookFormOpenRequest}
-              books={books}
-              records={records}
-              onAddBook={handleAddBook}
-              onAddSentence={handleAddSentence}
-              onUpdateSentence={handleUpdateSentence}
-              onDeleteSentence={handleDeleteSentence}
-              onDeleteBook={handleDeleteBook}
-              onUpdateBookPage={handleUpdateBookPage}
-              shouldOpenBookForm={bookFormOpenRequest > 0 && books.length === 0}
-            />
-          )}
-          {activeTab === 'profile' && (
-            <ProfileScreen
-              userEmail={user.email ?? ''}
-              books={books}
-              records={records}
-              dailyGoalSeconds={dailyGoalSeconds}
-              weeklyGoalDays={weeklyGoalDays}
-              onAdjustDailyGoal={handleAdjustDailyGoal}
-              onAdjustWeeklyGoal={handleAdjustWeeklyGoal}
-              onSignOut={onSignOut}
-            />
-          )}
+          {activeScreen}
         </div>
         <BottomTabs activeTab={activeTab} onChange={setActiveTab} />
       </div>
