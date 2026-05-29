@@ -10,6 +10,7 @@ import { useBackNavigationLayer } from '../hooks/useBackNavigationLayer'
 import type { ReadingTimer } from '../hooks/useReadingTimer'
 import type { Book, ReadingCompletionInput, ReadingRecord } from '../types/reading'
 import { formatDuration } from '../utils/formatDuration'
+import { vibrateSelect, vibrateSuccess, vibrateTap, vibrateWarning } from '../utils/haptics'
 import { parsePageInput } from '../utils/pageInput'
 
 type SessionScreenProps = {
@@ -77,9 +78,9 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const isCompletionVisible = isCompletionOpen || (timer.status === 'completed' && timer.elapsedSeconds > 0)
 
   useEffect(() => {
-    if (!currentBook || !isCompletionVisible || typeof navigator === 'undefined') return
+    if (!currentBook || !isCompletionVisible) return
 
-    navigator.vibrate?.([18, 26, 18])
+    vibrateSuccess()
   }, [currentBook, isCompletionVisible])
 
   useEffect(() => {
@@ -142,6 +143,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
 
   const openCompletion = () => {
     if (timer.elapsedSeconds === 0) return
+    vibrateWarning()
     timer.complete()
     setIsCompletionOpen(true)
   }
@@ -179,6 +181,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   }
 
   const continueReading = () => {
+    vibrateTap()
     setIsCompletionOpen(false)
     timer.resume()
   }
@@ -204,7 +207,15 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                 </div>
                 <p className="session-book-author mt-1 truncate text-xs font-bold">{currentBook.author}</p>
               </div>
-              <button type="button" className="session-book-swap" onClick={() => setIsBookModalOpen(true)} aria-label="책 변경">
+              <button
+                type="button"
+                className="session-book-swap"
+                onClick={() => {
+                  vibrateTap()
+                  setIsBookModalOpen(true)
+                }}
+                aria-label="책 변경"
+              >
                 <Icon name="swap" className="h-4 w-4" />
               </button>
             </div>
@@ -235,7 +246,14 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
               <button
                 type="button"
                 className={`session-control-button ${isReading ? 'secondary-button' : 'primary-button'}`}
-                onClick={isReading ? timer.pause : timer.start}
+                onClick={() => {
+                  vibrateTap()
+                  if (isReading) {
+                    timer.pause()
+                  } else {
+                    timer.start()
+                  }
+                }}
                 aria-label={isReading ? '일시정지' : readingActionLabel}
               >
                 <Icon name={isReading ? 'pause' : 'play'} className="h-8 w-8" />
@@ -258,7 +276,10 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
         <button
           type="button"
           className="target-step-button"
-          onClick={() => timer.adjustTarget(-5 * 60)}
+          onClick={() => {
+            vibrateTap()
+            timer.adjustTarget(-5 * 60)
+          }}
           disabled={isReading || !canDecreaseTarget}
           aria-label="목표 시간 5분 줄이기"
         >
@@ -271,7 +292,10 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
         <button
           type="button"
           className="target-step-button"
-          onClick={() => timer.adjustTarget(5 * 60)}
+          onClick={() => {
+            vibrateTap()
+            timer.adjustTarget(5 * 60)
+          }}
           disabled={isReading || !canIncreaseTarget}
           aria-label="목표 시간 5분 늘리기"
         >
@@ -285,7 +309,10 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
             key={preset.seconds}
             type="button"
             className={`preset-button ${timer.targetSeconds === preset.seconds ? 'preset-button-active' : ''}`}
-            onClick={() => timer.setPreset(preset.seconds)}
+            onClick={() => {
+              vibrateSelect()
+              timer.setPreset(preset.seconds)
+            }}
             disabled={isReading}
           >
             {preset.label}
@@ -307,6 +334,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                   type="button"
                   className="w-full border-2 border-[#2F2A26] bg-[#FCFBF7] p-3 shadow-pixel transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none"
                   onClick={() => {
+                    vibrateSelect()
                     onChangeBook(book.id)
                     setIsBookModalOpen(false)
                     timer.reset()
@@ -415,7 +443,15 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                 <Icon name="play" className="h-5 w-5" />
                 이어서 독서
               </button>
-              <button type="button" className="primary-button" onClick={() => void saveCompletion()} disabled={isSaving}>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  vibrateSelect()
+                  void saveCompletion()
+                }}
+                disabled={isSaving}
+              >
                 <Icon name="save" className="h-5 w-5" />
                 {isSaving ? '저장 중' : '저장'}
               </button>
