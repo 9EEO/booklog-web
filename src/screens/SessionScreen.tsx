@@ -8,6 +8,7 @@ import focusSprout from '../assets/focus-sprout.gif'
 import focusSproutStill from '../assets/focus-sprout-still.png'
 import { useBackNavigationLayer } from '../hooks/useBackNavigationLayer'
 import type { ReadingTimer } from '../hooks/useReadingTimer'
+import { useTimerCompletionSound } from '../hooks/useTimerCompletionSound'
 import type { Book, ReadingCompletionInput, ReadingRecord } from '../types/reading'
 import { formatDuration } from '../utils/formatDuration'
 import { vibrateSelect, vibrateSuccess, vibrateTap, vibrateWarning } from '../utils/haptics'
@@ -61,6 +62,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
     sentence: '',
     sentencePage: currentBook?.currentPage ?? 1,
   })
+  const timerCompletionSound = useTimerCompletionSound(timer.status)
 
   useBackNavigationLayer(isBookModalOpen, () => setIsBookModalOpen(false), 'session-book-modal')
   useBackNavigationLayer(
@@ -144,6 +146,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const openCompletion = () => {
     if (timer.elapsedSeconds === 0) return
     vibrateWarning()
+    timerCompletionSound.suppressNextCompletionSound()
     timer.complete()
     setIsCompletionOpen(true)
   }
@@ -182,6 +185,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
 
   const continueReading = () => {
     vibrateTap()
+    timerCompletionSound.prepare()
     setIsCompletionOpen(false)
     timer.resume()
   }
@@ -251,6 +255,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                   if (isReading) {
                     timer.pause()
                   } else {
+                    timerCompletionSound.prepare()
                     timer.start()
                   }
                 }}
