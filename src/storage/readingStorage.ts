@@ -1,11 +1,13 @@
 import type { Book, ReadingRecord, TabKey } from '../types/reading'
 import type { TimerStatus } from '../hooks/useReadingTimer'
+import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
 export type StoredReadingTimer = {
   elapsedSeconds: number
   targetSeconds: number
   status: TimerStatus
   startedAt?: number
+  sessionStartedAt?: number
   baseElapsedSeconds?: number
 }
 
@@ -15,6 +17,7 @@ export type ReadingStorageSnapshot = {
   currentBookId: string
   dailyGoalSeconds: number
   weeklyGoalDays: number
+  tierBoard: TierBoard
   readingTimer: StoredReadingTimer
 }
 
@@ -29,6 +32,7 @@ export const readingStorageKeys = {
   currentBookId: 'booklog-current-book-id',
   dailyGoalSeconds: 'booklog-daily-goal-seconds',
   weeklyGoalDays: 'booklog-weekly-goal-days',
+  tierBoard: 'booklog-tier-board',
   readingTimer: 'booklog-reading-timer',
 } as const
 
@@ -144,6 +148,14 @@ export const getInitialWeeklyGoalDays = () => {
 
 export const saveWeeklyGoalDays = (days: number) => {
   writeLocalStorage(readingStorageKeys.weeklyGoalDays, days)
+}
+
+export const getInitialTierBoard = () => {
+  return normalizeTierBoard(readLocalStorage<unknown>(readingStorageKeys.tierBoard, createEmptyTierBoard()))
+}
+
+export const saveTierBoard = (tierBoard: TierBoard) => {
+  writeLocalStorage(readingStorageKeys.tierBoard, normalizeTierBoard(tierBoard))
 }
 
 export const getStoredReadingTimer = (initialTargetSeconds: number): StoredReadingTimer => {

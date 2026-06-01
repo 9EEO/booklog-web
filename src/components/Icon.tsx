@@ -17,6 +17,9 @@ export type IconName =
   | 'quote'
   | 'check'
   | 'book'
+  | 'calendar'
+  | 'chevronLeft'
+  | 'chevronRight'
   | 'edit'
   | 'trash'
   | 'plus'
@@ -44,6 +47,9 @@ const paths: Record<IconName, ReactNode> = {
   quote: <path d="M7 6h6v6H9v6H5v-8c0-2.2.8-3.5 2-4Zm9 0h6v6h-4v6h-4v-8c0-2.2.8-3.5 2-4Z" />,
   check: <path d="m9.5 16.2-4.2-4.1L4 13.5 9.5 19 20.4 8.1 19 6.7 9.5 16.2Z" />,
   book: <path d="M5 4h9a4 4 0 0 1 4 4v12h-9a4 4 0 0 0-4-4V4Zm2 2v9.1c.6-.5 1.3-.8 2-.9V6H7Zm4 0v12h5V8a2 2 0 0 0-2-2h-3Z" />,
+  calendar: <path d="M7 2h2v3h6V2h2v3h3v17H4V5h3V2Zm11 8H6v10h12V10ZM6 8h12V7h-1v1h-2V7H9v1H7V7H6v1Zm2 4h2v2H8v-2Zm4 0h2v2h-2v-2Zm4 0h1v2h-1v-2Zm-8 4h2v2H8v-2Zm4 0h2v2h-2v-2Z" />,
+  chevronLeft: <path d="m14.6 5 1.4 1.4L10.4 12l5.6 5.6-1.4 1.4-7-7 7-7Z" />,
+  chevronRight: <path d="M9.4 19 8 17.6l5.6-5.6L8 6.4 9.4 5l7 7-7 7Z" />,
   edit: <path d="M5 17.2V20h2.8L18.5 9.3l-2.8-2.8L5 17.2Zm2 0 8.7-8.7.8.8L7.8 18H7v-.8ZM17.1 5.1l1.4-1.4c.4-.4 1-.4 1.4 0l.4.4c.4.4.4 1 0 1.4l-1.4 1.4-1.8-1.8ZM4 4h9v2H6v12h12v-7h2v9H4V4Z" />,
   trash: <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 12H7.7L7 9Zm2.1 2 .5 8h4.8l.5-8H9.1Zm1.4 1h2v6h-2v-6Z" />,
   plus: <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />,

@@ -1,6 +1,7 @@
 import { defaultDailyGoalSeconds, defaultWeeklyGoalDays } from '../storage/readingStorage'
 import { requireSupabase } from './supabase'
 import type { Book, BookStatus, Highlight, NewBookInput, ReadingRecord } from '../types/reading'
+import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
 type BookRow = {
   id: string
@@ -33,6 +34,8 @@ type ReadingRecordRow = {
   book_id: string
   book_title: string | null
   read_date: string
+  session_started_at?: string | null
+  session_ended_at?: string | null
   duration_seconds: number
   start_page: number
   end_page: number
@@ -45,6 +48,7 @@ type ReadingSettingsRow = {
   current_book_id: string | null
   daily_goal_seconds: number | null
   weekly_goal_days: number | null
+  tier_board?: unknown
 }
 
 export type ReadingSnapshot = {
@@ -53,6 +57,7 @@ export type ReadingSnapshot = {
   currentBookId: string
   dailyGoalSeconds: number
   weeklyGoalDays: number
+  tierBoard: TierBoard
 }
 
 const normalizeDate = (value: string) => value.replace(/-/g, '.')
@@ -86,6 +91,8 @@ const mapRecordRow = (row: ReadingRecordRow): ReadingRecord => ({
   bookId: row.book_id,
   bookTitle: row.book_title ?? '제목 없음',
   date: normalizeDate(row.read_date),
+  startedAt: row.session_started_at ?? undefined,
+  endedAt: row.session_ended_at ?? undefined,
   durationSeconds: row.duration_seconds,
   startPage: row.start_page,
   endPage: row.end_page,
@@ -108,6 +115,7 @@ const buildSnapshot = (books: BookRow[], records: ReadingRecordRow[], highlights
     currentBookId: settings?.current_book_id ?? '',
     dailyGoalSeconds: settings?.daily_goal_seconds ?? defaultDailyGoalSeconds,
     weeklyGoalDays: settings?.weekly_goal_days ?? defaultWeeklyGoalDays,
+    tierBoard: normalizeTierBoard(settings?.tier_board ?? createEmptyTierBoard()),
   }
 }
 
@@ -134,13 +142,17 @@ export const fetchReadingSnapshot = async (userId: string): Promise<ReadingSnaps
   )
 }
 
-export const saveReadingSettings = async (userId: string, input: { currentBookId: string; dailyGoalSeconds: number; weeklyGoalDays: number }) => {
+export const saveReadingSettings = async (
+  userId: string,
+  input: { currentBookId: string; dailyGoalSeconds: number; weeklyGoalDays: number; tierBoard: TierBoard },
+) => {
   const supabase = requireSupabase()
   const { error } = await supabase.from('reading_settings').upsert({
     user_id: userId,
     current_book_id: input.currentBookId || null,
     daily_goal_seconds: input.dailyGoalSeconds,
     weekly_goal_days: input.weeklyGoalDays,
+    tier_board: normalizeTierBoard(input.tierBoard),
   })
 
   if (error) throw error
@@ -183,6 +195,8 @@ export const createRemoteRecord = async (
     bookId: string
     bookTitle: string
     date: string
+    startedAt?: string
+    endedAt?: string
     durationSeconds: number
     startPage: number
     endPage: number
@@ -198,6 +212,8 @@ export const createRemoteRecord = async (
       book_id: input.bookId,
       book_title: input.bookTitle,
       read_date: toDbDate(input.date),
+      session_started_at: input.startedAt ?? null,
+      session_ended_at: input.endedAt ?? null,
       duration_seconds: input.durationSeconds,
       start_page: input.startPage,
       end_page: input.endPage,
@@ -349,6 +365,8 @@ export const migrateLocalSnapshotToSupabase = async (
       bookId: mappedBookId,
       bookTitle: record.bookTitle,
       date: record.date,
+      startedAt: record.startedAt,
+      endedAt: record.endedAt,
       durationSeconds: record.durationSeconds,
       startPage: record.startPage,
       endPage: record.endPage,
@@ -360,10 +378,20 @@ export const migrateLocalSnapshotToSupabase = async (
   }
 
   const mappedCurrentBookId = bookIdMap.get(snapshot.currentBookId) ?? migratedBooks[0]?.id ?? ''
+  const migratedTierBoard = normalizeTierBoard(
+    Object.fromEntries(
+      Object.entries(snapshot.tierBoard).map(([tier, bookIds]) => [
+        tier,
+        bookIds.map((bookId) => bookIdMap.get(bookId)).filter((bookId): bookId is string => Boolean(bookId)),
+      ]),
+    ),
+  )
+
   await saveReadingSettings(userId, {
     currentBookId: mappedCurrentBookId,
     dailyGoalSeconds: snapshot.dailyGoalSeconds,
     weeklyGoalDays: snapshot.weeklyGoalDays,
+    tierBoard: migratedTierBoard,
   })
 
   return {
@@ -372,5 +400,6 @@ export const migrateLocalSnapshotToSupabase = async (
     currentBookId: mappedCurrentBookId,
     dailyGoalSeconds: snapshot.dailyGoalSeconds,
     weeklyGoalDays: snapshot.weeklyGoalDays,
+    tierBoard: migratedTierBoard,
   } satisfies ReadingSnapshot
 }

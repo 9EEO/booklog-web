@@ -33,6 +33,10 @@ const presets = [
   { label: '60분', seconds: 60 * 60 },
 ]
 
+const extensionStepSeconds = 5 * 60
+const minimumExtensionSeconds = 5 * 60
+const maximumExtensionSeconds = 60 * 60
+
 const formatFocusTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
   const remain = seconds % 60
@@ -55,6 +59,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const [isCompletionOpen, setIsCompletionOpen] = useState(false)
   const [isSentenceOpen, setIsSentenceOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [extensionSeconds, setExtensionSeconds] = useState(minimumExtensionSeconds)
   const endPageInputRef = useRef<HTMLInputElement | null>(null)
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? '',
@@ -70,7 +75,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
     () => {
       setIsCompletionOpen(false)
       if (timer.status === 'completed') {
-        timer.reset()
+        timer.cancelCompletion()
       }
     },
     'session-completion',
@@ -125,6 +130,8 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const minimumTargetSeconds = timer.status === 'paused' ? Math.min(Math.max(timer.elapsedSeconds, 5 * 60), 120 * 60) : 5 * 60
   const canDecreaseTarget = timer.targetSeconds > minimumTargetSeconds
   const canIncreaseTarget = targetMinutes < 120
+  const canDecreaseExtension = extensionSeconds > minimumExtensionSeconds
+  const canIncreaseExtension = extensionSeconds < maximumExtensionSeconds
   const todaySeconds = records
     .filter((record) => record.date === todayLabel())
     .reduce((sum, record) => sum + record.durationSeconds, 0)
@@ -157,8 +164,13 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
     setIsSaving(true)
 
     try {
+      const endedAt = new Date()
+      const startedAt = new Date(timer.sessionStartedAt ?? endedAt.getTime() - Math.max(timer.elapsedSeconds, 1) * 1000)
+
       await onSaveRecord({
         durationSeconds: Math.max(timer.elapsedSeconds, 1),
+        startedAt: startedAt.toISOString(),
+        endedAt: endedAt.toISOString(),
         endPage,
         sentence,
         sentencePage: sentence.trim() ? sentencePage : undefined,
@@ -179,7 +191,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const closeCompletion = () => {
     setIsCompletionOpen(false)
     if (timer.status === 'completed') {
-      timer.reset()
+      timer.cancelCompletion()
     }
   }
 
@@ -187,7 +199,12 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
     vibrateTap()
     timerCompletionSound.prepare()
     setIsCompletionOpen(false)
-    timer.resume()
+    timer.extendAndResume(extensionSeconds)
+  }
+
+  const adjustExtension = (deltaSeconds: number) => {
+    vibrateSelect()
+    setExtensionSeconds((current) => Math.min(Math.max(current + deltaSeconds, minimumExtensionSeconds), maximumExtensionSeconds))
   }
 
   return (
@@ -443,7 +460,38 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
               )}
             </AnimatePresence>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-black text-stone-600">추가 독서</p>
+                <p className="text-sm font-black text-[#5F6D57]">+{Math.round(extensionSeconds / 60)}분</p>
+              </div>
+              <div className="target-stepper">
+                <button
+                  type="button"
+                  className="target-step-button"
+                  onClick={() => adjustExtension(-extensionStepSeconds)}
+                  disabled={!canDecreaseExtension}
+                  aria-label="추가 독서 5분 줄이기"
+                >
+                  <Icon name="minus" className="h-5 w-5" />
+                </button>
+                <div className="target-step-value" aria-live="polite">
+                  <span>연장</span>
+                  <strong>{Math.round(extensionSeconds / 60)}분</strong>
+                </div>
+                <button
+                  type="button"
+                  className="target-step-button"
+                  onClick={() => adjustExtension(extensionStepSeconds)}
+                  disabled={!canIncreaseExtension}
+                  aria-label="추가 독서 5분 늘리기"
+                >
+                  <Icon name="plus" className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" className="secondary-button" onClick={continueReading}>
                 <Icon name="play" className="h-5 w-5" />
                 이어서 독서

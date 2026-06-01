@@ -30,6 +30,8 @@ export type ReadingRecord = {
   bookId: string
   bookTitle: string
   date: string
+  startedAt?: string
+  endedAt?: string
   durationSeconds: number
   startPage: number
   endPage: number
@@ -39,6 +41,8 @@ export type ReadingRecord = {
 
 export type ReadingCompletionInput = {
   durationSeconds: number
+  startedAt?: string
+  endedAt?: string
   endPage: number
   sentence?: string
   sentencePage?: number

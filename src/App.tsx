@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type SetStateAction } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { BottomTabs } from './components/BottomTabs'
 import { useAuth } from './hooks/useAuth'
@@ -29,6 +29,7 @@ import {
   getInitialCurrentBookId,
   getInitialDailyGoalSeconds,
   getInitialRecords,
+  getInitialTierBoard,
   getInitialWeeklyGoalDays,
   getStoredDataOwnerUserId,
   saveActiveTab,
@@ -37,9 +38,11 @@ import {
   saveCurrentBookId,
   saveDailyGoalSeconds,
   saveRecords,
+  saveTierBoard,
   saveWeeklyGoalDays,
 } from './storage/readingStorage'
 import type { Book, NewBookInput, ReadingCompletionInput, ReadingRecord, TabKey } from './types/reading'
+import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from './types/tier'
 
 const todayLabel = () =>
   new Intl.DateTimeFormat('ko-KR', {
@@ -66,6 +69,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   const [currentBookId, setCurrentBookId] = useState(() => getInitialCurrentBookId(getInitialBooks()))
   const [dailyGoalSeconds, setDailyGoalSeconds] = useState(getInitialDailyGoalSeconds)
   const [weeklyGoalDays, setWeeklyGoalDays] = useState(getInitialWeeklyGoalDays)
+  const [tierBoard, setTierBoard] = useState<TierBoard>(getInitialTierBoard)
   const [bookFormOpenRequest, setBookFormOpenRequest] = useState(0)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [syncError, setSyncError] = useState<string | null>(null)
@@ -105,6 +109,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           currentBookId: getInitialCurrentBookId(getInitialBooks()),
           dailyGoalSeconds: getInitialDailyGoalSeconds(),
           weeklyGoalDays: getInitialWeeklyGoalDays(),
+          tierBoard: getInitialTierBoard(),
         }
         const localDataOwnerUserId = getStoredDataOwnerUserId()
 
@@ -113,14 +118,16 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           remoteSnapshot.records.length > 0 ||
           remoteSnapshot.currentBookId.length > 0 ||
           remoteSnapshot.dailyGoalSeconds !== defaultDailyGoalSeconds ||
-          remoteSnapshot.weeklyGoalDays !== defaultWeeklyGoalDays
+          remoteSnapshot.weeklyGoalDays !== defaultWeeklyGoalDays ||
+          Object.values(remoteSnapshot.tierBoard).some((bookIds) => bookIds.length > 0)
 
         const hasLocalData =
           localSnapshot.books.length > 0 ||
           localSnapshot.records.length > 0 ||
           localSnapshot.currentBookId.length > 0 ||
           localSnapshot.dailyGoalSeconds !== defaultDailyGoalSeconds ||
-          localSnapshot.weeklyGoalDays !== defaultWeeklyGoalDays
+          localSnapshot.weeklyGoalDays !== defaultWeeklyGoalDays ||
+          Object.values(localSnapshot.tierBoard).some((bookIds) => bookIds.length > 0)
 
         const nextSnapshot =
           !hasRemoteData && hasLocalData && localDataOwnerUserId === user.id
@@ -134,6 +141,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
         setCurrentBookId(nextSnapshot.currentBookId || getInitialCurrentBookId(nextSnapshot.books))
         setDailyGoalSeconds(nextSnapshot.dailyGoalSeconds)
         setWeeklyGoalDays(nextSnapshot.weeklyGoalDays)
+        setTierBoard(nextSnapshot.tierBoard)
       } catch (error) {
         if (!isMounted) return
 
@@ -175,16 +183,21 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   }, [weeklyGoalDays])
 
   useEffect(() => {
+    saveTierBoard(tierBoard)
+  }, [tierBoard])
+
+  useEffect(() => {
     if (isDataLoading) return
 
     void saveReadingSettings(user.id, {
       currentBookId,
       dailyGoalSeconds,
       weeklyGoalDays,
+      tierBoard,
     }).catch((error) => {
       setSyncError(error instanceof Error ? error.message : '설정을 저장하지 못했습니다.')
     })
-  }, [currentBookId, dailyGoalSeconds, weeklyGoalDays, isDataLoading, user.id])
+  }, [currentBookId, dailyGoalSeconds, weeklyGoalDays, isDataLoading, tierBoard, user.id])
 
   const handleAdjustDailyGoal = (deltaSeconds: number) => {
     setDailyGoalSeconds((current) => Math.min(Math.max(current + deltaSeconds, 5 * 60), 180 * 60))
@@ -197,6 +210,14 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   const openBookFormFromHome = () => {
     setActiveTab('library')
     setBookFormOpenRequest((current) => current + 1)
+  }
+
+  const handleChangeTierBoard = (nextTierBoard: SetStateAction<TierBoard>) => {
+    setTierBoard((current) => {
+      const next = typeof nextTierBoard === 'function' ? nextTierBoard(current) : nextTierBoard
+
+      return normalizeTierBoard(next)
+    })
   }
 
   const handleSaveRecord = async (input: ReadingCompletionInput) => {
@@ -213,6 +234,8 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
         bookId: currentBook.id,
         bookTitle: currentBook.title,
         date,
+        startedAt: input.startedAt,
+        endedAt: input.endedAt,
         durationSeconds: input.durationSeconds,
         startPage,
         endPage,
@@ -404,6 +427,16 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
         setCurrentBookId(nextBook?.id ?? '')
         readingTimer.reset()
       }
+
+      setTierBoard((current) => {
+        const next = createEmptyTierBoard()
+
+        Object.entries(current).forEach(([tier, bookIds]) => {
+          next[tier as keyof TierBoard] = bookIds.filter((id) => id !== bookId)
+        })
+
+        return next
+      })
     } catch (error) {
       handleSyncFailure(error, '책을 삭제하지 못했습니다.')
     }
@@ -440,6 +473,8 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           key={bookFormOpenRequest}
           books={books}
           records={records}
+          tierBoard={tierBoard}
+          onChangeTierBoard={handleChangeTierBoard}
           onAddBook={handleAddBook}
           onAddSentence={handleAddSentence}
           onUpdateSentence={handleUpdateSentence}

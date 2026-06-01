@@ -1,4 +1,11 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
@@ -13,7 +20,7 @@ import type {
 } from "../types/reading";
 import { formatDuration } from "../utils/formatDuration";
 import { parsePageInput } from "../utils/pageInput";
-import { createEmptyTierBoard, type TierBoard } from "../types/tier";
+import type { TierBoard } from "../types/tier";
 
 const TierMakerScreen = lazy(() =>
   import("./TierMakerScreen").then((module) => ({
@@ -24,6 +31,8 @@ const TierMakerScreen = lazy(() =>
 type LibraryScreenProps = {
   books: Book[];
   records: ReadingRecord[];
+  tierBoard: TierBoard;
+  onChangeTierBoard: Dispatch<SetStateAction<TierBoard>>;
   onAddBook: (input: NewBookInput) => Promise<string>;
   onAddSentence: (bookId: string, text: string, page: number) => Promise<void>;
   onUpdateSentence: (
@@ -94,6 +103,8 @@ const toDateTime = (dateLabel: string) => {
 export const LibraryScreen = ({
   books,
   records,
+  tierBoard,
+  onChangeTierBoard,
   onAddBook,
   onAddSentence,
   onUpdateSentence,
@@ -128,7 +139,6 @@ export const LibraryScreen = ({
   const [isMutating, setIsMutating] = useState(false);
   const [activeShelfTab, setActiveShelfTab] = useState<ShelfTab>("reading");
   const [libraryView, setLibraryView] = useState<LibraryView>("shelf");
-  const [tierBoard, setTierBoard] = useState<TierBoard>(createEmptyTierBoard);
   const selectedBook = selectedBookId
     ? books.find((book) => book.id === selectedBookId)
     : null;
@@ -524,7 +534,7 @@ export const LibraryScreen = ({
           <TierMakerScreen
             books={completedBooks}
             board={tierBoard}
-            onChangeBoard={setTierBoard}
+            onChangeBoard={onChangeTierBoard}
           />
         </Suspense>
       ) : (
