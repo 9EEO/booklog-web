@@ -124,6 +124,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const sentence = isFormForCurrentBook ? form.sentence : ''
   const sentencePage = isFormForCurrentBook ? form.sentencePage : currentBook.currentPage
   const bookProgress = Math.round((currentBook.currentPage / currentBook.totalPages) * 100)
+  const roundLabel = currentBook.activeRoundNumber && currentBook.activeRoundNumber > 1 ? `${currentBook.activeRoundNumber}회독` : '1회독'
   const isReading = timer.status === 'running'
   const readingActionLabel = timer.status === 'paused' ? '다시 시작' : '시작'
   const targetMinutes = Math.round(timer.targetSeconds / 60)
@@ -227,6 +228,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                   <p className="session-book-title truncate text-sm font-black">{currentBook.title}</p>
                 </div>
                 <p className="session-book-author mt-1 truncate text-xs font-bold">{currentBook.author}</p>
+                <p className="mt-1 text-[11px] font-black text-[#5F6D57]">{roundLabel}</p>
               </div>
               <button
                 type="button"

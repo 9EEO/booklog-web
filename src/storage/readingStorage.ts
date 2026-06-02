@@ -1,4 +1,4 @@
-import type { Book, ReadingRecord, TabKey } from '../types/reading'
+import type { Book, ReadingRecord, ReadingRound, TabKey } from '../types/reading'
 import type { TimerStatus } from '../hooks/useReadingTimer'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
@@ -58,6 +58,42 @@ const writeLocalStorage = (key: string, value: unknown) => {
   }
 }
 
+const normalizeStoredBook = (book: Book): Book => {
+  const storedRounds = Array.isArray(book.rounds) ? book.rounds : []
+  const fallbackRound: ReadingRound = {
+    id: book.activeRoundId || `${book.id}-round-1`,
+    bookId: book.id,
+    roundNumber: book.activeRoundNumber ?? 1,
+    status: book.status,
+    currentPage: book.currentPage,
+    startedAt: book.startedAt,
+    completedAt: book.completedAt,
+    accumulatedSeconds: book.accumulatedSeconds,
+  }
+  const rounds = storedRounds.length > 0 ? storedRounds : [fallbackRound]
+  const activeRound =
+    rounds.find((round) => round.id === book.activeRoundId) ??
+    rounds.find((round) => round.status === 'reading') ??
+    [...rounds].sort((left, right) => right.roundNumber - left.roundNumber)[0] ??
+    fallbackRound
+
+  return {
+    ...book,
+    currentPage: activeRound.currentPage,
+    status: activeRound.status,
+    accumulatedSeconds: activeRound.accumulatedSeconds,
+    completedAt: activeRound.completedAt ?? book.completedAt,
+    rounds,
+    activeRoundId: activeRound.id,
+    activeRoundNumber: activeRound.roundNumber,
+  }
+}
+
+const normalizeStoredRecord = (record: ReadingRecord): ReadingRecord => ({
+  ...record,
+  roundNumber: record.roundNumber ?? 1,
+})
+
 export const getInitialActiveTab = (): TabKey => {
   if (typeof window === 'undefined') return 'home'
 
@@ -95,7 +131,7 @@ export const saveDataOwnerUserId = (userId: string) => {
 export const getInitialBooks = () => {
   const storedBooks = readLocalStorage<Book[]>(readingStorageKeys.books, [])
 
-  return Array.isArray(storedBooks) ? storedBooks : []
+  return Array.isArray(storedBooks) ? storedBooks.map(normalizeStoredBook) : []
 }
 
 export const saveBooks = (books: Book[]) => {
@@ -105,7 +141,7 @@ export const saveBooks = (books: Book[]) => {
 export const getInitialRecords = () => {
   const storedRecords = readLocalStorage<ReadingRecord[]>(readingStorageKeys.records, [])
 
-  return Array.isArray(storedRecords) ? storedRecords : []
+  return Array.isArray(storedRecords) ? storedRecords.map(normalizeStoredRecord) : []
 }
 
 export const saveRecords = (records: ReadingRecord[]) => {

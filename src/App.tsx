@@ -12,14 +12,20 @@ import { SessionScreen } from './screens/SessionScreen'
 import {
   createRemoteBook,
   createRemoteHighlight,
+  createRemoteReadingRound,
   createRemoteRecord,
   deleteRemoteBook,
   deleteRemoteHighlight,
+  deleteRemoteReadingRound,
+  deleteRemoteRecord,
+  deleteRemoteRecordsByRound,
   fetchReadingSnapshot,
   migrateLocalSnapshotToSupabase,
   saveReadingSettings,
   updateRemoteBook,
   updateRemoteHighlight,
+  updateRemoteReadingRound,
+  updateRemoteRecord,
 } from './services/readingSync'
 import {
   defaultDailyGoalSeconds,
@@ -41,7 +47,7 @@ import {
   saveTierBoard,
   saveWeeklyGoalDays,
 } from './storage/readingStorage'
-import type { Book, NewBookInput, ReadingCompletionInput, ReadingRecord, TabKey } from './types/reading'
+import type { Book, BookStatus, NewBookInput, ReadingCompletionInput, ReadingRecord, ReadingRecordUpdateInput, ReadingRound, TabKey } from './types/reading'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from './types/tier'
 
 const todayLabel = () =>
@@ -61,6 +67,85 @@ const bookPalettes = [
   { coverColor: '#b5895a', accentColor: '#f5e3bd' },
   { coverColor: '#5f6f52', accentColor: '#d7e09d' },
 ]
+
+const clampNumber = (value: number, min: number, max: number) => Math.min(Math.max(Math.floor(value) || min, min), max)
+
+const sortRecordsByRecent = (nextRecords: ReadingRecord[]) =>
+  [...nextRecords].sort((left, right) => right.date.localeCompare(left.date) || right.id.localeCompare(left.id))
+
+const addSecondsToIsoDate = (isoDate: string | undefined, seconds: number) => {
+  if (!isoDate) return undefined
+
+  const startedAt = new Date(isoDate)
+  if (!Number.isFinite(startedAt.getTime())) return undefined
+
+  return new Date(startedAt.getTime() + seconds * 1000).toISOString()
+}
+
+const findHighlightForRecord = (book: Book, record: ReadingRecord) => {
+  if (!record.sentence) return undefined
+
+  const sentencePage = record.sentencePage ?? record.endPage
+
+  return book.sentences.find(
+    (sentence) => sentence.text === record.sentence && sentence.page === sentencePage && sentence.recordedAt === record.date,
+  )
+}
+
+const getBookRounds = (book: Book) => book.rounds ?? []
+
+const getActiveRound = (book: Book) =>
+  getBookRounds(book).find((round) => round.id === book.activeRoundId) ??
+  getBookRounds(book).find((round) => round.status === 'reading') ??
+  [...getBookRounds(book)].sort((left, right) => right.roundNumber - left.roundNumber)[0]
+
+const getNextRoundNumber = (book: Book) => Math.max(0, ...getBookRounds(book).map((round) => round.roundNumber)) + 1
+
+const applyActiveRoundToBook = (book: Book, round: ReadingRound): Book => {
+  const rounds = getBookRounds(book).map((item) => (item.id === round.id ? round : item))
+  const nextRounds = rounds.some((item) => item.id === round.id) ? rounds : [...rounds, round]
+  const latestCompletedAt =
+    [...nextRounds]
+      .reverse()
+      .find((item) => item.completedAt)?.completedAt ?? book.completedAt
+
+  return {
+    ...book,
+    currentPage: round.currentPage,
+    accumulatedSeconds: round.accumulatedSeconds,
+    status: round.status,
+    completedAt: round.completedAt ?? latestCompletedAt,
+    rounds: nextRounds.sort((left, right) => left.roundNumber - right.roundNumber),
+    activeRoundId: round.id,
+    activeRoundNumber: round.roundNumber,
+  }
+}
+
+const replaceBookRound = (book: Book, round: ReadingRound): Book => ({
+  ...book,
+  rounds: getBookRounds(book)
+    .map((item) => (item.id === round.id ? round : item))
+    .sort((left, right) => left.roundNumber - right.roundNumber),
+})
+
+const removeBookRound = (book: Book, roundId: string, nextActiveRound: ReadingRound): Book => {
+  const nextRounds = getBookRounds(book).filter((round) => round.id !== roundId)
+  const latestCompletedAt =
+    [...nextRounds]
+      .reverse()
+      .find((round) => round.completedAt)?.completedAt ?? book.completedAt
+
+  return {
+    ...book,
+    currentPage: nextActiveRound.currentPage,
+    accumulatedSeconds: nextActiveRound.accumulatedSeconds,
+    status: nextActiveRound.status,
+    completedAt: nextActiveRound.completedAt ?? latestCompletedAt,
+    rounds: nextRounds.sort((left, right) => left.roundNumber - right.roundNumber),
+    activeRoundId: nextActiveRound.id,
+    activeRoundNumber: nextActiveRound.roundNumber,
+  }
+}
 
 function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Promise<void> }) {
   const [activeTab, setActiveTab] = useState<TabKey>(getInitialActiveTab)
@@ -224,6 +309,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
     if (!currentBook) return
     try {
       setSyncError(null)
+      const activeRound = getActiveRound(currentBook)
       const date = todayLabel()
       const startPage = currentBook.currentPage
       const endPage = Math.min(Math.max(input.endPage, startPage), currentBook.totalPages)
@@ -232,6 +318,8 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
 
       const newRecord = await createRemoteRecord(user.id, {
         bookId: currentBook.id,
+        roundId: activeRound?.id,
+        roundNumber: activeRound?.roundNumber,
         bookTitle: currentBook.title,
         date,
         startedAt: input.startedAt,
@@ -244,10 +332,29 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       })
 
       const isCompleted = endPage >= currentBook.totalPages
+      const nextRoundStatus: BookStatus = isCompleted ? 'completed' : 'reading'
+      const nextRound = activeRound
+        ? {
+            ...activeRound,
+            currentPage: endPage,
+            accumulatedSeconds: activeRound.accumulatedSeconds + input.durationSeconds,
+            status: nextRoundStatus,
+            completedAt: isCompleted ? date : activeRound.completedAt,
+          }
+        : null
+
+      if (nextRound && !nextRound.id.includes('-round-')) {
+        await updateRemoteReadingRound(nextRound.id, {
+          currentPage: nextRound.currentPage,
+          accumulatedSeconds: nextRound.accumulatedSeconds,
+          status: nextRound.status,
+          completedAt: nextRound.status === 'completed' ? nextRound.completedAt ?? date : null,
+        })
+      }
 
       await updateRemoteBook(currentBook.id, {
         currentPage: endPage,
-        accumulatedSeconds: currentBook.accumulatedSeconds + input.durationSeconds,
+        accumulatedSeconds: nextRound?.accumulatedSeconds ?? currentBook.accumulatedSeconds + input.durationSeconds,
         status: isCompleted ? 'completed' : 'reading',
         completedAt: isCompleted ? date : currentBook.completedAt ?? null,
       })
@@ -265,13 +372,14 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       setBooks((current) =>
         current.map((book) => {
           if (book.id !== currentBook.id) return book
+          const nextBook = nextRound ? applyActiveRoundToBook(book, nextRound) : book
 
           return {
-            ...book,
+            ...nextBook,
             currentPage: endPage,
-            accumulatedSeconds: book.accumulatedSeconds + input.durationSeconds,
+            accumulatedSeconds: nextRound?.accumulatedSeconds ?? book.accumulatedSeconds + input.durationSeconds,
             status: isCompleted ? 'completed' : 'reading',
-            completedAt: isCompleted ? date : book.completedAt,
+            completedAt: isCompleted ? date : nextBook.completedAt,
             sentences: newHighlight ? [newHighlight, ...book.sentences] : book.sentences,
           }
         }),
@@ -280,6 +388,225 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       setActiveTab('records')
     } catch (error) {
       handleSyncFailure(error, '독서 기록을 저장하지 못했습니다.')
+    }
+  }
+
+  const handleUpdateRecord = async (recordId: string, input: ReadingRecordUpdateInput) => {
+    const targetRecord = records.find((record) => record.id === recordId)
+    if (!targetRecord) return
+
+    const targetBook = books.find((book) => book.id === targetRecord.bookId)
+    const targetRound =
+      targetBook && targetRecord.roundId
+        ? getBookRounds(targetBook).find((round) => round.id === targetRecord.roundId)
+        : targetBook
+          ? getBookRounds(targetBook).find((round) => round.roundNumber === (targetRecord.roundNumber ?? 1)) ?? getActiveRound(targetBook)
+          : undefined
+    const totalPages = targetBook?.totalPages ?? Math.max(targetRecord.endPage, input.endPage, 1)
+    const startPage = clampNumber(input.startPage, 1, totalPages)
+    const endPage = clampNumber(input.endPage, startPage, totalPages)
+    const durationSeconds = Math.max(Math.floor(input.durationSeconds) || 60, 60)
+    const sentence = input.sentence?.trim()
+    const sentencePage = sentence ? clampNumber(input.sentencePage ?? endPage, 1, totalPages) : undefined
+    const recalculatedEndedAt = addSecondsToIsoDate(targetRecord.startedAt, durationSeconds)
+
+    try {
+      setSyncError(null)
+      const updatedRecord = await updateRemoteRecord(recordId, {
+        startedAt: targetRecord.startedAt ?? null,
+        endedAt: recalculatedEndedAt ?? targetRecord.endedAt ?? null,
+        roundId: targetRecord.roundId ?? targetRound?.id ?? null,
+        roundNumber: targetRecord.roundNumber ?? targetRound?.roundNumber ?? 1,
+        durationSeconds,
+        startPage,
+        endPage,
+        sentence: sentence || null,
+        sentencePage: sentence ? sentencePage ?? endPage : null,
+      })
+
+      const targetHighlight = targetBook ? findHighlightForRecord(targetBook, targetRecord) : undefined
+      const updatedHighlight =
+        targetBook && sentence
+          ? targetHighlight
+            ? {
+                ...targetHighlight,
+                text: sentence,
+                page: sentencePage ?? endPage,
+              }
+            : await createRemoteHighlight(user.id, {
+                bookId: targetBook.id,
+                text: sentence,
+                page: sentencePage ?? endPage,
+                recordedAt: updatedRecord.date,
+              })
+          : null
+      const deletedHighlightId = !sentence && targetHighlight ? targetHighlight.id : null
+
+      if (targetHighlight && sentence) {
+        await updateRemoteHighlight(targetHighlight.id, {
+          text: sentence,
+          page: sentencePage ?? endPage,
+        })
+      }
+
+      if (deletedHighlightId) {
+        await deleteRemoteHighlight(deletedHighlightId)
+      }
+
+      const nextRecords = sortRecordsByRecent(records.map((record) => (record.id === recordId ? updatedRecord : record)))
+
+      if (targetBook) {
+        const durationDelta = updatedRecord.durationSeconds - targetRecord.durationSeconds
+        const roundRecordFilter = (record: ReadingRecord) =>
+          record.bookId === targetBook.id &&
+          (targetRound?.id ? record.roundId === targetRound.id : (record.roundNumber ?? 1) === (targetRound?.roundNumber ?? updatedRecord.roundNumber ?? 1))
+        const roundRecords = nextRecords.filter(roundRecordFilter)
+        const maxRecordedPage = Math.max(updatedRecord.endPage, ...roundRecords.map((record) => record.endPage))
+        const isActiveRound = Boolean(targetRound && targetRound.id === targetBook.activeRoundId)
+        const nextRoundCurrentPage =
+          targetRound && targetRound.currentPage === targetRecord.endPage
+            ? clampNumber(maxRecordedPage, 1, targetBook.totalPages)
+            : clampNumber(Math.max(targetRound?.currentPage ?? targetBook.currentPage, updatedRecord.endPage), 1, targetBook.totalPages)
+        const nextCurrentPage = isActiveRound ? nextRoundCurrentPage : targetBook.currentPage
+        const nextAccumulatedSeconds = Math.max((targetRound?.accumulatedSeconds ?? targetBook.accumulatedSeconds) + durationDelta, 0)
+        const isCompleted = nextCurrentPage >= targetBook.totalPages
+        const nextRoundStatus: BookStatus = nextRoundCurrentPage >= targetBook.totalPages ? 'completed' : 'reading'
+        const nextRound = targetRound
+          ? {
+              ...targetRound,
+              currentPage: nextRoundCurrentPage,
+              accumulatedSeconds: nextAccumulatedSeconds,
+              status: nextRoundStatus,
+              completedAt: nextRoundCurrentPage >= targetBook.totalPages ? targetRound.completedAt ?? updatedRecord.date : undefined,
+            }
+          : null
+
+        if (nextRound && !nextRound.id.includes('-round-')) {
+          await updateRemoteReadingRound(nextRound.id, {
+            currentPage: nextRound.currentPage,
+            accumulatedSeconds: nextRound.accumulatedSeconds,
+            status: nextRound.status,
+            completedAt: nextRound.status === 'completed' ? nextRound.completedAt ?? updatedRecord.date : null,
+          })
+        }
+
+        if (isActiveRound) {
+          await updateRemoteBook(targetBook.id, {
+            currentPage: nextCurrentPage,
+            accumulatedSeconds: nextAccumulatedSeconds,
+            status: isCompleted ? 'completed' : 'reading',
+            completedAt: isCompleted ? targetBook.completedAt ?? updatedRecord.date : targetBook.completedAt ?? null,
+          })
+        }
+
+        setBooks((current) =>
+          current.map((book) =>
+            book.id === targetBook.id
+              ? (() => {
+                  const nextBook = nextRound ? (isActiveRound ? applyActiveRoundToBook(book, nextRound) : replaceBookRound(book, nextRound)) : book
+
+                  return {
+                    ...nextBook,
+                    sentences: updatedHighlight
+                      ? book.sentences.some((sentenceItem) => sentenceItem.id === updatedHighlight.id)
+                        ? book.sentences.map((sentenceItem) => (sentenceItem.id === updatedHighlight.id ? updatedHighlight : sentenceItem))
+                        : [updatedHighlight, ...book.sentences]
+                      : deletedHighlightId
+                        ? book.sentences.filter((sentenceItem) => sentenceItem.id !== deletedHighlightId)
+                        : book.sentences,
+                  }
+                })()
+              : book,
+          ),
+        )
+      }
+
+      setRecords(nextRecords)
+    } catch (error) {
+      handleSyncFailure(error, '독서 기록을 수정하지 못했습니다.')
+    }
+  }
+
+  const handleDeleteRecord = async (recordId: string) => {
+    const targetRecord = records.find((record) => record.id === recordId)
+    if (!targetRecord) return
+
+    const targetBook = books.find((book) => book.id === targetRecord.bookId)
+    const targetRound =
+      targetBook && targetRecord.roundId
+        ? getBookRounds(targetBook).find((round) => round.id === targetRecord.roundId)
+        : targetBook
+          ? getBookRounds(targetBook).find((round) => round.roundNumber === (targetRecord.roundNumber ?? 1)) ?? getActiveRound(targetBook)
+          : undefined
+
+    try {
+      setSyncError(null)
+      await deleteRemoteRecord(recordId)
+
+      const targetHighlight = targetBook ? findHighlightForRecord(targetBook, targetRecord) : undefined
+      if (targetHighlight) {
+        await deleteRemoteHighlight(targetHighlight.id)
+      }
+
+      const nextRecords = records.filter((record) => record.id !== recordId)
+
+      if (targetBook) {
+        const remainingBookRecords = nextRecords.filter(
+          (record) =>
+            record.bookId === targetBook.id &&
+            (targetRound?.id ? record.roundId === targetRound.id : (record.roundNumber ?? 1) === (targetRound?.roundNumber ?? 1)),
+        )
+        const fallbackPage = Math.max(targetRecord.startPage, ...remainingBookRecords.map((record) => record.endPage), 1)
+        const isActiveRound = Boolean(targetRound && targetRound.id === targetBook.activeRoundId)
+        const nextRoundCurrentPage =
+          targetRound?.currentPage === targetRecord.endPage ? clampNumber(fallbackPage, 1, targetBook.totalPages) : (targetRound?.currentPage ?? targetBook.currentPage)
+        const nextCurrentPage = isActiveRound ? nextRoundCurrentPage : targetBook.currentPage
+        const nextAccumulatedSeconds = Math.max((targetRound?.accumulatedSeconds ?? targetBook.accumulatedSeconds) - targetRecord.durationSeconds, 0)
+        const isCompleted = nextCurrentPage >= targetBook.totalPages
+        const nextRoundStatus: BookStatus = nextRoundCurrentPage >= targetBook.totalPages ? 'completed' : 'reading'
+        const nextRound = targetRound
+          ? {
+              ...targetRound,
+              currentPage: nextRoundCurrentPage,
+              accumulatedSeconds: nextAccumulatedSeconds,
+              status: nextRoundStatus,
+              completedAt: nextRoundCurrentPage >= targetBook.totalPages ? targetRound.completedAt ?? targetRecord.date : undefined,
+            }
+          : null
+
+        if (nextRound && !nextRound.id.includes('-round-')) {
+          await updateRemoteReadingRound(nextRound.id, {
+            currentPage: nextRound.currentPage,
+            accumulatedSeconds: nextRound.accumulatedSeconds,
+            status: nextRound.status,
+            completedAt: nextRound.status === 'completed' ? nextRound.completedAt ?? targetRecord.date : null,
+          })
+        }
+
+        if (isActiveRound) {
+          await updateRemoteBook(targetBook.id, {
+            currentPage: nextCurrentPage,
+            accumulatedSeconds: nextAccumulatedSeconds,
+            status: isCompleted ? 'completed' : 'reading',
+            completedAt: isCompleted ? targetBook.completedAt ?? targetRecord.date : targetBook.completedAt ?? null,
+          })
+        }
+
+        setBooks((current) =>
+          current.map((book) =>
+            book.id === targetBook.id
+              ? {
+                  ...(nextRound ? (isActiveRound ? applyActiveRoundToBook(book, nextRound) : replaceBookRound(book, nextRound)) : book),
+                  sentences: targetHighlight ? book.sentences.filter((sentence) => sentence.id !== targetHighlight.id) : book.sentences,
+                }
+              : book,
+          ),
+        )
+      }
+
+      setRecords(nextRecords)
+    } catch (error) {
+      handleSyncFailure(error, '독서 기록을 삭제하지 못했습니다.')
     }
   }
 
@@ -366,24 +693,43 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
     if (!targetBook) return
     try {
       setSyncError(null)
+      const activeRound = getActiveRound(targetBook)
       const currentPage = Math.min(Math.max(Math.floor(page) || 1, 1), targetBook.totalPages)
       const isCompleted = currentPage >= targetBook.totalPages
+      const nextRoundStatus: BookStatus = isCompleted ? 'completed' : 'reading'
+      const nextRound = activeRound
+        ? {
+            ...activeRound,
+            currentPage,
+            status: nextRoundStatus,
+            completedAt: isCompleted ? activeRound.completedAt ?? date : undefined,
+          }
+        : null
+
+      if (nextRound && !nextRound.id.includes('-round-')) {
+        await updateRemoteReadingRound(nextRound.id, {
+          currentPage: nextRound.currentPage,
+          status: nextRound.status,
+          completedAt: nextRound.status === 'completed' ? nextRound.completedAt ?? date : null,
+        })
+      }
 
       await updateRemoteBook(bookId, {
         currentPage,
         status: isCompleted ? 'completed' : 'reading',
-        completedAt: isCompleted ? targetBook.completedAt ?? date : null,
+        completedAt: isCompleted ? targetBook.completedAt ?? date : targetBook.completedAt ?? null,
       })
 
       setBooks((current) =>
         current.map((book) => {
           if (book.id !== bookId) return book
+          const nextBook = nextRound ? applyActiveRoundToBook(book, nextRound) : book
 
           return {
-            ...book,
+            ...nextBook,
             currentPage,
             status: isCompleted ? 'completed' : 'reading',
-            completedAt: isCompleted ? book.completedAt ?? date : undefined,
+            completedAt: isCompleted ? nextBook.completedAt ?? date : nextBook.completedAt,
           }
         }),
       )
@@ -409,6 +755,91 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       )
     } catch (error) {
       handleSyncFailure(error, '문장을 삭제하지 못했습니다.')
+    }
+  }
+
+  const handleStartReread = async (bookId: string) => {
+    const targetBook = books.find((book) => book.id === bookId)
+    if (!targetBook) return
+
+    try {
+      setSyncError(null)
+      const date = todayLabel()
+      const nextRound = await createRemoteReadingRound(user.id, {
+        bookId,
+        roundNumber: getNextRoundNumber(targetBook),
+        startedAt: date,
+        currentPage: 1,
+      })
+
+      await updateRemoteBook(bookId, {
+        currentPage: 1,
+        accumulatedSeconds: 0,
+        status: 'reading',
+        completedAt: targetBook.completedAt ?? null,
+      })
+
+      setBooks((current) => current.map((book) => (book.id === bookId ? applyActiveRoundToBook(book, nextRound) : book)))
+      setCurrentBookId(bookId)
+      setActiveTab('session')
+      readingTimer.reset()
+    } catch (error) {
+      handleSyncFailure(error, '재독을 시작하지 못했습니다.')
+    }
+  }
+
+  const handleDeleteRound = async (bookId: string, roundId: string) => {
+    const targetBook = books.find((book) => book.id === bookId)
+    const targetRound = targetBook ? getBookRounds(targetBook).find((round) => round.id === roundId) : undefined
+    if (!targetBook || !targetRound || targetRound.roundNumber <= 1) return
+
+    const remainingRounds = getBookRounds(targetBook).filter((round) => round.id !== roundId)
+    const nextActiveRound =
+      remainingRounds.find((round) => round.status === 'reading') ??
+      [...remainingRounds].sort((left, right) => right.roundNumber - left.roundNumber)[0]
+    if (!nextActiveRound) return
+
+    try {
+      setSyncError(null)
+      const roundRecords = records.filter((record) => record.bookId === bookId && record.roundId === roundId)
+      const highlightIdsToDelete = new Set(
+        roundRecords
+          .map((record) => findHighlightForRecord(targetBook, record)?.id)
+          .filter((highlightId): highlightId is string => Boolean(highlightId)),
+      )
+
+      await Promise.all([...highlightIdsToDelete].map((highlightId) => deleteRemoteHighlight(highlightId)))
+      await deleteRemoteRecordsByRound(roundId)
+      await deleteRemoteReadingRound(roundId)
+
+      await updateRemoteBook(bookId, {
+        currentPage: nextActiveRound.currentPage,
+        accumulatedSeconds: nextActiveRound.accumulatedSeconds,
+        status: nextActiveRound.status,
+        completedAt: nextActiveRound.completedAt ?? targetBook.completedAt ?? null,
+      })
+
+      const nextRecords = records.filter((record) => record.roundId !== roundId)
+
+      setRecords(nextRecords)
+      setBooks((current) =>
+        current.map((book) =>
+          book.id === bookId
+            ? {
+                ...removeBookRound(book, roundId, nextActiveRound),
+                sentences: book.sentences.filter((sentence) => !highlightIdsToDelete.has(sentence.id)),
+              }
+            : book,
+        ),
+      )
+
+      if (currentBookId === bookId) {
+        const fallbackReadingBook = books.find((book) => book.id !== bookId && book.status === 'reading')
+        setCurrentBookId(nextActiveRound.status === 'reading' ? bookId : fallbackReadingBook?.id ?? bookId)
+        readingTimer.reset()
+      }
+    } catch (error) {
+      handleSyncFailure(error, '회차를 삭제하지 못했습니다.')
     }
   }
 
@@ -467,7 +898,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           onGoLibrary={() => setActiveTab('library')}
         />
       )}
-      {activeTab === 'records' && <RecordScreen books={books} records={records} />}
+      {activeTab === 'records' && <RecordScreen books={books} records={records} onUpdateRecord={handleUpdateRecord} onDeleteRecord={handleDeleteRecord} />}
       {activeTab === 'library' && (
         <LibraryScreen
           key={bookFormOpenRequest}
@@ -481,6 +912,8 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           onDeleteSentence={handleDeleteSentence}
           onDeleteBook={handleDeleteBook}
           onUpdateBookPage={handleUpdateBookPage}
+          onStartReread={handleStartReread}
+          onDeleteRound={handleDeleteRound}
           shouldOpenBookForm={bookFormOpenRequest > 0 && books.length === 0}
         />
       )}

@@ -51,6 +51,46 @@ const isThisWeek = (dateLabel: string) => {
   return target >= startOfWeek && target < endOfWeek;
 };
 
+const isThisMonth = (dateLabel: string) => {
+  const target = parseDateLabel(dateLabel);
+  const today = new Date();
+
+  return (
+    target.getFullYear() === today.getFullYear() &&
+    target.getMonth() === today.getMonth()
+  );
+};
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+
+  next.setDate(date.getDate() + days);
+
+  return next;
+};
+
+const getReadingStreakDays = (dateLabels: Set<string>) => {
+  let cursor = new Date();
+  let streak = 0;
+
+  while (dateLabels.has(formatDateLabel(cursor))) {
+    streak += 1;
+    cursor = addDays(cursor, -1);
+  }
+
+  return streak;
+};
+
+const formatDateLabel = (date: Date) =>
+  new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(date)
+    .replace(/\.\s?/g, ".")
+    .replace(/\.$/, "");
+
 const formatShortDuration = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -82,15 +122,35 @@ export const HomeScreen = ({
       .filter((record) => isThisWeek(record.date))
       .map((record) => record.date),
   ).size;
+  const readingDateLabels = new Set(records.map((record) => record.date));
+  const readingStreakDays = getReadingStreakDays(readingDateLabels);
+  const monthlyReadingDays = new Set(
+    records
+      .filter((record) => isThisMonth(record.date))
+      .map((record) => record.date),
+  ).size;
+  const monthSeconds = records
+    .filter((record) => isThisMonth(record.date))
+    .reduce((sum, record) => sum + record.durationSeconds, 0);
   const completedBooks = books.filter(
-    (book) => book.status === "completed",
+    (book) =>
+      book.status === "completed" ||
+      Boolean(book.rounds?.some((round) => round.status === "completed")),
   ).length;
   const currentProgress = currentBook
     ? Math.round((currentBook.currentPage / currentBook.totalPages) * 100)
     : 0;
+  const currentRoundLabel =
+    currentBook?.activeRoundNumber && currentBook.activeRoundNumber > 1
+      ? `${currentBook.activeRoundNumber}회독`
+      : "1회독";
   const dailyGoalProgress = Math.min(
     Math.round((todaySeconds / dailyGoalSeconds) * 100),
     100,
+  );
+  const remainingDailyGoalSeconds = Math.max(
+    dailyGoalSeconds - todaySeconds,
+    0,
   );
   const weeklyGoalFilledDays = Math.min(weeklyReadingDays, weeklyGoalDays);
   const recentSentence = books
@@ -186,7 +246,7 @@ export const HomeScreen = ({
                   지금 읽는 책
                 </p>
                 <span className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-[11px] font-black text-[#5F6D57]">
-                  {currentProgress}%
+                  {currentRoundLabel} · {currentProgress}%
                 </span>
               </div>
               <div className="mt-2">
@@ -260,6 +320,21 @@ export const HomeScreen = ({
         </div>
 
         <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2">
+            <p className="text-[10px] font-black text-stone-500">연속 독서</p>
+            <p className="mt-1 text-sm font-black">
+              {readingStreakDays}일
+            </p>
+          </div>
+          <div className="border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2">
+            <p className="text-[10px] font-black text-stone-500">이번 달</p>
+            <p className="mt-1 text-sm font-black">
+              {monthlyReadingDays}일 · {formatShortDuration(monthSeconds)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-black text-stone-500">오늘 목표</p>
@@ -273,6 +348,11 @@ export const HomeScreen = ({
                 style={{ width: `${dailyGoalProgress}%` }}
               />
             </div>
+            <p className="mt-1 text-[10px] font-black text-stone-500">
+              {remainingDailyGoalSeconds === 0
+                ? "오늘 목표 달성"
+                : `${formatShortDuration(remainingDailyGoalSeconds)} 남음`}
+            </p>
           </div>
           <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
             <div className="flex items-center justify-between gap-2">

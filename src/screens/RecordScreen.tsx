@@ -1,14 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { BottomSheetModal } from '../components/BottomSheetModal'
 import { Icon } from '../components/Icon'
 import { PixelCard } from '../components/PixelCard'
 import { useBackNavigationLayer } from '../hooks/useBackNavigationLayer'
-import type { Book, ReadingRecord } from '../types/reading'
+import type { Book, ReadingRecord, ReadingRecordUpdateInput } from '../types/reading'
 import { formatDuration } from '../utils/formatDuration'
+import { parsePageInput } from '../utils/pageInput'
 
 type RecordScreenProps = {
   books: Book[]
   records: ReadingRecord[]
+  onUpdateRecord: (recordId: string, input: ReadingRecordUpdateInput) => Promise<void>
+  onDeleteRecord: (recordId: string) => Promise<void>
 }
 
 type RecordView = 'records' | 'sentences' | 'calendar'
@@ -25,6 +28,14 @@ type SentenceItem = {
 }
 
 type CalendarBookPreview = Pick<Book, 'id' | 'title' | 'thumbnail' | 'coverColor' | 'accentColor'>
+
+type RecordEditDraft = {
+  startPage: number
+  endPage: number
+  durationMinutes: number
+  sentence: string
+  sentencePage: number
+}
 
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -59,6 +70,32 @@ const formatCompactDuration = (seconds: number) => {
   return `${hours}시간 ${remainMinutes}분`
 }
 
+const formatSessionClock = (value?: string) => {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return ''
+
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+const formatSessionTimeRange = (record: ReadingRecord) => {
+  const startedAt = formatSessionClock(record.startedAt)
+  const endedAt = formatSessionClock(record.endedAt)
+
+  if (startedAt && endedAt) return `${startedAt} - ${endedAt}`
+  if (startedAt) return `${startedAt} 시작`
+  if (endedAt) return `${endedAt} 종료`
+
+  return ''
+}
+
+const formatRoundLabel = (record: ReadingRecord) => `${record.roundNumber ?? 1}회독`
+
 const getCalendarDays = (monthCursor: Date) => {
   const firstDay = createMonthCursor(monthCursor)
   const gridStart = new Date(firstDay)
@@ -72,7 +109,15 @@ const getCalendarDays = (monthCursor: Date) => {
   })
 }
 
-export const RecordScreen = ({ books, records }: RecordScreenProps) => {
+const createRecordEditDraft = (record: ReadingRecord): RecordEditDraft => ({
+  startPage: record.startPage,
+  endPage: record.endPage,
+  durationMinutes: Math.max(Math.round(record.durationSeconds / 60), 1),
+  sentence: record.sentence ?? '',
+  sentencePage: record.sentencePage ?? record.endPage,
+})
+
+export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }: RecordScreenProps) => {
   const [view, setView] = useState<RecordView>('calendar')
   const [recordBookFilter, setRecordBookFilter] = useState('all')
   const [recordSentenceFilter, setRecordSentenceFilter] = useState<RecordSentenceFilter>('all')
@@ -82,6 +127,11 @@ export const RecordScreen = ({ books, records }: RecordScreenProps) => {
   const [monthCursor, setMonthCursor] = useState(() => createMonthCursor(new Date()))
   const [selectedDate, setSelectedDate] = useState(() => formatDateLabel(new Date()))
   const [isDateDetailOpen, setIsDateDetailOpen] = useState(false)
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
+  const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null)
+  const [recordEditDraft, setRecordEditDraft] = useState<RecordEditDraft | null>(null)
+  const [recordEditError, setRecordEditError] = useState<string | null>(null)
+  const [isRecordMutating, setIsRecordMutating] = useState(false)
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
@@ -216,6 +266,10 @@ export const RecordScreen = ({ books, records }: RecordScreenProps) => {
 
   const selectedDateSentenceCount = selectedDateStats?.records.filter((record) => Boolean(record.sentence)).length ?? 0
 
+  const editingRecord = editingRecordId ? records.find((record) => record.id === editingRecordId) ?? null : null
+  const deleteRecord = deleteRecordId ? records.find((record) => record.id === deleteRecordId) ?? null : null
+  const editingBook = editingRecord ? booksById.get(editingRecord.bookId) ?? null : null
+
   const monthStats = useMemo(() => {
     return records.reduce(
       (stats, record) => {
@@ -263,9 +317,78 @@ export const RecordScreen = ({ books, records }: RecordScreenProps) => {
     }
   }
 
+  const openRecordEditor = (record: ReadingRecord) => {
+    setEditingRecordId(record.id)
+    setRecordEditDraft(createRecordEditDraft(record))
+    setRecordEditError(null)
+  }
+
+  const closeRecordEditor = () => {
+    if (isRecordMutating) return
+
+    setEditingRecordId(null)
+    setRecordEditDraft(null)
+    setRecordEditError(null)
+  }
+
+  const updateRecordEditDraft = (input: Partial<RecordEditDraft>) => {
+    setRecordEditDraft((current) => (current ? { ...current, ...input } : current))
+  }
+
+  const submitRecordEdit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editingRecord || !recordEditDraft) return
+
+    const totalPages = editingBook?.totalPages ?? Math.max(editingRecord.endPage, recordEditDraft.endPage, 1)
+    const startPage = Math.min(Math.max(recordEditDraft.startPage || 1, 1), totalPages)
+    const endPage = Math.min(Math.max(recordEditDraft.endPage || startPage, startPage), totalPages)
+    const durationMinutes = Math.max(recordEditDraft.durationMinutes || 1, 1)
+    const sentence = recordEditDraft.sentence.trim()
+    const sentencePage = sentence ? Math.min(Math.max(recordEditDraft.sentencePage || endPage, 1), totalPages) : undefined
+
+    try {
+      setIsRecordMutating(true)
+      setRecordEditError(null)
+      await onUpdateRecord(editingRecord.id, {
+        startPage,
+        endPage,
+        durationSeconds: durationMinutes * 60,
+        sentence: sentence || undefined,
+        sentencePage,
+      })
+      setEditingRecordId(null)
+      setRecordEditDraft(null)
+    } catch (error) {
+      setRecordEditError(error instanceof Error ? error.message : '기록을 수정하지 못했습니다.')
+    } finally {
+      setIsRecordMutating(false)
+    }
+  }
+
+  const confirmDeleteRecord = async () => {
+    if (!deleteRecordId) return
+
+    try {
+      setIsRecordMutating(true)
+      setRecordEditError(null)
+      await onDeleteRecord(deleteRecordId)
+      if (editingRecordId === deleteRecordId) {
+        setEditingRecordId(null)
+        setRecordEditDraft(null)
+      }
+      setDeleteRecordId(null)
+    } catch (error) {
+      setRecordEditError(error instanceof Error ? error.message : '기록을 삭제하지 못했습니다.')
+    } finally {
+      setIsRecordMutating(false)
+    }
+  }
+
   const todayDateLabel = formatDateLabel(new Date())
 
   useBackNavigationLayer(isDateDetailOpen && view === 'calendar', () => setIsDateDetailOpen(false), 'record-date-detail')
+  useBackNavigationLayer(Boolean(editingRecord), closeRecordEditor, 'record-edit')
+  useBackNavigationLayer(Boolean(deleteRecord), () => setDeleteRecordId(null), 'record-delete')
 
   return (
     <div className="space-y-4">
@@ -347,12 +470,31 @@ export const RecordScreen = ({ books, records }: RecordScreenProps) => {
                           <div className="min-w-0">
                             <p className="truncate text-base font-black">{record.bookTitle}</p>
                             <p className="mt-1 text-xs font-black text-stone-500">
-                              {record.startPage}p → {record.endPage}p
+                              {formatRoundLabel(record)} · {record.startPage}p → {record.endPage}p
                             </p>
+                            {formatSessionTimeRange(record) && (
+                              <p className="mt-1 text-xs font-black text-[#5F6D57]">{formatSessionTimeRange(record)}</p>
+                            )}
                           </div>
-                          <time className="shrink-0 border-2 border-[#2F2A26] bg-[#2F2A26] px-2 py-1 text-xs font-black leading-none text-[#FFFDF8] shadow-[2px_2px_0_rgba(47,42,38,0.8)]">
-                            {formatDuration(record.durationSeconds)}
-                          </time>
+                          <div className="flex shrink-0 items-start gap-1">
+                            <time className="border-2 border-[#2F2A26] bg-[#2F2A26] px-2 py-1 text-xs font-black leading-none text-[#FFFDF8] shadow-[2px_2px_0_rgba(47,42,38,0.8)]">
+                              {formatDuration(record.durationSeconds)}
+                            </time>
+                            <button type="button" className="mini-icon-button" onClick={() => openRecordEditor(record)} aria-label="기록 수정">
+                              <Icon name="edit" className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8]"
+                              onClick={() => {
+                                setRecordEditError(null)
+                                setDeleteRecordId(record.id)
+                              }}
+                              aria-label="기록 삭제"
+                            >
+                              <Icon name="trash" className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                         {record.sentence && (
                           <blockquote className="mt-3 border-l-4 border-[#5F6D57] bg-[#F3E8D0] p-3 text-sm font-bold leading-relaxed">
@@ -647,10 +789,31 @@ export const RecordScreen = ({ books, records }: RecordScreenProps) => {
                     {group.records.map((record) => (
                       <div key={record.id} className="px-2 py-2">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-black text-stone-600">
-                            {record.startPage}p → {record.endPage}p
-                          </p>
-                          <p className="shrink-0 text-[11px] font-black text-[#5F6D57]">{formatDuration(record.durationSeconds)}</p>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-stone-600">
+                              {formatRoundLabel(record)} · {record.startPage}p → {record.endPage}p
+                            </p>
+                            {formatSessionTimeRange(record) && (
+                              <p className="mt-1 text-[11px] font-black text-stone-500">{formatSessionTimeRange(record)}</p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <p className="text-[11px] font-black text-[#5F6D57]">{formatDuration(record.durationSeconds)}</p>
+                            <button type="button" className="mini-icon-button" onClick={() => openRecordEditor(record)} aria-label="기록 수정">
+                              <Icon name="edit" className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8]"
+                              onClick={() => {
+                                setRecordEditError(null)
+                                setDeleteRecordId(record.id)
+                              }}
+                              aria-label="기록 삭제"
+                            >
+                              <Icon name="trash" className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                         {record.sentence && (
                           <p className="mt-2 line-clamp-2 border-l-4 border-[#5F6D57] bg-[#F3E8D0] p-2 text-xs font-bold leading-relaxed">
@@ -671,6 +834,152 @@ export const RecordScreen = ({ books, records }: RecordScreenProps) => {
               )
             })}
           </div>
+        )}
+      </BottomSheetModal>
+
+      <BottomSheetModal isOpen={Boolean(editingRecord && recordEditDraft)} ariaLabel="독서 기록 수정" backdropClassName="modal-backdrop-top">
+        {editingRecord && recordEditDraft && (
+          <>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="pixel-label">EDIT RECORD</p>
+                <h2 className="mt-1 truncate text-xl font-black">{editingRecord.bookTitle}</h2>
+                <p className="mt-1 text-xs font-black text-stone-500">{editingRecord.date}</p>
+              </div>
+              <button type="button" className="icon-button" onClick={closeRecordEditor} aria-label="닫기" disabled={isRecordMutating}>
+                <Icon name="close" className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form className="space-y-4" onSubmit={submitRecordEdit}>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="field-label">
+                  시작 페이지
+                  <input
+                    className="pixel-input"
+                    type="text"
+                    inputMode="numeric"
+                    value={recordEditDraft.startPage}
+                    onChange={(event) => updateRecordEditDraft({ startPage: parsePageInput(event.target.value) })}
+                  />
+                </label>
+                <label className="field-label">
+                  종료 페이지
+                  <input
+                    className="pixel-input"
+                    type="text"
+                    inputMode="numeric"
+                    value={recordEditDraft.endPage}
+                    onChange={(event) => updateRecordEditDraft({ endPage: parsePageInput(event.target.value) })}
+                  />
+                </label>
+              </div>
+
+              <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-black text-stone-600">독서 시간</p>
+                  <p className="text-sm font-black">{recordEditDraft.durationMinutes}분</p>
+                </div>
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+                  <button
+                    type="button"
+                    className="mini-icon-button"
+                    onClick={() => updateRecordEditDraft({ durationMinutes: Math.max(recordEditDraft.durationMinutes - 5, 1) })}
+                    aria-label="독서 시간 5분 줄이기"
+                  >
+                    <Icon name="minus" className="h-4 w-4" />
+                  </button>
+                  <input
+                    className="pixel-input text-center"
+                    type="text"
+                    inputMode="numeric"
+                    value={recordEditDraft.durationMinutes}
+                    onChange={(event) => updateRecordEditDraft({ durationMinutes: Math.max(parsePageInput(event.target.value), 1) })}
+                    aria-label="독서 시간"
+                  />
+                  <button
+                    type="button"
+                    className="mini-icon-button"
+                    onClick={() => updateRecordEditDraft({ durationMinutes: recordEditDraft.durationMinutes + 5 })}
+                    aria-label="독서 시간 5분 늘리기"
+                  >
+                    <Icon name="plus" className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="field-label" htmlFor="record-sentence-page">
+                  문장 페이지
+                  <input
+                    id="record-sentence-page"
+                    className="pixel-input"
+                    type="text"
+                    inputMode="numeric"
+                    value={recordEditDraft.sentencePage}
+                    onChange={(event) => updateRecordEditDraft({ sentencePage: parsePageInput(event.target.value) })}
+                  />
+                </label>
+                <textarea
+                  className="min-h-28 w-full resize-none border-2 border-[#2F2A26] bg-[#FCFBF7] p-3 text-sm font-bold leading-relaxed outline-none focus:bg-[#FCFBF7]"
+                  value={recordEditDraft.sentence}
+                  onChange={(event) => updateRecordEditDraft({ sentence: event.target.value })}
+                  placeholder="기록 문장"
+                />
+              </div>
+
+              {recordEditError && <p className="border-2 border-[#2F2A26] bg-[#F4D8CF] p-2 text-xs font-black text-[#8A3F2D]">{recordEditError}</p>}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" className="secondary-button min-h-11" onClick={closeRecordEditor} disabled={isRecordMutating}>
+                  취소
+                </button>
+                <button type="submit" className="primary-button min-h-11" disabled={isRecordMutating}>
+                  <Icon name="save" className="h-5 w-5" />
+                  저장
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        isOpen={Boolean(deleteRecord)}
+        ariaLabel="독서 기록 삭제 확인"
+        role="alertdialog"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="max-w-[360px]"
+      >
+        {deleteRecord && (
+          <>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="grid h-10 w-10 place-items-center border-2 border-[#2F2A26] bg-[#B58A7A] text-[#FFFDF8]">
+                <Icon name="trash" className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black">기록 삭제</h2>
+                <p className="text-xs font-black text-stone-500">삭제한 독서 기록은 되돌릴 수 없습니다.</p>
+              </div>
+            </div>
+            <div className="mb-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3">
+              <p className="truncate text-sm font-black">{deleteRecord.bookTitle}</p>
+              <p className="mt-2 text-xs font-black text-stone-500">
+                {deleteRecord.date} · {deleteRecord.startPage}p → {deleteRecord.endPage}p · {formatDuration(deleteRecord.durationSeconds)}
+              </p>
+              {deleteRecord.sentence && <p className="mt-3 line-clamp-3 border-l-4 border-[#5F6D57] bg-[#F3E8D0] p-2 text-xs font-bold">{deleteRecord.sentence}</p>}
+            </div>
+            {recordEditError && <p className="mb-3 border-2 border-[#2F2A26] bg-[#F4D8CF] p-2 text-xs font-black text-[#8A3F2D]">{recordEditError}</p>}
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" className="secondary-button" onClick={() => setDeleteRecordId(null)} disabled={isRecordMutating}>
+                취소
+              </button>
+              <button type="button" className="danger-button" onClick={confirmDeleteRecord} disabled={isRecordMutating}>
+                <Icon name="trash" className="h-5 w-5" />
+                삭제
+              </button>
+            </div>
+          </>
         )}
       </BottomSheetModal>
     </div>

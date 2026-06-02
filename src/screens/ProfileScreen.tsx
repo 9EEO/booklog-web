@@ -18,8 +18,11 @@ type ProfileScreenProps = {
 const formatGoalMinutes = (seconds: number) => `${Math.round(seconds / 60)}분`
 
 export const ProfileScreen = ({ userEmail, books, records, dailyGoalSeconds, weeklyGoalDays, onAdjustDailyGoal, onAdjustWeeklyGoal, onSignOut }: ProfileScreenProps) => {
-  const totalSeconds = books.reduce((sum, book) => sum + book.accumulatedSeconds, 0)
-  const completedBooks = books.filter((book) => book.status === 'completed').length
+  const totalSeconds = books.reduce(
+    (sum, book) => sum + ((book.rounds?.length ?? 0) > 0 ? book.rounds!.reduce((roundSum, round) => roundSum + round.accumulatedSeconds, 0) : book.accumulatedSeconds),
+    0,
+  )
+  const completedBooks = books.filter((book) => book.status === 'completed' || Boolean(book.rounds?.some((round) => round.status === 'completed'))).length
   const totalPages = records.reduce((sum, record) => sum + Math.max(record.endPage - record.startPage, 0), 0)
   const canDecreaseGoal = dailyGoalSeconds > 5 * 60
   const canIncreaseGoal = dailyGoalSeconds < 180 * 60

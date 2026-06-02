@@ -1,7 +1,6 @@
 import {
   lazy,
   Suspense,
-  useMemo,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -17,10 +16,11 @@ import type {
   BookSearchResult,
   NewBookInput,
   ReadingRecord,
+  ReadingRound,
 } from "../types/reading";
 import { formatDuration } from "../utils/formatDuration";
 import { parsePageInput } from "../utils/pageInput";
-import type { TierBoard } from "../types/tier";
+import type { TierBoard, TierKey } from "../types/tier";
 
 const TierMakerScreen = lazy(() =>
   import("./TierMakerScreen").then((module) => ({
@@ -44,6 +44,8 @@ type LibraryScreenProps = {
   onDeleteSentence: (bookId: string, sentenceId: string) => Promise<void>;
   onDeleteBook: (bookId: string) => Promise<void>;
   onUpdateBookPage: (bookId: string, page: number) => Promise<void>;
+  onStartReread: (bookId: string) => Promise<void>;
+  onDeleteRound: (bookId: string, roundId: string) => Promise<void>;
   shouldOpenBookForm: boolean;
 };
 
@@ -100,6 +102,41 @@ const toDateTime = (dateLabel: string) => {
   return new Date(year, month - 1, day).getTime();
 };
 
+const hasCompletedRound = (book: Book) =>
+  book.status === "completed" ||
+  Boolean(book.rounds?.some((round) => round.status === "completed"));
+
+const getActiveRoundLabel = (book: Book) =>
+  book.activeRoundNumber && book.activeRoundNumber > 1
+    ? `${book.activeRoundNumber}회독`
+    : "1회독";
+
+const getNextRoundNumber = (book: Book) =>
+  Math.max(0, ...(book.rounds ?? []).map((round) => round.roundNumber)) + 1;
+
+const tierBadgeStyles: Record<TierKey, { backgroundColor: string; color: string }> = {
+  S: { backgroundColor: "#F08A82", color: "#2F2A26" },
+  A: { backgroundColor: "#F4B86E", color: "#2F2A26" },
+  B: { backgroundColor: "#F2D86B", color: "#2F2A26" },
+  C: { backgroundColor: "#A8D982", color: "#2F2A26" },
+  D: { backgroundColor: "#8FC7F2", color: "#2F2A26" },
+};
+
+const getBookTier = (tierBoard: TierBoard, bookId: string) =>
+  (Object.entries(tierBoard) as Array<[TierKey, string[]]>).find(([, bookIds]) =>
+    bookIds.includes(bookId),
+  )?.[0] ?? null;
+
+const getRoundRecords = (
+  records: ReadingRecord[],
+  round: ReadingRound,
+) =>
+  records.filter((record) =>
+    record.roundId
+      ? record.roundId === round.id
+      : round.roundNumber === 1 && (record.roundNumber ?? 1) === 1,
+  );
+
 export const LibraryScreen = ({
   books,
   records,
@@ -111,6 +148,8 @@ export const LibraryScreen = ({
   onDeleteSentence,
   onDeleteBook,
   onUpdateBookPage,
+  onStartReread,
+  onDeleteRound,
   shouldOpenBookForm,
 }: LibraryScreenProps) => {
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
@@ -121,6 +160,7 @@ export const LibraryScreen = ({
   const [isBookFormOpen, setIsBookFormOpen] = useState(shouldOpenBookForm);
   const [deleteSentenceId, setDeleteSentenceId] = useState<string | null>(null);
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
+  const [deleteRoundId, setDeleteRoundId] = useState<string | null>(null);
   const [sentenceSort, setSentenceSort] = useState<"created" | "page">(
     "created",
   );
@@ -148,79 +188,63 @@ export const LibraryScreen = ({
   const deleteBook = deleteBookId
     ? books.find((book) => book.id === deleteBookId)
     : null;
+  const deleteRound =
+    selectedBook && deleteRoundId
+      ? selectedBook.rounds?.find((round) => round.id === deleteRoundId)
+      : null;
   const readingBooks = books.filter((book) => book.status === "reading");
-  const completedBooks = books.filter((book) => book.status === "completed");
+  const completedBooks = books.filter(hasCompletedRound);
   const activeShelfBooks =
     activeShelfTab === "reading" ? readingBooks : completedBooks;
-  const selectedBookRecords = useMemo(() => {
-    if (!selectedBook) return [];
-
-    return records.filter((record) => record.bookId === selectedBook.id);
-  }, [records, selectedBook]);
-  const selectedBookStats = useMemo(() => {
-    if (!selectedBook) {
-      return {
-        progress: 0,
-        remainingPages: 0,
-        recordedPages: 0,
-        recordedSeconds: 0,
-        averagePagesPerHour: 0,
-        estimatedSecondsLeft: 0,
-      };
-    }
-
-    const progress = Math.round(
-      (selectedBook.currentPage / selectedBook.totalPages) * 100,
-    );
-    const remainingPages = Math.max(
-      selectedBook.totalPages - selectedBook.currentPage,
-      0,
-    );
-    const recordedPages = selectedBookRecords.reduce(
-      (sum, record) => sum + Math.max(record.endPage - record.startPage, 0),
-      0,
-    );
-    const recordedSeconds = selectedBookRecords.reduce(
-      (sum, record) => sum + record.durationSeconds,
-      0,
-    );
-    const averagePagesPerHour =
-      recordedSeconds > 0
-        ? Math.round((recordedPages / recordedSeconds) * 3600)
-        : 0;
-    const estimatedSecondsLeft =
-      averagePagesPerHour > 0
-        ? Math.round((remainingPages / averagePagesPerHour) * 3600)
-        : 0;
-
-    return {
-      progress,
-      remainingPages,
-      recordedPages,
-      recordedSeconds,
-      averagePagesPerHour,
-      estimatedSecondsLeft,
-    };
-  }, [selectedBook, selectedBookRecords]);
-  const recentBookRecords = useMemo(
-    () => selectedBookRecords.slice(0, 3),
-    [selectedBookRecords],
+  const selectedBookRecords = selectedBook
+    ? records.filter((record) => record.bookId === selectedBook.id)
+    : [];
+  const selectedBookProgress = selectedBook
+    ? Math.round((selectedBook.currentPage / selectedBook.totalPages) * 100)
+    : 0;
+  const selectedBookRemainingPages = selectedBook
+    ? Math.max(selectedBook.totalPages - selectedBook.currentPage, 0)
+    : 0;
+  const selectedBookRecordedPages = selectedBookRecords.reduce(
+    (sum, record) => sum + Math.max(record.endPage - record.startPage, 0),
+    0,
   );
-  const sortedSentences = useMemo(() => {
-    if (!selectedBook) return [];
-
-    if (sentenceSort === "created") {
-      return selectedBook.sentences;
-    }
-
-    return selectedBook.sentences
-      .map((sentence, index) => ({ sentence, index }))
-      .sort(
-        (left, right) =>
-          left.sentence.page - right.sentence.page || left.index - right.index,
+  const selectedBookRecordedSeconds = selectedBookRecords.reduce(
+    (sum, record) => sum + record.durationSeconds,
+    0,
+  );
+  const selectedBookAveragePagesPerHour =
+    selectedBookRecordedSeconds > 0
+      ? Math.round((selectedBookRecordedPages / selectedBookRecordedSeconds) * 3600)
+      : 0;
+  const selectedBookEstimatedSecondsLeft =
+    selectedBookAveragePagesPerHour > 0
+      ? Math.round((selectedBookRemainingPages / selectedBookAveragePagesPerHour) * 3600)
+      : 0;
+  const selectedBookStats = {
+    progress: selectedBookProgress,
+    remainingPages: selectedBookRemainingPages,
+    recordedPages: selectedBookRecordedPages,
+    recordedSeconds: selectedBookRecordedSeconds,
+    averagePagesPerHour: selectedBookAveragePagesPerHour,
+    estimatedSecondsLeft: selectedBookEstimatedSecondsLeft,
+  };
+  const recentBookRecords = selectedBookRecords.slice(0, 3);
+  const selectedBookRounds = selectedBook
+    ? [...(selectedBook.rounds ?? [])].sort(
+        (left, right) => left.roundNumber - right.roundNumber,
       )
-      .map(({ sentence }) => sentence);
-  }, [selectedBook, sentenceSort]);
+    : [];
+  const sortedSentences =
+    selectedBook && sentenceSort === "page"
+      ? selectedBook.sentences
+          .map((sentence, index) => ({ sentence, index }))
+          .sort(
+            (left, right) =>
+              left.sentence.page - right.sentence.page || left.index - right.index,
+          )
+          .map(({ sentence }) => sentence)
+      : selectedBook?.sentences ?? [];
 
   const selectBook = (bookId: string) => {
     const book = books.find((item) => item.id === bookId);
@@ -235,6 +259,7 @@ export const LibraryScreen = ({
     setIsAddingSentence(false);
     setDeleteSentenceId(null);
     setDeleteBookId(null);
+    setDeleteRoundId(null);
   };
 
   const startEdit = (sentenceId: string, text: string, page: number) => {
@@ -312,6 +337,33 @@ export const LibraryScreen = ({
     try {
       setCurrentPageDraft(nextPage);
       await onUpdateBookPage(selectedBook.id, nextPage);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const startReread = async () => {
+    if (!selectedBook || isMutating) return;
+
+    setIsMutating(true);
+
+    try {
+      await onStartReread(selectedBook.id);
+      setSelectedBookId(null);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const confirmDeleteRound = async () => {
+    if (!selectedBook || !deleteRound || deleteRound.roundNumber <= 1) return;
+    if (isMutating) return;
+
+    setIsMutating(true);
+
+    try {
+      await onDeleteRound(selectedBook.id, deleteRound.id);
+      setDeleteRoundId(null);
     } finally {
       setIsMutating(false);
     }
@@ -476,6 +528,11 @@ export const LibraryScreen = ({
     () => setDeleteBookId(null),
     "library-delete-book",
   );
+  useBackNavigationLayer(
+    Boolean(deleteRound),
+    () => setDeleteRoundId(null),
+    "library-delete-round",
+  );
   useBackNavigationLayer(isBookFormOpen, closeBookForm, "library-book-form");
 
   return (
@@ -575,6 +632,7 @@ export const LibraryScreen = ({
         <BookShelfSection
           tone={activeShelfTab}
           books={activeShelfBooks}
+          tierBoard={tierBoard}
           onSelectBook={selectBook}
         />
         </div>
@@ -600,6 +658,75 @@ export const LibraryScreen = ({
             </div>
 
             <div className="book-detail-body">
+              {selectedBookRounds.length > 1 && (
+                <div className="mb-3 flex items-center justify-between gap-3 border-2 border-[#2F2A26] bg-[#FCFBF7] px-3 py-2">
+                  <span className="text-xs font-black text-stone-500">현재 회차</span>
+                  <strong className="text-sm font-black text-[#5F6D57]">
+                    {getActiveRoundLabel(selectedBook)}
+                  </strong>
+                </div>
+              )}
+
+              {selectedBookRounds.length > 1 && (
+                <div className="mb-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <h2 className="text-sm font-black">회차 관리</h2>
+                    <span className="text-[11px] font-black text-stone-500">
+                      {selectedBookRounds.length}개
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedBookRounds.map((round) => {
+                      const roundRecords = getRoundRecords(
+                        selectedBookRecords,
+                        round,
+                      );
+                      const roundDurationSeconds = roundRecords.reduce(
+                        (sum, record) => sum + record.durationSeconds,
+                        0,
+                      );
+                      const isActiveRound = round.id === selectedBook.activeRoundId;
+                      const canDeleteRound = round.roundNumber > 1;
+
+                      return (
+                        <div
+                          key={round.id}
+                          className="grid grid-cols-[1fr_auto] items-center gap-2 border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-black">
+                                {round.roundNumber}회독
+                              </p>
+                              {isActiveRound && (
+                                <span className="border-2 border-[#2F2A26] bg-[#DCE3D2] px-1.5 py-0.5 text-[10px] font-black text-[#5F6D57]">
+                                  현재
+                                </span>
+                              )}
+                              <span className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-1.5 py-0.5 text-[10px] font-black text-stone-600">
+                                {round.status === "completed" ? "완독" : "읽는 중"}
+                              </span>
+                            </div>
+                            <p className="mt-1 truncate text-[11px] font-black text-stone-500">
+                              {round.currentPage}/{selectedBook.totalPages}p · 기록 {roundRecords.length}개 · {formatDuration(roundDurationSeconds || round.accumulatedSeconds)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8] disabled:cursor-not-allowed disabled:opacity-40"
+                            onClick={() => setDeleteRoundId(round.id)}
+                            disabled={!canDeleteRound || isMutating}
+                            aria-label={`${round.roundNumber}회독 삭제`}
+                          >
+                            <Icon name="trash" className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="mb-4 border-2 border-[#2F2A26] bg-[#F3E8D0] p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="text-xs font-black text-stone-600">
@@ -702,7 +829,7 @@ export const LibraryScreen = ({
                         <p className="truncate text-xs font-black text-stone-800">
                           {record.date}
                           <span className="ml-2 text-stone-500">
-                            {record.startPage}p → {record.endPage}p
+                            {record.roundNumber ?? 1}회독 · {record.startPage}p → {record.endPage}p
                           </span>
                         </p>
                         <span className="text-[11px] font-black text-[#5F6D57]">
@@ -905,6 +1032,32 @@ export const LibraryScreen = ({
                   })
                 )}
               </div>
+
+              {hasCompletedRound(selectedBook) && selectedBook.status === "completed" && (
+                <div className="mt-6 border-2 border-[#2F2A26] bg-[#DCE3D2] p-3">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black">재독</p>
+                      <p className="mt-1 text-xs font-black text-stone-600">
+                        새 회차를 1페이지부터 시작합니다.
+                      </p>
+                    </div>
+                    <span className="shrink-0 border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-xs font-black text-[#5F6D57]">
+                      {getNextRoundNumber(selectedBook)}회독
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="primary-button min-h-10 w-full"
+                    onClick={startReread}
+                    disabled={isMutating}
+                  >
+                    <Icon name="play" className="h-5 w-5" />
+                    재독 시작
+                  </button>
+                </div>
+              )}
+
               <div className="mt-6 flex flex-col items-end gap-2 border-t-2 border-dashed border-stone-400 pt-4">
                 <button
                   type="button"
@@ -963,6 +1116,69 @@ export const LibraryScreen = ({
                 type="button"
                 className="danger-button"
                 onClick={confirmDelete}
+              >
+                <Icon name="trash" className="h-5 w-5" />
+                삭제
+              </button>
+            </div>
+          </>
+        )}
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        isOpen={Boolean(selectedBook && deleteRound)}
+        ariaLabel="회차 삭제 확인"
+        role="alertdialog"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="max-w-[360px]"
+      >
+        {selectedBook && deleteRound && (
+          <>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="grid h-10 w-10 place-items-center border-2 border-[#2F2A26] bg-[#B58A7A] text-[#FFFDF8]">
+                <Icon name="trash" className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black">
+                  {deleteRound.roundNumber}회독 삭제
+                </h2>
+                <p className="text-xs font-black text-stone-500">
+                  이 회차의 독서 기록도 함께 삭제됩니다.
+                </p>
+              </div>
+            </div>
+            <div className="mb-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3">
+              <MiniBook book={selectedBook} compact />
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-black">
+                <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
+                  <p className="text-[10px] text-stone-500">회차</p>
+                  <p className="mt-1">{deleteRound.roundNumber}회독</p>
+                </div>
+                <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
+                  <p className="text-[10px] text-stone-500">기록</p>
+                  <p className="mt-1">
+                    {getRoundRecords(selectedBookRecords, deleteRound).length}개
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs font-black leading-relaxed text-[#B58A7A]">
+                책과 다른 회차 기록은 그대로 유지됩니다.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setDeleteRoundId(null)}
+                disabled={isMutating}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={confirmDeleteRound}
+                disabled={isMutating || deleteRound.roundNumber <= 1}
               >
                 <Icon name="trash" className="h-5 w-5" />
                 삭제
@@ -1327,12 +1543,14 @@ export const LibraryScreen = ({
 type BookShelfSectionProps = {
   tone: "reading" | "completed";
   books: Book[];
+  tierBoard: TierBoard;
   onSelectBook: (bookId: string) => void;
 };
 
 const BookShelfSection = ({
   tone,
   books,
+  tierBoard,
   onSelectBook,
 }: BookShelfSectionProps) => {
   const completedPages = books.reduce((sum, book) => sum + book.totalPages, 0);
@@ -1362,38 +1580,50 @@ const BookShelfSection = ({
             </div>
           </div>
           <div className="completed-library-grid">
-            {books.map((book, index) => (
-              <button
-                key={book.id}
-                type="button"
-                className="h-full w-full text-left"
-                onClick={() => onSelectBook(book.id)}
-              >
-                <PixelCard className="completed-book-card h-full bg-[#FCFBF7]">
-                  <div className="completed-book-card-inner">
-                    <div
-                      className="completed-book-cover"
-                      style={{ backgroundColor: book.coverColor }}
-                    >
-                      <span className="completed-book-badge">
-                        #{index + 1}
-                      </span>
-                      {book.thumbnail ? (
-                        <img src={book.thumbnail} alt="" />
-                      ) : (
-                        <div
-                          className="h-full w-full"
-                          style={{ backgroundColor: book.accentColor }}
-                        />
-                      )}
+            {books.map((book, index) => {
+              const bookTier = getBookTier(tierBoard, book.id);
+
+              return (
+                <button
+                  key={book.id}
+                  type="button"
+                  className="h-full w-full text-left"
+                  onClick={() => onSelectBook(book.id)}
+                >
+                  <PixelCard className="completed-book-card h-full bg-[#FCFBF7]">
+                    <div className="completed-book-card-inner">
+                      <div
+                        className="completed-book-cover"
+                        style={{ backgroundColor: book.coverColor }}
+                      >
+                        <span className="completed-book-badge completed-book-rank-badge">
+                          #{index + 1}
+                        </span>
+                        {bookTier && (
+                          <span
+                            className="completed-book-badge completed-book-tier-badge"
+                            style={tierBadgeStyles[bookTier]}
+                          >
+                            {bookTier}
+                          </span>
+                        )}
+                        {book.thumbnail ? (
+                          <img src={book.thumbnail} alt="" />
+                        ) : (
+                          <div
+                            className="h-full w-full"
+                            style={{ backgroundColor: book.accentColor }}
+                          />
+                        )}
+                      </div>
+                      <div className="completed-book-title-bar">
+                        <p className="completed-book-title">{book.title}</p>
+                      </div>
                     </div>
-                    <div className="completed-book-title-bar">
-                      <p className="completed-book-title">{book.title}</p>
-                    </div>
-                  </div>
-                </PixelCard>
-              </button>
-            ))}
+                  </PixelCard>
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : (

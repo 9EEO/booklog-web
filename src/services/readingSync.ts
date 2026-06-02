@@ -1,6 +1,6 @@
 import { defaultDailyGoalSeconds, defaultWeeklyGoalDays } from '../storage/readingStorage'
 import { requireSupabase } from './supabase'
-import type { Book, BookStatus, Highlight, NewBookInput, ReadingRecord } from '../types/reading'
+import type { Book, BookStatus, Highlight, NewBookInput, ReadingRecord, ReadingRound } from '../types/reading'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
 type BookRow = {
@@ -28,10 +28,23 @@ type HighlightRow = {
   recorded_at: string
 }
 
+type ReadingRoundRow = {
+  id: string
+  user_id: string
+  book_id: string
+  round_number: number
+  status: BookStatus
+  current_page: number
+  started_at: string
+  completed_at: string | null
+  accumulated_seconds: number
+}
+
 type ReadingRecordRow = {
   id: string
   user_id: string
   book_id: string
+  round_id?: string | null
   book_title: string | null
   read_date: string
   session_started_at?: string | null
@@ -70,25 +83,65 @@ const mapHighlightRow = (row: HighlightRow): Highlight => ({
   recordedAt: normalizeDate(row.recorded_at),
 })
 
-const mapBookRow = (row: BookRow, highlights: Highlight[]): Book => ({
+const mapRoundRow = (row: ReadingRoundRow): ReadingRound => ({
   id: row.id,
-  title: row.title,
-  author: row.author,
-  totalPages: row.total_pages,
+  bookId: row.book_id,
+  roundNumber: row.round_number,
+  status: row.status,
   currentPage: row.current_page,
   startedAt: normalizeDate(row.started_at),
   completedAt: row.completed_at ? normalizeDate(row.completed_at) : undefined,
   accumulatedSeconds: row.accumulated_seconds,
-  status: row.status,
-  coverColor: row.cover_color,
-  accentColor: row.accent_color,
-  thumbnail: row.thumbnail ?? undefined,
-  sentences: highlights,
 })
 
-const mapRecordRow = (row: ReadingRecordRow): ReadingRecord => ({
+const createFallbackRound = (row: BookRow): ReadingRound => ({
+  id: `${row.id}-round-1`,
+  bookId: row.id,
+  roundNumber: 1,
+  status: row.status,
+  currentPage: row.current_page,
+  startedAt: normalizeDate(row.started_at),
+  completedAt: row.completed_at ? normalizeDate(row.completed_at) : undefined,
+  accumulatedSeconds: row.accumulated_seconds,
+})
+
+const pickActiveRound = (rounds: ReadingRound[]) =>
+  rounds.find((round) => round.status === 'reading') ??
+  [...rounds].sort((left, right) => right.roundNumber - left.roundNumber)[0]
+
+const mapBookRow = (row: BookRow, highlights: Highlight[], rounds: ReadingRound[]): Book => {
+  const normalizedRounds = (rounds.length > 0 ? rounds : [createFallbackRound(row)]).sort((left, right) => left.roundNumber - right.roundNumber)
+  const activeRound = pickActiveRound(normalizedRounds) ?? createFallbackRound(row)
+  const latestCompletedAt =
+    [...normalizedRounds]
+      .reverse()
+      .find((round) => round.completedAt)?.completedAt ?? (row.completed_at ? normalizeDate(row.completed_at) : undefined)
+
+  return {
+    id: row.id,
+    title: row.title,
+    author: row.author,
+    totalPages: row.total_pages,
+    currentPage: activeRound.currentPage,
+    startedAt: activeRound.startedAt,
+    completedAt: activeRound.completedAt ?? latestCompletedAt,
+    accumulatedSeconds: activeRound.accumulatedSeconds,
+    status: activeRound.status,
+    coverColor: row.cover_color,
+    accentColor: row.accent_color,
+    thumbnail: row.thumbnail ?? undefined,
+    sentences: highlights,
+    rounds: normalizedRounds,
+    activeRoundId: activeRound.id,
+    activeRoundNumber: activeRound.roundNumber,
+  }
+}
+
+const mapRecordRow = (row: ReadingRecordRow, round?: ReadingRound): ReadingRecord => ({
   id: row.id,
   bookId: row.book_id,
+  roundId: row.round_id ?? undefined,
+  roundNumber: round?.roundNumber ?? 1,
   bookTitle: row.book_title ?? '제목 없음',
   date: normalizeDate(row.read_date),
   startedAt: row.session_started_at ?? undefined,
@@ -100,8 +153,16 @@ const mapRecordRow = (row: ReadingRecordRow): ReadingRecord => ({
   sentencePage: row.sentence_page ?? undefined,
 })
 
-const buildSnapshot = (books: BookRow[], records: ReadingRecordRow[], highlights: HighlightRow[], settings: ReadingSettingsRow | null): ReadingSnapshot => {
+const buildSnapshot = (
+  books: BookRow[],
+  rounds: ReadingRoundRow[],
+  records: ReadingRecordRow[],
+  highlights: HighlightRow[],
+  settings: ReadingSettingsRow | null,
+): ReadingSnapshot => {
   const highlightsByBookId = new Map<string, Highlight[]>()
+  const roundsByBookId = new Map<string, ReadingRound[]>()
+  const roundsById = new Map<string, ReadingRound>()
 
   highlights.forEach((row) => {
     const current = highlightsByBookId.get(row.book_id) ?? []
@@ -109,9 +170,18 @@ const buildSnapshot = (books: BookRow[], records: ReadingRecordRow[], highlights
     highlightsByBookId.set(row.book_id, current)
   })
 
+  rounds.forEach((row) => {
+    const round = mapRoundRow(row)
+    const current = roundsByBookId.get(row.book_id) ?? []
+
+    current.push(round)
+    roundsByBookId.set(row.book_id, current)
+    roundsById.set(row.id, round)
+  })
+
   return {
-    books: books.map((row) => mapBookRow(row, highlightsByBookId.get(row.id) ?? [])),
-    records: records.map(mapRecordRow),
+    books: books.map((row) => mapBookRow(row, highlightsByBookId.get(row.id) ?? [], roundsByBookId.get(row.id) ?? [])),
+    records: records.map((row) => mapRecordRow(row, row.round_id ? roundsById.get(row.round_id) : undefined)),
     currentBookId: settings?.current_book_id ?? '',
     dailyGoalSeconds: settings?.daily_goal_seconds ?? defaultDailyGoalSeconds,
     weeklyGoalDays: settings?.weekly_goal_days ?? defaultWeeklyGoalDays,
@@ -122,20 +192,23 @@ const buildSnapshot = (books: BookRow[], records: ReadingRecordRow[], highlights
 export const fetchReadingSnapshot = async (userId: string): Promise<ReadingSnapshot> => {
   const supabase = requireSupabase()
 
-  const [booksResult, recordsResult, highlightsResult, settingsResult] = await Promise.all([
+  const [booksResult, roundsResult, recordsResult, highlightsResult, settingsResult] = await Promise.all([
     supabase.from('books').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+    supabase.from('reading_rounds').select('*').eq('user_id', userId).order('round_number', { ascending: true }),
     supabase.from('reading_records').select('*').eq('user_id', userId).order('read_date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('highlights').select('*').eq('user_id', userId).order('recorded_at', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('reading_settings').select('*').eq('user_id', userId).maybeSingle(),
   ])
 
   if (booksResult.error) throw booksResult.error
+  if (roundsResult.error) throw roundsResult.error
   if (recordsResult.error) throw recordsResult.error
   if (highlightsResult.error) throw highlightsResult.error
   if (settingsResult.error) throw settingsResult.error
 
   return buildSnapshot(
     (booksResult.data ?? []) as BookRow[],
+    (roundsResult.data ?? []) as ReadingRoundRow[],
     (recordsResult.data ?? []) as ReadingRecordRow[],
     (highlightsResult.data ?? []) as HighlightRow[],
     (settingsResult.data as ReadingSettingsRow | null) ?? null,
@@ -186,13 +259,84 @@ export const createRemoteBook = async (
   const { data, error } = await supabase.from('books').insert(payload).select('*').single()
   if (error) throw error
 
-  return mapBookRow(data as BookRow, [])
+  const createdBook = data as BookRow
+  const { data: roundData, error: roundError } = await supabase
+    .from('reading_rounds')
+    .insert({
+      user_id: userId,
+      book_id: createdBook.id,
+      round_number: 1,
+      status: payload.status,
+      current_page: currentPage,
+      started_at: payload.started_at,
+      completed_at: payload.completed_at,
+      accumulated_seconds: 0,
+    })
+    .select('*')
+    .single()
+
+  if (roundError) throw roundError
+
+  return mapBookRow(createdBook, [], [mapRoundRow(roundData as ReadingRoundRow)])
+}
+
+export const createRemoteReadingRound = async (
+  userId: string,
+  input: {
+    bookId: string
+    roundNumber: number
+    startedAt: string
+    currentPage?: number
+  },
+): Promise<ReadingRound> => {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('reading_rounds')
+    .insert({
+      user_id: userId,
+      book_id: input.bookId,
+      round_number: input.roundNumber,
+      status: 'reading',
+      current_page: input.currentPage ?? 1,
+      started_at: toDbDate(input.startedAt),
+      completed_at: null,
+      accumulated_seconds: 0,
+    })
+    .select('*')
+    .single()
+
+  if (error) throw error
+
+  return mapRoundRow(data as ReadingRoundRow)
+}
+
+export const updateRemoteReadingRound = async (
+  roundId: string,
+  input: Partial<{
+    currentPage: number
+    accumulatedSeconds: number
+    status: BookStatus
+    completedAt: string | null
+  }>,
+) => {
+  const supabase = requireSupabase()
+  const payload: Record<string, unknown> = {}
+
+  if (input.currentPage !== undefined) payload.current_page = input.currentPage
+  if (input.accumulatedSeconds !== undefined) payload.accumulated_seconds = input.accumulatedSeconds
+  if (input.status !== undefined) payload.status = input.status
+  if (input.completedAt !== undefined) payload.completed_at = input.completedAt ? toDbDate(input.completedAt) : null
+
+  const { error } = await supabase.from('reading_rounds').update(payload).eq('id', roundId)
+  if (error) throw error
 }
 
 export const createRemoteRecord = async (
   userId: string,
   input: {
     bookId: string
+    roundId?: string
+    roundNumber?: number
     bookTitle: string
     date: string
     startedAt?: string
@@ -210,6 +354,7 @@ export const createRemoteRecord = async (
     .insert({
       user_id: userId,
       book_id: input.bookId,
+      round_id: input.roundId ?? null,
       book_title: input.bookTitle,
       read_date: toDbDate(input.date),
       session_started_at: input.startedAt ?? null,
@@ -225,7 +370,65 @@ export const createRemoteRecord = async (
 
   if (error) throw error
 
-  return mapRecordRow(data as ReadingRecordRow)
+  return {
+    ...mapRecordRow(data as ReadingRecordRow),
+    roundNumber: input.roundNumber ?? 1,
+  }
+}
+
+export const updateRemoteRecord = async (
+  recordId: string,
+  input: Partial<{
+    date: string
+    startedAt: string | null
+    endedAt: string | null
+    roundId: string | null
+    roundNumber: number
+    durationSeconds: number
+    startPage: number
+    endPage: number
+    sentence: string | null
+    sentencePage: number | null
+  }>,
+): Promise<ReadingRecord> => {
+  const supabase = requireSupabase()
+  const payload: Record<string, unknown> = {}
+
+  if (input.date !== undefined) payload.read_date = toDbDate(input.date)
+  if (input.startedAt !== undefined) payload.session_started_at = input.startedAt
+  if (input.endedAt !== undefined) payload.session_ended_at = input.endedAt
+  if (input.roundId !== undefined) payload.round_id = input.roundId
+  if (input.durationSeconds !== undefined) payload.duration_seconds = input.durationSeconds
+  if (input.startPage !== undefined) payload.start_page = input.startPage
+  if (input.endPage !== undefined) payload.end_page = input.endPage
+  if (input.sentence !== undefined) payload.sentence = input.sentence
+  if (input.sentencePage !== undefined) payload.sentence_page = input.sentencePage
+
+  const { data, error } = await supabase.from('reading_records').update(payload).eq('id', recordId).select('*').single()
+  if (error) throw error
+
+  return {
+    ...mapRecordRow(data as ReadingRecordRow),
+    roundNumber: input.roundNumber ?? 1,
+  }
+}
+
+export const deleteRemoteRecord = async (recordId: string) => {
+  const supabase = requireSupabase()
+  const { error } = await supabase.from('reading_records').delete().eq('id', recordId)
+  if (error) throw error
+}
+
+export const deleteRemoteRecordsByRound = async (roundId: string) => {
+  const supabase = requireSupabase()
+  const { error } = await supabase.from('reading_records').delete().eq('round_id', roundId)
+  if (error) throw error
+}
+
+export const deleteRemoteReadingRound = async (roundId: string) => {
+  const supabase = requireSupabase()
+  const { error } = await supabase.from('reading_rounds').delete().eq('id', roundId)
+  if (error) throw error
 }
 
 export const createRemoteHighlight = async (
@@ -302,6 +505,7 @@ export const migrateLocalSnapshotToSupabase = async (
   palettes: Array<{ coverColor: string; accentColor: string }>,
 ) => {
   const bookIdMap = new Map<string, string>()
+  const roundIdMap = new Map<string, string>()
   const migratedBooks: Book[] = []
 
   for (const [index, book] of snapshot.books.entries()) {
@@ -333,16 +537,36 @@ export const migrateLocalSnapshotToSupabase = async (
       completedAt: book.completedAt ?? null,
     })
 
+    if (createdBook.activeRoundId) {
+      await updateRemoteReadingRound(createdBook.activeRoundId, {
+        accumulatedSeconds: book.accumulatedSeconds,
+        currentPage: book.currentPage,
+        status: book.status,
+        completedAt: book.completedAt ?? null,
+      })
+    }
+
     const migratedBook = {
       ...createdBook,
       accumulatedSeconds: book.accumulatedSeconds,
       currentPage: book.currentPage,
       status: book.status,
       completedAt: book.completedAt,
+      rounds: createdBook.rounds?.map((round) => ({
+        ...round,
+        accumulatedSeconds: book.accumulatedSeconds,
+        currentPage: book.currentPage,
+        status: book.status,
+        completedAt: book.completedAt,
+      })),
     }
 
     migratedBooks.push(migratedBook)
     bookIdMap.set(book.id, createdBook.id)
+    if (createdBook.activeRoundId) {
+      roundIdMap.set(book.activeRoundId ?? `${book.id}-round-1`, createdBook.activeRoundId)
+      roundIdMap.set(`${book.id}-round-1`, createdBook.activeRoundId)
+    }
 
     for (const sentence of book.sentences) {
       const createdHighlight = await createRemoteHighlight(userId, {
@@ -363,6 +587,8 @@ export const migrateLocalSnapshotToSupabase = async (
 
     const createdRecord = await createRemoteRecord(userId, {
       bookId: mappedBookId,
+      roundId: record.roundId ? roundIdMap.get(record.roundId) : roundIdMap.get(`${record.bookId}-round-1`),
+      roundNumber: record.roundNumber ?? 1,
       bookTitle: record.bookTitle,
       date: record.date,
       startedAt: record.startedAt,
