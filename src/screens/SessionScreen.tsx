@@ -344,7 +344,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
         ))}
       </div>
 
-      <BottomSheetModal isOpen={isBookModalOpen} ariaLabel="책 변경">
+      <BottomSheetModal isOpen={isBookModalOpen} ariaLabel="책 변경" onBackdropClick={() => setIsBookModalOpen(false)}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-black">읽을 책 선택</h2>
               <button type="button" className="icon-button" onClick={() => setIsBookModalOpen(false)} aria-label="닫기">

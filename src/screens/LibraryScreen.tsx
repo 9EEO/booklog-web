@@ -137,6 +137,14 @@ const getRoundRecords = (
       : round.roundNumber === 1 && (record.roundNumber ?? 1) === 1,
   );
 
+const getRoundDateRange = (round: ReadingRound, records: ReadingRecord[]) => {
+  const dates = records.map((record) => record.date).sort();
+  const startedAt = dates[0] ?? round.startedAt;
+  const endedAt = round.completedAt ?? dates.at(-1) ?? "";
+
+  return endedAt && endedAt !== startedAt ? `${startedAt} - ${endedAt}` : startedAt;
+};
+
 export const LibraryScreen = ({
   books,
   records,
@@ -161,6 +169,7 @@ export const LibraryScreen = ({
   const [deleteSentenceId, setDeleteSentenceId] = useState<string | null>(null);
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
   const [deleteRoundId, setDeleteRoundId] = useState<string | null>(null);
+  const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
   const [sentenceSort, setSentenceSort] = useState<"created" | "page">(
     "created",
   );
@@ -191,6 +200,10 @@ export const LibraryScreen = ({
   const deleteRound =
     selectedBook && deleteRoundId
       ? selectedBook.rounds?.find((round) => round.id === deleteRoundId)
+      : null;
+  const selectedRound =
+    selectedBook && selectedRoundId
+      ? selectedBook.rounds?.find((round) => round.id === selectedRoundId)
       : null;
   const readingBooks = books.filter((book) => book.status === "reading");
   const completedBooks = books.filter(hasCompletedRound);
@@ -235,6 +248,23 @@ export const LibraryScreen = ({
         (left, right) => left.roundNumber - right.roundNumber,
       )
     : [];
+  const selectedRoundRecords = selectedRound
+    ? getRoundRecords(selectedBookRecords, selectedRound).sort(
+        (left, right) =>
+          right.date.localeCompare(left.date) || right.id.localeCompare(left.id),
+      )
+    : [];
+  const selectedRoundPages = selectedRoundRecords.reduce(
+    (sum, record) => sum + Math.max(record.endPage - record.startPage, 0),
+    0,
+  );
+  const selectedRoundSeconds = selectedRoundRecords.reduce(
+    (sum, record) => sum + record.durationSeconds,
+    0,
+  );
+  const selectedRoundSentences = selectedRoundRecords.filter((record) =>
+    Boolean(record.sentence),
+  );
   const sortedSentences =
     selectedBook && sentenceSort === "page"
       ? selectedBook.sentences
@@ -260,6 +290,7 @@ export const LibraryScreen = ({
     setDeleteSentenceId(null);
     setDeleteBookId(null);
     setDeleteRoundId(null);
+    setSelectedRoundId(null);
   };
 
   const startEdit = (sentenceId: string, text: string, page: number) => {
@@ -533,6 +564,11 @@ export const LibraryScreen = ({
     () => setDeleteRoundId(null),
     "library-delete-round",
   );
+  useBackNavigationLayer(
+    Boolean(selectedRound),
+    () => setSelectedRoundId(null),
+    "library-round-detail",
+  );
   useBackNavigationLayer(isBookFormOpen, closeBookForm, "library-book-form");
 
   return (
@@ -642,8 +678,147 @@ export const LibraryScreen = ({
         isOpen={Boolean(selectedBook)}
         ariaLabel="책 상세"
         panelClassName="book-detail-panel"
+        onBackdropClick={closeDetail}
       >
-        {selectedBook && (
+        {selectedBook && selectedRound ? (
+          <>
+            <div className="book-detail-header flex items-center justify-between gap-3">
+              <button
+                type="button"
+                className="icon-button shrink-0"
+                onClick={() => setSelectedRoundId(null)}
+                aria-label="책 상세로 돌아가기"
+              >
+                <Icon name="chevronLeft" className="h-5 w-5" />
+              </button>
+              <div className="min-w-0 flex-1 text-center">
+                <p className="pixel-label">ROUND DETAIL</p>
+                <h2 className="mt-1 truncate text-xl font-black">
+                  {selectedBook.title} · {selectedRound.roundNumber}회독
+                </h2>
+                <p className="mt-1 text-xs font-black text-stone-500">
+                  {getRoundDateRange(selectedRound, selectedRoundRecords)}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="icon-button shrink-0"
+                onClick={closeDetail}
+                aria-label="닫기"
+              >
+                <Icon name="close" className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="book-detail-body">
+              <div className="mb-4 grid grid-cols-3 gap-2">
+                <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
+                  <p className="text-[10px] font-black text-stone-500">상태</p>
+                  <p className="mt-1 text-xs font-black">
+                    {selectedRound.status === "completed" ? "완독" : "읽는 중"}
+                  </p>
+                </div>
+                <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
+                  <p className="text-[10px] font-black text-stone-500">시간</p>
+                  <p className="mt-1 text-xs font-black">
+                    {formatDuration(selectedRoundSeconds || selectedRound.accumulatedSeconds)}
+                  </p>
+                </div>
+                <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
+                  <p className="text-[10px] font-black text-stone-500">페이지</p>
+                  <p className="mt-1 text-xs font-black">
+                    {selectedRoundPages}p
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4 grid grid-cols-3 gap-2">
+                <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
+                  <p className="text-[10px] font-black text-stone-500">진행</p>
+                  <p className="mt-1 text-xs font-black">
+                    {selectedRound.currentPage}/{selectedBook.totalPages}p
+                  </p>
+                </div>
+                <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
+                  <p className="text-[10px] font-black text-stone-500">기록</p>
+                  <p className="mt-1 text-xs font-black">
+                    {selectedRoundRecords.length}개
+                  </p>
+                </div>
+                <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
+                  <p className="text-[10px] font-black text-stone-500">문장</p>
+                  <p className="mt-1 text-xs font-black">
+                    {selectedRoundSentences.length}개
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h3 className="text-base font-black">독서 기록</h3>
+                  <span className="text-[11px] font-black text-stone-500">
+                    {selectedRoundRecords.length}개
+                  </span>
+                </div>
+                {selectedRoundRecords.length === 0 ? (
+                  <p className="border-2 border-dashed border-stone-400 bg-[#F3E8D0] px-3 py-3 text-center text-xs font-black text-stone-600">
+                    이 회차의 독서 기록이 없습니다.
+                  </p>
+                ) : (
+                  <div className="divide-y-2 divide-[#2F2A26] border-2 border-[#2F2A26] bg-[#FCFBF7]">
+                    {selectedRoundRecords.map((record) => (
+                      <div key={record.id} className="px-3 py-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-stone-800">
+                              {record.date}
+                            </p>
+                            <p className="mt-1 text-[11px] font-black text-stone-500">
+                              {record.startPage}p → {record.endPage}p
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-xs font-black text-[#5F6D57]">
+                            {formatDuration(record.durationSeconds)}
+                          </span>
+                        </div>
+                        {record.sentence && (
+                          <p className="mt-2 line-clamp-3 border-l-4 border-[#5F6D57] bg-[#F3E8D0] p-2 text-xs font-bold leading-relaxed">
+                            {record.sentence}
+                            {record.sentencePage && (
+                              <span className="ml-1 text-[10px] font-black text-stone-500">
+                                {record.sentencePage}p
+                              </span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedRoundSentences.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="mb-2 text-base font-black">기록한 문장</h3>
+                  <div className="space-y-2">
+                    {selectedRoundSentences.map((record) => (
+                      <blockquote
+                        key={`${record.id}-sentence`}
+                        className="border-2 border-[#2F2A26] bg-[#FCFBF7] p-3 text-sm font-bold leading-relaxed"
+                      >
+                        {record.sentence}
+                        <span className="mt-2 block text-xs font-black text-stone-500">
+                          {record.date}
+                          {record.sentencePage ? ` · ${record.sentencePage}p` : ""}
+                        </span>
+                      </blockquote>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : selectedBook ? (
           <>
             <div className="book-detail-header flex items-center justify-between gap-3">
               <MiniBook book={selectedBook} />
@@ -693,7 +868,11 @@ export const LibraryScreen = ({
                           key={round.id}
                           className="grid grid-cols-[1fr_auto] items-center gap-2 border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2"
                         >
-                          <div className="min-w-0">
+                          <button
+                            type="button"
+                            className="min-w-0 text-left"
+                            onClick={() => setSelectedRoundId(round.id)}
+                          >
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-black">
                                 {round.roundNumber}회독
@@ -710,7 +889,7 @@ export const LibraryScreen = ({
                             <p className="mt-1 truncate text-[11px] font-black text-stone-500">
                               {round.currentPage}/{selectedBook.totalPages}p · 기록 {roundRecords.length}개 · {formatDuration(roundDurationSeconds || round.accumulatedSeconds)}
                             </p>
-                          </div>
+                          </button>
                           <button
                             type="button"
                             className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8] disabled:cursor-not-allowed disabled:opacity-40"
@@ -1075,7 +1254,7 @@ export const LibraryScreen = ({
               </div>
             </div>
           </>
-        )}
+        ) : null}
       </BottomSheetModal>
 
       <BottomSheetModal

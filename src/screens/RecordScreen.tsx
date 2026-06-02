@@ -723,7 +723,11 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
         </div>
       )}
 
-      <BottomSheetModal isOpen={view === 'calendar' && isDateDetailOpen} ariaLabel="날짜별 독서 기록">
+      <BottomSheetModal
+        isOpen={view === 'calendar' && isDateDetailOpen}
+        ariaLabel="날짜별 독서 기록"
+        onBackdropClick={() => setIsDateDetailOpen(false)}
+      >
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-black text-stone-500">선택한 날짜</p>

@@ -7,6 +7,7 @@ type BottomSheetModalProps = PropsWithChildren<{
   role?: "dialog" | "alertdialog";
   backdropClassName?: string;
   panelClassName?: string;
+  onBackdropClick?: () => void;
 }>;
 
 export const BottomSheetModal = ({
@@ -15,6 +16,7 @@ export const BottomSheetModal = ({
   role = "dialog",
   backdropClassName = "",
   panelClassName = "",
+  onBackdropClick,
   children,
 }: BottomSheetModalProps) => (
   <AnimatePresence>
@@ -28,6 +30,7 @@ export const BottomSheetModal = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.16, ease: "easeOut" }}
+        onClick={onBackdropClick}
       >
         <motion.div
           className={`modal-panel ${panelClassName}`}
