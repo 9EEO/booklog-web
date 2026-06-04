@@ -139,10 +139,10 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const displaySeconds = isStopwatchMode ? timer.elapsedSeconds : timer.remainingSeconds
   const focusLabel = isStopwatchMode
     ? timer.status === 'running'
-      ? '자유 측정 중'
+      ? '읽는 시간 기록 중'
       : timer.status === 'paused' || timer.status === 'completed'
-        ? '자유 측정 일시정지'
-        : '자유 측정'
+        ? '기록 일시정지'
+        : '스톱워치'
     : `목표 ${targetMinutes}분`
   const minimumTargetSeconds = timer.status === 'paused' ? Math.min(Math.max(timer.elapsedSeconds, 5 * 60), 120 * 60) : 5 * 60
   const canDecreaseTarget = timer.targetSeconds > minimumTargetSeconds
@@ -284,10 +284,14 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
 
         <div className="focus-timer-card">
           <div className="relative z-10">
-            <div className="session-timer-mode-grid" role="tablist" aria-label="독서 시간 측정 방식">
+            <div
+              className={`session-timer-mode-grid ${isStopwatchMode ? 'session-timer-mode-grid-stopwatch' : ''}`}
+              role="tablist"
+              aria-label="독서 시간 측정 방식"
+            >
               <button
                 type="button"
-                className={`preset-button ${!isStopwatchMode ? 'preset-button-active' : ''}`}
+                className={`session-timer-mode-option ${!isStopwatchMode ? 'session-timer-mode-option-active' : ''}`}
                 onClick={() => {
                   vibrateSelect()
                   timer.setMode('countdown')
@@ -301,7 +305,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
               </button>
               <button
                 type="button"
-                className={`preset-button ${isStopwatchMode ? 'preset-button-active' : ''}`}
+                className={`session-timer-mode-option ${isStopwatchMode ? 'session-timer-mode-option-active' : ''}`}
                 onClick={() => {
                   vibrateSelect()
                   timer.setMode('stopwatch')
@@ -311,7 +315,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                 aria-selected={isStopwatchMode}
               >
                 <Icon name="clock" className="h-4 w-4" />
-                자유 측정
+                스톱워치
               </button>
             </div>
 

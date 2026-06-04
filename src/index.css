@@ -1,18 +1,18 @@
 @import 'tailwindcss';
 
 :root {
-  --app-bg: #f8f8f5;
-  --app-surface: #fcfbf7;
-  --paper: #f3e8d0;
-  --paper-deep: #e8dfc2;
-  --paper-soft: #fffdf8;
-  --sage: #87937a;
-  --sage-strong: #5f6d57;
-  --sage-soft: #dce3d2;
-  --wood: #a97b5b;
-  --terracotta: #b58a7a;
-  --ink: #2f2a26;
-  --muted: #756f66;
+  --app-bg: #fff8e8;
+  --app-surface: #fffef8;
+  --paper: #fff8e8;
+  --paper-deep: #f2c94c;
+  --paper-soft: #fffef8;
+  --sage: #5b8dee;
+  --sage-strong: #76b852;
+  --sage-soft: #dff4d4;
+  --wood: #ff7eb6;
+  --terracotta: #e76f51;
+  --ink: #151515;
+  --muted: #5d584f;
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
@@ -22,6 +22,83 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: grayscale;
+}
+
+[class~="bg-[#F8F8F5]"] {
+  background-color: #fff8e8 !important;
+}
+
+[class~="bg-[#FCFBF7]"],
+[class~="bg-[#FFFDF8]"] {
+  background-color: #fffef8 !important;
+}
+
+[class~="bg-[#F3E8D0]"] {
+  background-color: #fff8e8 !important;
+}
+
+[class~="bg-[#E8DFC2]"] {
+  background-color: #f2c94c !important;
+}
+
+[class~="bg-[#DCE3D2]"] {
+  background-color: #dff4d4 !important;
+}
+
+[class~="bg-[#87937A]"] {
+  background-color: #5b8dee !important;
+}
+
+[class~="bg-[#5F6D57]"] {
+  background-color: #76b852 !important;
+}
+
+[class~="bg-[#2F2A26]"] {
+  background-color: #151515 !important;
+}
+
+[class~="bg-[#B58A7A]"],
+[class~="bg-[#9D6655]"] {
+  background-color: #e76f51 !important;
+}
+
+[class~="bg-[#F4D8CF]"] {
+  background-color: #ffe0d6 !important;
+}
+
+[class~="border-[#2F2A26]"] {
+  border-color: #151515 !important;
+}
+
+[class~="border-[#FFFDF8]"] {
+  border-color: #fffef8 !important;
+}
+
+[class~="text-[#2F2A26]"] {
+  color: #151515 !important;
+}
+
+[class~="text-[#FFFDF8]"] {
+  color: #ffffff !important;
+}
+
+[class~="text-[#5F6D57]"] {
+  color: #76b852 !important;
+}
+
+[class~="text-[#87937A]"],
+[class~="text-[#5B8DEE]"] {
+  color: #5b8dee !important;
+}
+
+[class~="text-[#B58A7A]"],
+[class~="text-[#9D6655]"],
+[class~="text-[#8A3F2D]"] {
+  color: #e76f51 !important;
+}
+
+[class~="text-[#E8DFC2]"] {
+  color: #f2c94c !important;
 }
 
 * {
@@ -78,13 +155,7 @@ button {
 .completed-library-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  border: 3px solid var(--ink);
-  background:
-    linear-gradient(180deg, transparent calc(100% - 10px), rgba(47, 42, 38, 0.2) calc(100% - 10px)),
-    var(--paper-deep);
-  box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.72);
-  padding: 6px;
+  gap: 8px;
 }
 
 .completed-book-card-inner {
@@ -152,6 +223,30 @@ button {
   font-weight: 900;
   line-height: 1.2;
   text-align: center;
+}
+
+.library-shelf-tabs {
+  background-color: #fffef8 !important;
+  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.72);
+}
+
+.library-shelf-tab {
+  min-height: 42px;
+}
+
+.library-shelf-tab-active {
+  background-color: #151515 !important;
+  color: #fffef8 !important;
+}
+
+.library-shelf-tab-count {
+  background-color: #fff8e8 !important;
+}
+
+.library-shelf-tab-count-active {
+  border-color: #fffef8 !important;
+  background-color: #fffef8 !important;
+  color: #151515 !important;
 }
 
 .calendar-day-card {
@@ -401,7 +496,7 @@ button {
   object-fit: contain;
   image-rendering: pixelated;
   mix-blend-mode: multiply;
-  filter: saturate(0.9) sepia(0.08) drop-shadow(0 3px 0 rgba(67, 45, 26, 0.12));
+  filter: saturate(0.9) sepia(0.08);
 }
 
 .focus-summary {
@@ -597,16 +692,66 @@ button {
 }
 
 .session-timer-mode-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0 auto 10px;
-  width: min(100%, 264px);
+  gap: 4px;
+  margin: 0 auto 12px;
+  width: min(100%, 232px);
+  border: 2px solid var(--session-ink);
+  border-radius: 999px;
+  background: #fffef8;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.72);
+  padding: 3px;
 }
 
-.session-timer-mode-grid .preset-button {
-  min-height: 38px;
+.session-timer-mode-grid::before {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 10px) / 2);
+  border-radius: 999px;
+  background: var(--session-blue);
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.54);
+  transition: transform 180ms ease;
+  content: '';
+}
+
+.session-timer-mode-grid-stopwatch::before {
+  transform: translateX(calc(100% + 4px));
+}
+
+.session-timer-mode-option {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
   gap: 5px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.72);
+  font-size: 11px;
+  font-weight: 900;
+  transition:
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.session-timer-mode-option-active {
+  color: #ffffff;
+}
+
+.session-timer-mode-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.session-timer-mode-option-active:disabled {
+  opacity: 1;
 }
 
 .session-screen .focus-ring {
@@ -644,7 +789,7 @@ button {
   width: 64px;
   height: 66px;
   mix-blend-mode: multiply;
-  filter: saturate(1.12) contrast(1.04) drop-shadow(3px 3px 0 rgba(21, 21, 21, 0.18));
+  filter: saturate(1.12) contrast(1.04);
 }
 
 .session-screen .focus-summary {

@@ -143,7 +143,7 @@ export const HomeScreen = ({
   const currentRoundLabel =
     currentBook?.activeRoundNumber && currentBook.activeRoundNumber > 1
       ? `${currentBook.activeRoundNumber}회독`
-      : "1회독";
+      : "";
   const dailyGoalProgress = Math.min(
     Math.round((todaySeconds / dailyGoalSeconds) * 100),
     100,
@@ -229,14 +229,6 @@ export const HomeScreen = ({
 
   return (
     <div className="space-y-3">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="mt-1 text-[26px] font-black leading-tight text-stone-950">
-            오늘도 한 장씩
-          </h1>
-        </div>
-      </header>
-
       {currentBook ? (
         <PixelCard className="overflow-hidden bg-[#F3E8D0] p-3">
           <div className="space-y-3">
@@ -246,7 +238,8 @@ export const HomeScreen = ({
                   지금 읽는 책
                 </p>
                 <span className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-[11px] font-black text-[#5F6D57]">
-                  {currentRoundLabel} · {currentProgress}%
+                  {currentRoundLabel ? `${currentRoundLabel} · ` : ""}
+                  {currentProgress}%
                 </span>
               </div>
               <div className="mt-2">

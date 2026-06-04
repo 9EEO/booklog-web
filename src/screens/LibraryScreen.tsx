@@ -647,7 +647,7 @@ export const LibraryScreen = ({
         </Suspense>
       ) : (
         <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 border-2 border-[#2F2A26] bg-[#E8DFC2] p-1 shadow-pixel">
+        <div className="library-shelf-tabs grid grid-cols-2 gap-2 border-2 border-[#2F2A26] bg-[#E8DFC2] p-1 shadow-pixel">
           {[
             { id: "reading" as const, label: "독서중", count: readingBooks.length },
             { id: "completed" as const, label: "완독", count: completedBooks.length },
@@ -658,9 +658,9 @@ export const LibraryScreen = ({
               <button
                 key={tab.id}
                 type="button"
-                className={`flex items-center justify-center gap-2 border-2 border-[#2F2A26] px-3 py-2 text-sm font-black transition ${
+                className={`library-shelf-tab flex items-center justify-center gap-2 border-2 border-[#2F2A26] px-3 py-2 text-sm font-black transition ${
                   isActive
-                    ? "bg-[#87937A] text-[#FFFDF8] shadow-[2px_2px_0_rgba(47,42,38,0.78)]"
+                    ? "library-shelf-tab-active bg-[#87937A] text-[#FFFDF8] shadow-[2px_2px_0_rgba(47,42,38,0.78)]"
                     : "bg-[#FCFBF7] text-[#2F2A26]"
                 }`}
                 onClick={() => setActiveShelfTab(tab.id)}
@@ -668,9 +668,9 @@ export const LibraryScreen = ({
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`min-w-6 border-2 px-1 text-xs ${
+                  className={`library-shelf-tab-count min-w-6 border-2 px-1 text-xs ${
                     isActive
-                      ? "border-[#FFFDF8] bg-[#5F6D57] text-[#FFFDF8]"
+                      ? "library-shelf-tab-count-active border-[#FFFDF8] bg-[#5F6D57] text-[#FFFDF8]"
                       : "border-[#2F2A26] bg-[#F3E8D0] text-[#2F2A26]"
                   }`}
                 >
