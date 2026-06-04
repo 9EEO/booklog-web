@@ -596,6 +596,19 @@ button {
   margin-top: 10px;
 }
 
+.session-timer-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 auto 10px;
+  width: min(100%, 264px);
+}
+
+.session-timer-mode-grid .preset-button {
+  min-height: 38px;
+  gap: 5px;
+}
+
 .session-screen .focus-ring {
   width: min(74vw, 264px);
   background: conic-gradient(var(--session-green) var(--progress), #ede8dc var(--progress));
@@ -1007,6 +1020,133 @@ button {
   padding: 0;
 }
 
+.book-detail-page {
+  min-height: calc(100svh - 132px);
+}
+
+.book-detail-page-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.book-detail-page-header h1 {
+  text-align: center;
+}
+
+.book-detail-page .book-detail-header {
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.72);
+}
+
+.book-detail-hero {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 4px 0 2px;
+  text-align: center;
+}
+
+.book-detail-cover {
+  position: relative;
+  display: grid;
+  width: min(46vw, 176px);
+  aspect-ratio: 2 / 3;
+  place-items: center;
+  overflow: hidden;
+  border: 4px solid var(--ink);
+  background: var(--paper-deep);
+  box-shadow:
+    8px 8px 0 rgba(47, 42, 38, 0.82),
+    -6px 6px 0 rgba(135, 147, 122, 0.42);
+}
+
+.book-detail-cover::after {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 253, 248, 0.26), transparent 22%),
+    linear-gradient(180deg, rgba(47, 42, 38, 0.08), transparent 34%, rgba(47, 42, 38, 0.12));
+  pointer-events: none;
+  content: '';
+}
+
+.book-detail-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.book-detail-cover span {
+  width: 42%;
+  height: 64%;
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.55);
+}
+
+.book-detail-hero-copy {
+  max-width: 100%;
+}
+
+.book-detail-hero-copy h2 {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 6px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.book-detail-hero-copy p:not(.pixel-label) {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.book-detail-hero-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.book-detail-hero-progress div {
+  border: 2px solid var(--ink);
+  background: var(--paper-soft);
+  padding: 8px 6px;
+  box-shadow: 2px 2px 0 rgba(47, 42, 38, 0.62);
+}
+
+.book-detail-hero-progress span,
+.book-detail-hero-progress strong {
+  display: block;
+}
+
+.book-detail-hero-progress span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.book-detail-hero-progress strong {
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.book-detail-page .book-detail-body {
+  overflow: visible;
+  padding: 16px 0 0;
+}
+
 .book-detail-header {
   flex-shrink: 0;
   border-bottom: 2px solid var(--ink);
@@ -1074,11 +1214,28 @@ button {
   justify-content: center;
   gap: 6px;
   border: 2px solid var(--ink);
-  background: var(--paper);
-  box-shadow: 2px 2px 0 rgba(47, 42, 38, 0.72);
+  background: var(--paper-deep);
+  box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.78);
   color: var(--ink);
   font-size: 12px;
   font-weight: 900;
+}
+
+.optional-sentence-toggle-active {
+  background: var(--sage);
+  color: var(--paper-soft);
+}
+
+.session-screen .optional-sentence-toggle {
+  border-color: var(--session-ink);
+  background: var(--session-blue);
+  color: #ffffff;
+  box-shadow: 4px 4px 0 var(--session-ink);
+}
+
+.session-screen .optional-sentence-toggle-active {
+  background: #3d6ec9;
+  color: #ffffff;
 }
 
 .detail-box {

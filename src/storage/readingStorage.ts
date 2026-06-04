@@ -1,8 +1,9 @@
 import type { Book, ReadingRecord, ReadingRound, TabKey } from '../types/reading'
-import type { TimerStatus } from '../hooks/useReadingTimer'
+import type { TimerMode, TimerStatus } from '../hooks/useReadingTimer'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
 export type StoredReadingTimer = {
+  mode?: TimerMode
   elapsedSeconds: number
   targetSeconds: number
   status: TimerStatus

@@ -2,14 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getStoredReadingTimer, saveReadingTimer, type StoredReadingTimer } from '../storage/readingStorage'
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed'
+export type TimerMode = 'countdown' | 'stopwatch'
 
 export type ReadingTimer = {
+  mode: TimerMode
   elapsedSeconds: number
   targetSeconds: number
   remainingSeconds: number
   progress: number
   status: TimerStatus
   sessionStartedAt?: number
+  setMode: (mode: TimerMode) => void
   setPreset: (seconds: number) => void
   adjustTarget: (deltaSeconds: number) => void
   start: () => void
@@ -23,17 +26,21 @@ export type ReadingTimer = {
 
 const getInitialTimer = (initialTargetSeconds: number): StoredReadingTimer => {
   const storedTimer = getStoredReadingTimer(initialTargetSeconds)
+  const mode = storedTimer.mode ?? 'countdown'
   const targetSeconds = Math.max(Math.floor(storedTimer.targetSeconds) || initialTargetSeconds, 1)
   const baseElapsedSeconds = Math.max(Math.floor(storedTimer.baseElapsedSeconds ?? storedTimer.elapsedSeconds) || 0, 0)
 
   if (storedTimer.status === 'running' && storedTimer.startedAt) {
     const elapsedSinceStart = Math.max(Math.floor((Date.now() - storedTimer.startedAt) / 1000), 0)
-    const elapsedSeconds = Math.min(baseElapsedSeconds + elapsedSinceStart, targetSeconds)
+    const elapsedSeconds = mode === 'countdown'
+      ? Math.min(baseElapsedSeconds + elapsedSinceStart, targetSeconds)
+      : baseElapsedSeconds + elapsedSinceStart
 
     return {
       elapsedSeconds,
       targetSeconds,
-      status: elapsedSeconds >= targetSeconds ? 'completed' : 'running',
+      status: mode === 'countdown' && elapsedSeconds >= targetSeconds ? 'completed' : 'running',
+      mode,
       startedAt: Date.now(),
       sessionStartedAt: storedTimer.sessionStartedAt ?? storedTimer.startedAt ?? Date.now(),
       baseElapsedSeconds: elapsedSeconds,
@@ -41,15 +48,19 @@ const getInitialTimer = (initialTargetSeconds: number): StoredReadingTimer => {
   }
 
   return {
-    elapsedSeconds: Math.min(Math.max(Math.floor(storedTimer.elapsedSeconds) || 0, 0), targetSeconds),
+    elapsedSeconds: mode === 'countdown'
+      ? Math.min(Math.max(Math.floor(storedTimer.elapsedSeconds) || 0, 0), targetSeconds)
+      : Math.max(Math.floor(storedTimer.elapsedSeconds) || 0, 0),
     targetSeconds,
     status: storedTimer.status ?? 'idle',
+    mode,
     sessionStartedAt: storedTimer.sessionStartedAt,
   }
 }
 
 export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer => {
   const [initialTimer] = useState(() => getInitialTimer(initialTargetSeconds))
+  const [mode, setTimerMode] = useState<TimerMode>(initialTimer.mode ?? 'countdown')
   const [elapsedSeconds, setElapsedSeconds] = useState(initialTimer.elapsedSeconds)
   const [targetSeconds, setTargetSeconds] = useState(initialTimer.targetSeconds)
   const [status, setStatus] = useState<TimerStatus>(initialTimer.status)
@@ -71,6 +82,17 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
     }
   }, [])
 
+  const getCurrentElapsedSeconds = useCallback(() => {
+    if (startedAtRef.current === undefined) return elapsedSeconds
+
+    const elapsedSinceStart = Math.max(Math.floor((Date.now() - startedAtRef.current) / 1000), 0)
+    const nextElapsedSeconds = baseElapsedRef.current + elapsedSinceStart
+
+    return mode === 'countdown'
+      ? Math.min(nextElapsedSeconds, targetSeconds)
+      : nextElapsedSeconds
+  }, [elapsedSeconds, mode, targetSeconds])
+
   useEffect(() => {
     if (status !== 'running') {
       clearTimer()
@@ -84,11 +106,13 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
 
     intervalRef.current = window.setInterval(() => {
       const elapsedSinceStart = Math.max(Math.floor((Date.now() - (startedAtRef.current ?? Date.now())) / 1000), 0)
-      const next = Math.min(baseElapsedRef.current + elapsedSinceStart, targetSeconds)
+      const next = mode === 'countdown'
+        ? Math.min(baseElapsedRef.current + elapsedSinceStart, targetSeconds)
+        : baseElapsedRef.current + elapsedSinceStart
 
       setElapsedSeconds(next)
 
-      if (next >= targetSeconds) {
+      if (mode === 'countdown' && next >= targetSeconds) {
         startedAtRef.current = undefined
         baseElapsedRef.current = targetSeconds
         setStatus('completed')
@@ -96,7 +120,7 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
     }, 1000)
 
     return clearTimer
-  }, [clearTimer, elapsedSeconds, status, targetSeconds])
+  }, [clearTimer, elapsedSeconds, mode, status, targetSeconds])
 
   useEffect(() => {
     if (status === 'running') {
@@ -104,6 +128,7 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
         elapsedSeconds,
         targetSeconds,
         status,
+        mode,
         startedAt: startedAtRef.current,
         sessionStartedAt,
         baseElapsedSeconds: baseElapsedRef.current,
@@ -115,22 +140,37 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
       elapsedSeconds,
       targetSeconds,
       status,
+      mode,
       sessionStartedAt,
     })
-  }, [elapsedSeconds, sessionStartedAt, status, targetSeconds])
+  }, [elapsedSeconds, mode, sessionStartedAt, status, targetSeconds])
 
   const remainingSeconds = useMemo(
-    () => Math.max(targetSeconds - elapsedSeconds, 0),
-    [elapsedSeconds, targetSeconds],
+    () => mode === 'countdown' ? Math.max(targetSeconds - elapsedSeconds, 0) : 0,
+    [elapsedSeconds, mode, targetSeconds],
   )
 
   const progress = useMemo(() => {
+    if (mode === 'stopwatch') return elapsedSeconds > 0 ? 100 : 0
     if (targetSeconds === 0) return 0
     return Math.min((elapsedSeconds / targetSeconds) * 100, 100)
-  }, [elapsedSeconds, targetSeconds])
+  }, [elapsedSeconds, mode, targetSeconds])
+
+  const setMode = useCallback((nextMode: TimerMode) => {
+    if (mode === nextMode) return
+
+    clearTimer()
+    startedAtRef.current = undefined
+    setSessionStartedAtValue(undefined)
+    baseElapsedRef.current = 0
+    setElapsedSeconds(0)
+    setStatus('idle')
+    setTimerMode(nextMode)
+  }, [clearTimer, mode, setSessionStartedAtValue])
 
   const setPreset = useCallback((seconds: number) => {
     startedAtRef.current = undefined
+    setTimerMode('countdown')
     setTargetSeconds(() => {
       if (status === 'paused') {
         const nextTarget = Math.min(Math.max(seconds, elapsedSeconds, 5 * 60), 120 * 60)
@@ -149,6 +189,7 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
 
   const adjustTarget = useCallback((deltaSeconds: number) => {
     startedAtRef.current = undefined
+    setTimerMode('countdown')
     setTargetSeconds((currentTarget) => {
       const minimumTarget = status === 'paused' ? Math.min(Math.max(elapsedSeconds, 5 * 60), 120 * 60) : 5 * 60
       const nextTarget = Math.min(Math.max(currentTarget + deltaSeconds, minimumTarget), 120 * 60)
@@ -192,8 +233,7 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
     setStatus((current) => {
       if (current !== 'running') return current
 
-      const elapsedSinceStart = Math.max(Math.floor((Date.now() - (startedAtRef.current ?? Date.now())) / 1000), 0)
-      const nextElapsedSeconds = Math.min(baseElapsedRef.current + elapsedSinceStart, targetSeconds)
+      const nextElapsedSeconds = getCurrentElapsedSeconds()
 
       startedAtRef.current = undefined
       baseElapsedRef.current = nextElapsedSeconds
@@ -201,27 +241,31 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
 
       return 'paused'
     })
-  }, [targetSeconds])
+  }, [getCurrentElapsedSeconds])
 
   const resume = useCallback(() => {
-    setTargetSeconds((currentTarget) => (elapsedSeconds >= currentTarget ? elapsedSeconds + currentTarget : currentTarget))
+    if (mode === 'countdown') {
+      setTargetSeconds((currentTarget) => (elapsedSeconds >= currentTarget ? elapsedSeconds + currentTarget : currentTarget))
+    }
     const now = Date.now()
     startedAtRef.current = now
     setSessionStartedAtValue(sessionStartedAtRef.current ?? now)
     baseElapsedRef.current = elapsedSeconds
     setStatus('running')
-  }, [elapsedSeconds, setSessionStartedAtValue])
+  }, [elapsedSeconds, mode, setSessionStartedAtValue])
 
   const extendAndResume = useCallback((additionalSeconds: number) => {
     const normalizedAdditionalSeconds = Math.max(Math.floor(additionalSeconds) || 0, 1)
 
-    setTargetSeconds(() => elapsedSeconds + normalizedAdditionalSeconds)
+    if (mode === 'countdown') {
+      setTargetSeconds(() => elapsedSeconds + normalizedAdditionalSeconds)
+    }
     const now = Date.now()
     startedAtRef.current = now
     setSessionStartedAtValue(sessionStartedAtRef.current ?? now)
     baseElapsedRef.current = elapsedSeconds
     setStatus('running')
-  }, [elapsedSeconds, setSessionStartedAtValue])
+  }, [elapsedSeconds, mode, setSessionStartedAtValue])
 
   const reset = useCallback(() => {
     clearTimer()
@@ -234,10 +278,12 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
 
   const complete = useCallback(() => {
     clearTimer()
+    const nextElapsedSeconds = getCurrentElapsedSeconds()
     startedAtRef.current = undefined
-    baseElapsedRef.current = elapsedSeconds
+    baseElapsedRef.current = nextElapsedSeconds
+    setElapsedSeconds(nextElapsedSeconds)
     setStatus('completed')
-  }, [clearTimer, elapsedSeconds])
+  }, [clearTimer, getCurrentElapsedSeconds])
 
   const cancelCompletion = useCallback(() => {
     setStatus((current) => {
@@ -250,12 +296,14 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
   }, [elapsedSeconds])
 
   return {
+    mode,
     elapsedSeconds,
     targetSeconds,
     remainingSeconds,
     progress,
     status,
     sessionStartedAt,
+    setMode,
     setPreset,
     adjustTarget,
     start,

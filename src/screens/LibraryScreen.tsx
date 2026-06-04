@@ -1,6 +1,7 @@
 import {
   lazy,
   Suspense,
+  useEffect,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -47,6 +48,7 @@ type LibraryScreenProps = {
   onStartReread: (bookId: string) => Promise<void>;
   onDeleteRound: (bookId: string, roundId: string) => Promise<void>;
   shouldOpenBookForm: boolean;
+  onDetailModeChange?: (isDetailMode: boolean) => void;
 };
 
 const emptyNewBook: NewBookInput = {
@@ -159,6 +161,7 @@ export const LibraryScreen = ({
   onStartReread,
   onDeleteRound,
   shouldOpenBookForm,
+  onDetailModeChange,
 }: LibraryScreenProps) => {
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [editingSentenceId, setEditingSentenceId] = useState<string | null>(
@@ -275,6 +278,16 @@ export const LibraryScreen = ({
           )
           .map(({ sentence }) => sentence)
       : selectedBook?.sentences ?? [];
+
+  useEffect(() => {
+    onDetailModeChange?.(Boolean(selectedBook));
+  }, [onDetailModeChange, selectedBook]);
+
+  useEffect(() => {
+    return () => {
+      onDetailModeChange?.(false);
+    };
+  }, [onDetailModeChange]);
 
   const selectBook = (bookId: string) => {
     const book = books.find((item) => item.id === bookId);
@@ -573,6 +586,8 @@ export const LibraryScreen = ({
 
   return (
     <div className="space-y-4">
+      {!selectedBook && (
+        <>
       <header className="flex items-center justify-between gap-3">
         <div>
           <p className="pixel-label">
@@ -674,12 +689,23 @@ export const LibraryScreen = ({
         </div>
       )}
 
-      <BottomSheetModal
-        isOpen={Boolean(selectedBook)}
-        ariaLabel="책 상세"
-        panelClassName="book-detail-panel"
-        onBackdropClick={closeDetail}
-      >
+        </>
+      )}
+
+      {selectedBook && (
+        <section className="book-detail-page" aria-label="책 상세">
+          <header className="book-detail-page-header">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={closeDetail}
+              aria-label="서재로 돌아가기"
+            >
+              <Icon name="chevronLeft" className="h-5 w-5" />
+            </button>
+            <h1 className="truncate text-xl font-black">{selectedBook.title}</h1>
+          </header>
+
         {selectedBook && selectedRound ? (
           <>
             <div className="book-detail-header flex items-center justify-between gap-3">
@@ -820,16 +846,39 @@ export const LibraryScreen = ({
           </>
         ) : selectedBook ? (
           <>
-            <div className="book-detail-header flex items-center justify-between gap-3">
-              <MiniBook book={selectedBook} />
-              <button
-                type="button"
-                className="icon-button"
-                onClick={closeDetail}
-                aria-label="닫기"
-              >
-                <Icon name="close" className="h-5 w-5" />
-              </button>
+            <div className="book-detail-header">
+              <div className="book-detail-hero">
+                <div
+                  className="book-detail-cover"
+                  style={{
+                    backgroundColor: selectedBook.coverColor,
+                    borderColor: selectedBook.accentColor,
+                  }}
+                >
+                  {selectedBook.thumbnail ? (
+                    <img src={selectedBook.thumbnail} alt="" />
+                  ) : (
+                    <span style={{ backgroundColor: selectedBook.accentColor }} />
+                  )}
+                </div>
+                <div className="book-detail-hero-copy">
+                  <p className="pixel-label">{getActiveRoundLabel(selectedBook)}</p>
+                  <h2>{selectedBook.title}</h2>
+                  <p>{selectedBook.author}</p>
+                </div>
+                <div className="book-detail-hero-progress">
+                  <div>
+                    <span>진행률</span>
+                    <strong>{selectedBookStats.progress}%</strong>
+                  </div>
+                  <div>
+                    <span>현재 페이지</span>
+                    <strong>
+                      {selectedBook.currentPage}/{selectedBook.totalPages}p
+                    </strong>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="book-detail-body">
@@ -1255,7 +1304,8 @@ export const LibraryScreen = ({
             </div>
           </>
         ) : null}
-      </BottomSheetModal>
+        </section>
+      )}
 
       <BottomSheetModal
         isOpen={Boolean(selectedBook && deleteSentence)}

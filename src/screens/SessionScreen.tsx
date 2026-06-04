@@ -38,8 +38,15 @@ const minimumExtensionSeconds = 5 * 60
 const maximumExtensionSeconds = 60 * 60
 
 const formatFocusTime = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor(seconds / 60)
   const remain = seconds % 60
+
+  if (hours > 0) {
+    const minuteInHour = Math.floor((seconds % 3600) / 60)
+
+    return `${hours.toString().padStart(2, '0')}:${minuteInHour.toString().padStart(2, '0')}:${remain.toString().padStart(2, '0')}`
+  }
 
   return `${minutes.toString().padStart(2, '0')}:${remain.toString().padStart(2, '0')}`
 }
@@ -125,9 +132,18 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
   const sentencePage = isFormForCurrentBook ? form.sentencePage : currentBook.currentPage
   const bookProgress = Math.round((currentBook.currentPage / currentBook.totalPages) * 100)
   const roundLabel = currentBook.activeRoundNumber && currentBook.activeRoundNumber > 1 ? `${currentBook.activeRoundNumber}회독` : '1회독'
+  const isStopwatchMode = timer.mode === 'stopwatch'
   const isReading = timer.status === 'running'
   const readingActionLabel = timer.status === 'paused' ? '다시 시작' : '시작'
   const targetMinutes = Math.round(timer.targetSeconds / 60)
+  const displaySeconds = isStopwatchMode ? timer.elapsedSeconds : timer.remainingSeconds
+  const focusLabel = isStopwatchMode
+    ? timer.status === 'running'
+      ? '자유 측정 중'
+      : timer.status === 'paused' || timer.status === 'completed'
+        ? '자유 측정 일시정지'
+        : '자유 측정'
+    : `목표 ${targetMinutes}분`
   const minimumTargetSeconds = timer.status === 'paused' ? Math.min(Math.max(timer.elapsedSeconds, 5 * 60), 120 * 60) : 5 * 60
   const canDecreaseTarget = timer.targetSeconds > minimumTargetSeconds
   const canIncreaseTarget = targetMinutes < 120
@@ -203,6 +219,19 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
     timer.extendAndResume(extensionSeconds)
   }
 
+  const resetCompletion = () => {
+    vibrateWarning()
+    timer.reset()
+    setForm({
+      bookId: currentBook.id,
+      endPage: currentBook.currentPage,
+      sentence: '',
+      sentencePage: currentBook.currentPage,
+    })
+    setIsSentenceOpen(false)
+    setIsCompletionOpen(false)
+  }
+
   const adjustExtension = (deltaSeconds: number) => {
     vibrateSelect()
     setExtensionSeconds((current) => Math.min(Math.max(current + deltaSeconds, minimumExtensionSeconds), maximumExtensionSeconds))
@@ -255,12 +284,43 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
 
         <div className="focus-timer-card">
           <div className="relative z-10">
+            <div className="session-timer-mode-grid" role="tablist" aria-label="독서 시간 측정 방식">
+              <button
+                type="button"
+                className={`preset-button ${!isStopwatchMode ? 'preset-button-active' : ''}`}
+                onClick={() => {
+                  vibrateSelect()
+                  timer.setMode('countdown')
+                }}
+                disabled={isReading || timer.elapsedSeconds > 0}
+                role="tab"
+                aria-selected={!isStopwatchMode}
+              >
+                <Icon name="timer" className="h-4 w-4" />
+                타이머
+              </button>
+              <button
+                type="button"
+                className={`preset-button ${isStopwatchMode ? 'preset-button-active' : ''}`}
+                onClick={() => {
+                  vibrateSelect()
+                  timer.setMode('stopwatch')
+                }}
+                disabled={isReading || timer.elapsedSeconds > 0}
+                role="tab"
+                aria-selected={isStopwatchMode}
+              >
+                <Icon name="clock" className="h-4 w-4" />
+                자유 측정
+              </button>
+            </div>
+
             <div className="focus-ring-wrap">
               <div className="focus-ring" style={{ '--progress': `${timer.progress}%` } as CSSProperties}>
                 <div className="focus-ring-inner">
                   <img className="focus-character" src={timer.status === 'running' ? focusSprout : focusSproutStill} alt="" />
-                  <div className="focus-time">{formatFocusTime(timer.remainingSeconds)}</div>
-                  <p className="focus-target-label">목표 {targetMinutes}분</p>
+                  <div className="focus-time">{formatFocusTime(displaySeconds)}</div>
+                  <p className="focus-target-label">{focusLabel}</p>
                 </div>
               </div>
             </div>
@@ -296,53 +356,57 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
         </div>
       </section>
 
-      <div className="target-stepper">
-        <button
-          type="button"
-          className="target-step-button"
-          onClick={() => {
-            vibrateTap()
-            timer.adjustTarget(-5 * 60)
-          }}
-          disabled={isReading || !canDecreaseTarget}
-          aria-label="목표 시간 5분 줄이기"
-        >
-          <Icon name="minus" className="h-5 w-5" />
-        </button>
-        <div className="target-step-value" aria-live="polite">
-          <span>목표</span>
-          <strong>{targetMinutes}분</strong>
-        </div>
-        <button
-          type="button"
-          className="target-step-button"
-          onClick={() => {
-            vibrateTap()
-            timer.adjustTarget(5 * 60)
-          }}
-          disabled={isReading || !canIncreaseTarget}
-          aria-label="목표 시간 5분 늘리기"
-        >
-          <Icon name="plus" className="h-5 w-5" />
-        </button>
-      </div>
+      {!isStopwatchMode && (
+        <>
+          <div className="target-stepper">
+            <button
+              type="button"
+              className="target-step-button"
+              onClick={() => {
+                vibrateTap()
+                timer.adjustTarget(-5 * 60)
+              }}
+              disabled={isReading || !canDecreaseTarget}
+              aria-label="목표 시간 5분 줄이기"
+            >
+              <Icon name="minus" className="h-5 w-5" />
+            </button>
+            <div className="target-step-value" aria-live="polite">
+              <span>목표</span>
+              <strong>{targetMinutes}분</strong>
+            </div>
+            <button
+              type="button"
+              className="target-step-button"
+              onClick={() => {
+                vibrateTap()
+                timer.adjustTarget(5 * 60)
+              }}
+              disabled={isReading || !canIncreaseTarget}
+              aria-label="목표 시간 5분 늘리기"
+            >
+              <Icon name="plus" className="h-5 w-5" />
+            </button>
+          </div>
 
-      <div className="grid grid-cols-5 gap-2">
-        {presets.map((preset) => (
-          <button
-            key={preset.seconds}
-            type="button"
-            className={`preset-button ${timer.targetSeconds === preset.seconds ? 'preset-button-active' : ''}`}
-            onClick={() => {
-              vibrateSelect()
-              timer.setPreset(preset.seconds)
-            }}
-            disabled={isReading}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
+          <div className="grid grid-cols-5 gap-2">
+            {presets.map((preset) => (
+              <button
+                key={preset.seconds}
+                type="button"
+                className={`preset-button ${timer.targetSeconds === preset.seconds ? 'preset-button-active' : ''}`}
+                onClick={() => {
+                  vibrateSelect()
+                  timer.setPreset(preset.seconds)
+                }}
+                disabled={isReading}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <BottomSheetModal isOpen={isBookModalOpen} ariaLabel="책 변경" onBackdropClick={() => setIsBookModalOpen(false)}>
             <div className="mb-4 flex items-center justify-between">
@@ -372,7 +436,7 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
 
       <BottomSheetModal isOpen={isCompletionVisible} ariaLabel="독서 완료">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-black">독서 완료</h2>
+              <h2 className="text-xl font-black">{isStopwatchMode ? '독서 기록' : '독서 완료'}</h2>
               <button type="button" className="icon-button" onClick={closeCompletion} aria-label="닫기">
                 <Icon name="close" className="h-5 w-5" />
               </button>
@@ -418,7 +482,11 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
               onChange={(event) => updateForm({ endPage: parsePageInput(event.target.value) })}
             />
 
-            <button type="button" className="optional-sentence-toggle mt-4" onClick={() => setIsSentenceOpen((current) => !current)}>
+            <button
+              type="button"
+              className={`optional-sentence-toggle mt-4 ${isSentenceOpen ? 'optional-sentence-toggle-active' : ''}`}
+              onClick={() => setIsSentenceOpen((current) => !current)}
+            >
               <Icon name="quote" className="h-4 w-4" />
               {isSentenceOpen ? '문장 기록 닫기' : '기억에 남는 문장 남기기'}
             </button>
@@ -462,41 +530,43 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
               )}
             </AnimatePresence>
 
-            <div className="mt-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-xs font-black text-stone-600">추가 독서</p>
-                <p className="text-sm font-black text-[#5F6D57]">+{Math.round(extensionSeconds / 60)}분</p>
-              </div>
-              <div className="target-stepper">
-                <button
-                  type="button"
-                  className="target-step-button"
-                  onClick={() => adjustExtension(-extensionStepSeconds)}
-                  disabled={!canDecreaseExtension}
-                  aria-label="추가 독서 5분 줄이기"
-                >
-                  <Icon name="minus" className="h-5 w-5" />
-                </button>
-                <div className="target-step-value" aria-live="polite">
-                  <span>연장</span>
-                  <strong>{Math.round(extensionSeconds / 60)}분</strong>
+            {!isStopwatchMode && (
+              <div className="mt-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-black text-stone-600">추가 독서</p>
+                  <p className="text-sm font-black text-[#5F6D57]">+{Math.round(extensionSeconds / 60)}분</p>
                 </div>
-                <button
-                  type="button"
-                  className="target-step-button"
-                  onClick={() => adjustExtension(extensionStepSeconds)}
-                  disabled={!canIncreaseExtension}
-                  aria-label="추가 독서 5분 늘리기"
-                >
-                  <Icon name="plus" className="h-5 w-5" />
-                </button>
+                <div className="target-stepper">
+                  <button
+                    type="button"
+                    className="target-step-button"
+                    onClick={() => adjustExtension(-extensionStepSeconds)}
+                    disabled={!canDecreaseExtension}
+                    aria-label="추가 독서 5분 줄이기"
+                  >
+                    <Icon name="minus" className="h-5 w-5" />
+                  </button>
+                  <div className="target-step-value" aria-live="polite">
+                    <span>연장</span>
+                    <strong>{Math.round(extensionSeconds / 60)}분</strong>
+                  </div>
+                  <button
+                    type="button"
+                    className="target-step-button"
+                    onClick={() => adjustExtension(extensionStepSeconds)}
+                    disabled={!canIncreaseExtension}
+                    aria-label="추가 독서 5분 늘리기"
+                  >
+                    <Icon name="plus" className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" className="secondary-button" onClick={continueReading}>
                 <Icon name="play" className="h-5 w-5" />
-                이어서 독서
+                {isStopwatchMode ? '이어서 측정' : '이어서 독서'}
               </button>
               <button
                 type="button"
@@ -511,6 +581,16 @@ export const SessionScreen = ({ books, records, currentBook, dailyGoalSeconds, t
                 {isSaving ? '저장 중' : '저장'}
               </button>
             </div>
+
+            <button
+              type="button"
+              className="danger-button mt-2 w-full"
+              onClick={resetCompletion}
+              disabled={isSaving}
+            >
+              <Icon name="trash" className="h-5 w-5" />
+              기록하지 않고 초기화
+            </button>
       </BottomSheetModal>
     </div>
   )

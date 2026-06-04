@@ -156,6 +156,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   const [weeklyGoalDays, setWeeklyGoalDays] = useState(getInitialWeeklyGoalDays)
   const [tierBoard, setTierBoard] = useState<TierBoard>(getInitialTierBoard)
   const [bookFormOpenRequest, setBookFormOpenRequest] = useState(0)
+  const [isLibraryDetailMode, setIsLibraryDetailMode] = useState(false)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [syncError, setSyncError] = useState<string | null>(null)
   const readingTimer = useReadingTimer(15 * 60)
@@ -915,6 +916,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           onStartReread={handleStartReread}
           onDeleteRound={handleDeleteRound}
           shouldOpenBookForm={bookFormOpenRequest > 0 && books.length === 0}
+          onDetailModeChange={setIsLibraryDetailMode}
         />
       )}
       {activeTab === 'profile' && (
@@ -931,6 +933,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       )}
     </>
   )
+  const shouldHideBottomTabs = activeTab === 'library' && isLibraryDetailMode
 
   if (isDataLoading) {
     return (
@@ -945,7 +948,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   return (
     <main className="min-h-svh bg-[#F8F8F5] text-stone-900">
       <div className="mx-auto flex min-h-svh max-w-[430px] flex-col bg-[#FCFBF7] shadow-[0_18px_60px_rgba(47,42,38,0.12)]">
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-5">
+        <div className={`min-h-0 flex-1 overflow-y-auto px-4 pt-5 ${shouldHideBottomTabs ? 'pb-5' : 'pb-28'}`}>
           {syncError && (
             <div className="mb-4 border-2 border-[#2F2A26] bg-[#F4D8CF] px-3 py-2 text-sm font-black text-[#8A3F2D]">
               {syncError}
@@ -953,7 +956,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           )}
           {activeScreen}
         </div>
-        <BottomTabs activeTab={activeTab} onChange={setActiveTab} />
+        {!shouldHideBottomTabs && <BottomTabs activeTab={activeTab} onChange={setActiveTab} />}
       </div>
     </main>
   )
