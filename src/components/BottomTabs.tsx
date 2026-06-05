@@ -82,7 +82,7 @@ export const BottomTabs = ({ activeTab, onChange }: BottomTabsProps) => (
             <span className="bottom-tab-icon">
               <BottomTabIcon tab={tab.key} />
             </span>
-            {isActive && <span className="bottom-tab-label">{tab.label}</span>}
+            <span className="bottom-tab-label">{tab.label}</span>
           </motion.button>
         )
       })}

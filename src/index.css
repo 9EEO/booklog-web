@@ -846,6 +846,16 @@ button {
   transform: translateX(calc(100% + 3px));
 }
 
+.session-timer-mode-grid-disabled {
+  cursor: not-allowed;
+  opacity: 0.66;
+  filter: grayscale(0.2);
+}
+
+.session-timer-mode-grid-disabled::before {
+  box-shadow: none;
+}
+
 .session-timer-mode-option {
   position: relative;
   z-index: 1;
@@ -904,6 +914,31 @@ button {
   padding: 12px;
 }
 
+.session-screen .focus-ring-stopwatch {
+  background:
+    linear-gradient(180deg, rgba(135, 147, 122, 0.28) 0%, rgba(95, 109, 87, 0.2) 100%),
+    linear-gradient(180deg, #26211d 0%, #151515 100%);
+}
+
+.session-screen .focus-ring-stopwatch-active {
+  animation: stopwatch-progress-glow 2.2s ease-in-out infinite;
+}
+
+.session-screen .focus-ring-stopwatch::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--session-green);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+}
+
+.session-screen .focus-ring-stopwatch-active::after {
+  animation: stopwatch-progress-light 2.2s ease-in-out infinite;
+}
+
 .session-screen .focus-ring::before {
   position: absolute;
   top: 8px;
@@ -945,6 +980,47 @@ button {
     linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 34%);
   content: '';
   pointer-events: none;
+}
+
+@keyframes stopwatch-progress-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 4px var(--session-ink),
+      5px 5px 0 rgba(21, 21, 21, 0.42),
+      inset 0 2px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 4px var(--session-ink),
+      5px 5px 0 rgba(21, 21, 21, 0.42),
+      0 0 20px rgba(135, 147, 122, 0.44),
+      inset 0 2px 0 rgba(255, 255, 255, 0.22),
+      inset 0 0 26px rgba(198, 220, 144, 0.24);
+  }
+}
+
+@keyframes stopwatch-progress-light {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-screen .focus-ring-stopwatch-active {
+    animation: none;
+  }
+
+  .session-screen .focus-ring-stopwatch-active::after {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 .session-screen .focus-ring-inner::after {
@@ -1437,7 +1513,7 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: rgba(21, 21, 21, 0.72);
+  color: currentColor;
   transform: translateY(1px);
 }
 

@@ -317,7 +317,7 @@ export const SessionScreen = ({
     <div className="session-screen space-y-4">
       <header className="session-reading-header">
         <div
-          className={`session-timer-mode-grid ${isStopwatchMode ? "session-timer-mode-grid-stopwatch" : ""}`}
+          className={`session-timer-mode-grid ${isStopwatchMode ? "session-timer-mode-grid-stopwatch" : ""} ${!canChangeTimerMode ? "session-timer-mode-grid-disabled" : ""}`}
           role="tablist"
           aria-label="독서 시간 측정 방식"
           onClick={handleTimerModeSwitchClick}
@@ -410,7 +410,7 @@ export const SessionScreen = ({
           <div className="relative z-10">
             <div className="focus-ring-wrap">
               <div
-                className="focus-ring"
+                className={`focus-ring ${isStopwatchMode ? "focus-ring-stopwatch" : ""} ${isStopwatchMode && isReading ? "focus-ring-stopwatch-active" : ""}`}
                 style={{ "--progress": `${timer.progress}%` } as CSSProperties}
               >
                 <div className="focus-ring-inner">
