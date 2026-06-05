@@ -88,7 +88,7 @@ export const ProfileScreen = ({ userEmail, books, records, dailyGoalSeconds, wee
             <p className="text-xs font-black text-stone-500">주간 독서 루틴</p>
             <p className="mt-1 text-xl font-black">주 {weeklyGoalDays}일</p>
           </div>
-          <Icon name="records" className="h-6 w-6 text-[#5B8DEE]" />
+          <Icon name="records" className="h-6 w-6 text-[#2563EB]" />
         </div>
         <div className="target-stepper">
           <button

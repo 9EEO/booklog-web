@@ -1,26 +1,28 @@
 @import 'tailwindcss';
+@import 'pretendard/dist/web/variable/pretendardvariable.css';
 
 :root {
+  --font-ui: 'Pretendard Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   --app-bg: #fff8e8;
   --app-surface: #fffef8;
   --paper: #fff8e8;
   --paper-deep: #f2c94c;
   --paper-soft: #fffef8;
-  --sage: #5b8dee;
+  --sage: #2563eb;
   --sage-strong: #76b852;
   --sage-soft: #dff4d4;
   --wood: #ff7eb6;
   --terracotta: #e76f51;
   --ink: #151515;
   --muted: #5d584f;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+  font-family: var(--font-ui);
   color: var(--ink);
   background: var(--app-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: none;
+  -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
@@ -45,8 +47,10 @@
   background-color: #dff4d4 !important;
 }
 
-[class~="bg-[#87937A]"] {
-  background-color: #5b8dee !important;
+[class~="bg-[#87937A]"],
+[class~="bg-[#5B8DEE]"],
+[class~="bg-[#2563EB]"] {
+  background-color: #2563eb !important;
 }
 
 [class~="bg-[#5F6D57]"] {
@@ -87,8 +91,9 @@
 }
 
 [class~="text-[#87937A]"],
-[class~="text-[#5B8DEE]"] {
-  color: #5b8dee !important;
+[class~="text-[#5B8DEE]"],
+[class~="text-[#2563EB]"] {
+  color: #2563eb !important;
 }
 
 [class~="text-[#B58A7A]"],
@@ -123,6 +128,14 @@ textarea {
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+.font-black {
+  font-weight: 800;
+}
+
+.font-bold {
+  font-weight: 650;
 }
 
 .pixel-card {
@@ -289,10 +302,24 @@ button {
 }
 
 .calendar-day-card-selected {
-  background: var(--sage);
+  border-color: var(--ink);
+  background: var(--paper-soft);
   box-shadow:
-    3px 3px 0 rgba(47, 42, 38, 0.88),
-    inset 0 -5px 0 rgba(47, 42, 38, 0.12);
+    0 0 0 2px rgba(21, 21, 21, 0.16),
+    inset 0 0 0 2px rgba(21, 21, 21, 0.06);
+}
+
+.calendar-day-card-selected::after {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  z-index: 2;
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ink);
+  content: '';
+  transform: translateX(-50%);
 }
 
 .calendar-day-cover {
@@ -357,6 +384,16 @@ button {
   color: var(--sage-strong);
 }
 
+.calendar-day-header.calendar-day-saturday,
+.calendar-day-empty-date.calendar-day-saturday {
+  color: var(--sage);
+}
+
+.calendar-day-header.calendar-day-sunday,
+.calendar-day-empty-date.calendar-day-sunday {
+  color: var(--terracotta);
+}
+
 .calendar-day-empty-date {
   font-size: 12px;
   font-weight: 900;
@@ -366,15 +403,79 @@ button {
   color: var(--sage-strong);
 }
 
+.calendar-today-button {
+  display: inline-flex;
+  height: 32px;
+  min-width: 54px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--ink);
+  background: var(--paper-deep);
+  color: var(--ink);
+  box-shadow: 2px 2px 0 rgba(47, 42, 38, 0.78);
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.calendar-today-button:active {
+  transform: translate(2px, 2px) scale(0.98);
+  box-shadow: none;
+}
+
+.calendar-month-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 2px solid var(--ink);
+  background: var(--paper-soft);
+  margin-bottom: 12px;
+}
+
+.calendar-month-summary-item {
+  min-width: 0;
+  padding: 7px 6px;
+  text-align: center;
+}
+
+.calendar-month-summary-item + .calendar-month-summary-item {
+  border-left: 2px solid var(--ink);
+}
+
+.calendar-month-summary-item p {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.52);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-month-summary-item strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .shadow-pixel {
   box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.78);
 }
 
 .pixel-label {
   color: var(--muted);
+  font-family: var(--font-ui);
   font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 
 .digital-timer {
@@ -386,6 +487,7 @@ button {
   color: var(--paper-soft);
   box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.28);
   padding: 12px 14px;
+  font-family: var(--font-mono);
   font-size: clamp(2rem, 13vw, 3.25rem);
   font-weight: 900;
   line-height: 1;
@@ -470,6 +572,7 @@ button {
 
 .focus-time {
   margin-top: 10px;
+  font-family: var(--font-mono);
   font-size: clamp(2rem, 12vw, 3rem);
   font-weight: 900;
   line-height: 1;
@@ -593,7 +696,7 @@ button {
   --session-cream: #fff8e8;
   --session-yellow: #f2c94c;
   --session-red: #e76f51;
-  --session-blue: #5b8dee;
+  --session-blue: #2563eb;
   --session-green: #76b852;
   --session-pink: #ff7eb6;
   color: var(--session-ink);
@@ -603,46 +706,50 @@ button {
   color: var(--session-blue);
 }
 
+.session-reading-header {
+  display: flex;
+  justify-content: center;
+}
+
+.session-reading-header .session-timer-mode-grid {
+  margin: 0 auto;
+}
+
 .session-screen .session-focus-panel {
   position: relative;
   overflow: hidden;
-  border: 3px solid var(--session-ink);
-  border-radius: 8px;
+  border: 2px solid rgba(21, 21, 21, 0.78);
+  border-radius: 20px;
   background:
-    linear-gradient(90deg, rgba(21, 21, 21, 0.055) 1px, transparent 1px),
-    linear-gradient(rgba(21, 21, 21, 0.055) 1px, transparent 1px),
-    linear-gradient(180deg, #fffef8 0%, #fff8e8 100%);
-  background-size:
-    18px 18px,
-    18px 18px,
-    auto;
-  box-shadow: 5px 5px 0 var(--session-ink);
-  padding: 12px;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 248, 232, 0.82)),
+    #fffef8;
+  box-shadow:
+    4px 4px 0 rgba(21, 21, 21, 0.34),
+    0 18px 46px rgba(21, 21, 21, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  padding: 18px 16px 16px;
 }
 
 .session-screen .session-focus-panel::before {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 16% 18%, rgba(91, 141, 238, 0.12) 0 3px, transparent 4px),
-    radial-gradient(circle at 82% 16%, rgba(231, 111, 81, 0.1) 0 3px, transparent 4px),
-    radial-gradient(circle at 78% 82%, rgba(118, 184, 82, 0.12) 0 3px, transparent 4px);
-  content: '';
+  display: none;
 }
 
 .session-screen .session-book-card {
   position: relative;
   z-index: 1;
-  border: 2px solid rgba(21, 21, 21, 0.78);
-  background:
-    linear-gradient(90deg, rgba(118, 184, 82, 0.18) 0 8px, transparent 8px 100%),
-    linear-gradient(180deg, #fffef8 0%, #fff8e8 100%);
-  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.5);
+  border: 1px solid rgba(21, 21, 21, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 254, 248, 0.62);
+  box-shadow: none;
+  padding: 10px;
 }
 
 .session-screen .session-book-cover {
-  border-color: var(--session-ink) !important;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.72);
+  width: 34px;
+  height: 44px;
+  border: 1px solid rgba(21, 21, 21, 0.26) !important;
+  border-radius: 7px;
+  box-shadow: 0 8px 18px rgba(21, 21, 21, 0.12);
 }
 
 .session-screen .session-book-title,
@@ -651,9 +758,24 @@ button {
   color: var(--session-ink);
 }
 
+.session-screen .session-book-title {
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.session-screen .session-book-author {
+  color: rgba(21, 21, 21, 0.54);
+  font-size: 11px;
+}
+
+.session-screen .session-book-round {
+  color: rgba(21, 21, 21, 0.42);
+}
+
 .session-screen .session-book-progress {
-  border: 1px solid rgba(21, 21, 21, 0.42);
-  background: #ffffff;
+  height: 4px;
+  border: 1px solid rgba(21, 21, 21, 0.16);
+  background: rgba(21, 21, 21, 0.1);
 }
 
 .session-screen .session-book-progress span {
@@ -661,19 +783,23 @@ button {
 }
 
 .session-screen .session-book-swap {
-  border: 2px solid var(--session-ink);
-  background: #fffef8;
-  color: var(--session-ink);
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.72);
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(21, 21, 21, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.58);
+  box-shadow: none;
 }
 
 .session-screen .focus-timer-card {
   min-height: 384px;
-  margin-top: 12px;
+  margin-top: 8px;
   border: 0;
+  border-radius: 14px;
   background: transparent;
   box-shadow: none;
-  padding: 8px 0 0;
+  padding: 12px 10px 10px;
 }
 
 .session-screen .focus-timer-card::before {
@@ -681,10 +807,7 @@ button {
 }
 
 .session-screen .focus-timer-card::after {
-  inset: 0 4px 8px;
-  border: 2px solid rgba(21, 21, 21, 0.1);
-  border-radius: 5px;
-  background: rgba(255, 248, 232, 0.58);
+  display: none;
 }
 
 .session-screen .focus-ring-wrap {
@@ -695,22 +818,23 @@ button {
   position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  margin: 0 auto 12px;
-  width: min(100%, 232px);
+  gap: 3px;
+  margin: 0 auto 10px;
+  width: min(100%, 216px);
   border: 2px solid var(--session-ink);
   border-radius: 999px;
   background: #fffef8;
   box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.72);
-  padding: 3px;
+  cursor: pointer;
+  padding: 2px;
 }
 
 .session-timer-mode-grid::before {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 10px) / 2);
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 7px) / 2);
   border-radius: 999px;
   background: var(--session-blue);
   box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.54);
@@ -719,23 +843,24 @@ button {
 }
 
 .session-timer-mode-grid-stopwatch::before {
-  transform: translateX(calc(100% + 4px));
+  transform: translateX(calc(100% + 3px));
 }
 
 .session-timer-mode-option {
   position: relative;
   z-index: 1;
   display: inline-flex;
-  min-height: 30px;
+  min-height: 26px;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   border-radius: 999px;
   border: 0;
   background: transparent;
   color: rgba(21, 21, 21, 0.72);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 900;
+  letter-spacing: 0.04em;
   transition:
     color 160ms ease,
     opacity 160ms ease;
@@ -743,6 +868,11 @@ button {
 
 .session-timer-mode-option-active {
   color: #ffffff;
+}
+
+.session-timer-mode-option svg {
+  width: 13px;
+  height: 13px;
 }
 
 .session-timer-mode-option:disabled {
@@ -755,39 +885,87 @@ button {
 }
 
 .session-screen .focus-ring {
-  width: min(74vw, 264px);
-  background: conic-gradient(var(--session-green) var(--progress), #ede8dc var(--progress));
+  position: relative;
+  width: min(78vw, 292px);
+  aspect-ratio: 1.34 / 1;
+  border-radius: 28px;
+  background:
+    conic-gradient(
+      from 0deg,
+      var(--session-green) 0 var(--progress),
+      rgba(255, 254, 248, 0.18) var(--progress) 100%
+    ),
+    linear-gradient(180deg, #26211d 0%, #151515 100%);
+  background-clip: border-box;
   box-shadow:
     0 0 0 4px var(--session-ink),
-    5px 5px 0 var(--session-red);
+    5px 5px 0 rgba(21, 21, 21, 0.42),
+    inset 0 2px 0 rgba(255, 255, 255, 0.12);
+  padding: 12px;
+}
+
+.session-screen .focus-ring::before {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 2;
+  width: 42px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 254, 248, 0.24);
+  content: '';
+  transform: translateX(-50%);
 }
 
 .session-screen .focus-ring-inner {
-  border: 3px solid var(--session-ink);
-  background: #fffef8;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 2px solid rgba(255, 254, 248, 0.16);
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(21, 21, 21, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, #f4fbdf 0%, #fffef8 58%, #fff8e8 100%);
+  background-size:
+    100% 8px,
+    auto;
+  box-shadow:
+    inset 0 0 0 2px rgba(21, 21, 21, 0.16),
+    inset 0 12px 22px rgba(255, 255, 255, 0.62),
+    inset 0 -16px 24px rgba(21, 21, 21, 0.08);
+}
+
+.session-screen .focus-ring-inner::before {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.62), transparent 18%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 34%);
+  content: '';
+  pointer-events: none;
+}
+
+.session-screen .focus-ring-inner::after {
+  display: none;
+}
+
+.session-screen .focus-ring-inner > * {
+  position: relative;
+  z-index: 1;
 }
 
 .session-screen .focus-time {
-  margin-top: 14px;
-  font-size: clamp(2.5rem, 14vw, 3.75rem);
+  margin-top: 10px;
+  font-size: clamp(2.2rem, 12vw, 3.3rem);
   color: var(--session-ink);
-  text-shadow: 2px 2px 0 rgba(255, 216, 77, 0.9);
-}
-
-.session-screen .focus-target-label {
-  margin-top: 7px;
-  border: 2px solid rgba(21, 21, 21, 0.72);
-  background: rgba(255, 248, 232, 0.88);
-  padding: 3px 8px;
-  color: rgba(21, 21, 21, 0.72);
-  font-size: 11px;
-  font-weight: 900;
-  line-height: 1;
+  text-shadow: 1px 1px 0 rgba(242, 201, 76, 0.82);
 }
 
 .session-screen .focus-character {
-  width: 64px;
-  height: 66px;
+  width: 58px;
+  height: 60px;
   mix-blend-mode: multiply;
   filter: saturate(1.12) contrast(1.04);
 }
@@ -801,7 +979,7 @@ button {
 
 .session-screen .focus-controls {
   margin: 28px auto 0;
-  width: min(100%, 264px);
+  width: min(100%, 316px);
 }
 
 .session-screen .preset-button {
@@ -840,6 +1018,12 @@ button {
 .session-screen .session-control-button {
   min-height: 58px;
   padding: 9px 14px;
+}
+
+.session-screen .session-stop-button {
+  width: 58px;
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .target-stepper {
@@ -905,6 +1089,110 @@ button {
 
 .session-screen .target-step-value span {
   color: rgba(21, 21, 21, 0.58);
+}
+
+.session-time-controls {
+  width: min(100%, 320px);
+  margin: 0 auto;
+  border: 1px solid rgba(21, 21, 21, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 254, 248, 0.82);
+  box-shadow:
+    2px 2px 0 rgba(21, 21, 21, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+  padding: 8px;
+}
+
+.session-screen .session-target-stepper {
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  align-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(21, 21, 21, 0.05);
+  padding: 4px;
+  box-shadow: inset 0 0 0 1px rgba(21, 21, 21, 0.08);
+}
+
+.session-screen .session-target-stepper .target-step-button,
+.session-screen .session-target-stepper .target-step-value {
+  min-height: 32px;
+  border: 0;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.session-screen .session-target-stepper .target-step-button {
+  background: transparent;
+  color: rgba(21, 21, 21, 0.66);
+}
+
+.session-screen .session-target-stepper .target-step-value {
+  gap: 2px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.session-screen .session-target-stepper .target-step-value span {
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.session-screen .session-target-stepper .target-step-value strong {
+  font-size: 16px;
+}
+
+.session-screen .session-target-stepper .target-step-button:active {
+  transform: scale(0.94);
+  box-shadow: none;
+}
+
+.session-screen .session-target-stepper .target-step-button:disabled {
+  opacity: 0.34;
+}
+
+.session-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  margin-top: 8px;
+  border: 1px solid rgba(21, 21, 21, 0.2);
+  border-radius: 9px;
+  background: rgba(255, 254, 248, 0.72);
+}
+
+.session-screen .session-preset-grid .preset-button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.58);
+  box-shadow: none;
+  padding: 0 6px;
+  font-size: 10px;
+}
+
+.session-screen .session-preset-grid .preset-button + .preset-button {
+  border-left: 1px solid rgba(21, 21, 21, 0.12);
+}
+
+.session-screen .session-preset-grid .preset-button-active {
+  background: var(--session-blue);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.session-screen .session-preset-grid .preset-button:active {
+  transform: scale(0.97);
+  box-shadow: none;
+}
+
+.session-screen .session-preset-grid .preset-button-active:active {
+  box-shadow: none;
 }
 
 .primary-button,
@@ -997,6 +1285,32 @@ button {
   box-shadow: 2px 2px 0 rgba(47, 42, 38, 0.78);
 }
 
+.book-form-back-button {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  transition:
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.book-form-back-button:active {
+  transform: scale(0.94);
+  background: rgba(47, 42, 38, 0.08);
+}
+
+.book-form-back-button svg {
+  width: 28px;
+  height: 28px;
+}
+
 .mini-icon-button {
   width: 32px;
   height: 32px;
@@ -1023,6 +1337,127 @@ button {
   color: var(--paper-soft);
   transform: translate(2px, 2px);
   box-shadow: none;
+}
+
+.bottom-tabs {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 0 12px max(12px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.bottom-tabs-shell {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  min-height: 66px;
+  align-items: center;
+  border: 1px solid rgba(21, 21, 21, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 254, 248, 0.94);
+  box-shadow:
+    0 18px 48px rgba(21, 21, 21, 0.14),
+    0 2px 0 rgba(255, 255, 255, 0.72) inset;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  padding: 5px 6px;
+  pointer-events: auto;
+}
+
+.bottom-tab-button {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  min-width: 0;
+  min-height: 56px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.bottom-tab-button::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 18px;
+  height: 3px;
+  z-index: 0;
+  border-radius: 999px;
+  background: #2563eb;
+  transform: translateX(-50%) scaleX(0.45);
+  opacity: 0;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.bottom-tab-icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease,
+    color 180ms ease;
+}
+
+.bottom-tab-svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bottom-tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(21, 21, 21, 0.72);
+  transform: translateY(1px);
+}
+
+.bottom-tab-button-active {
+  color: #2563eb;
+}
+
+.bottom-tab-button-active::before {
+  transform: translateX(-50%) scaleX(1);
+  opacity: 1;
+}
+
+.bottom-tab-button-active .bottom-tab-icon {
+  background: transparent;
+  color: #2563eb;
+  transform: translateY(1px);
+}
+
+.bottom-tab-button:active {
+  transform: scale(0.96);
 }
 
 .book-cover {

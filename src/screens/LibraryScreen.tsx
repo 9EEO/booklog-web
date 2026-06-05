@@ -60,6 +60,7 @@ const emptyNewBook: NewBookInput = {
 };
 
 type SearchStatus = "idle" | "loading" | "success" | "empty" | "error";
+type BookFormStep = "search" | "details";
 type ShelfTab = "reading" | "completed";
 type LibraryView = "shelf" | "tier";
 
@@ -180,6 +181,7 @@ export const LibraryScreen = ({
   const [draftPage, setDraftPage] = useState(1);
   const [currentPageDraft, setCurrentPageDraft] = useState(1);
   const [newBook, setNewBook] = useState<NewBookInput>(emptyNewBook);
+  const [bookFormStep, setBookFormStep] = useState<BookFormStep>("search");
   const [bookSearchQuery, setBookSearchQuery] = useState("");
   const [bookSearchStatus, setBookSearchStatus] =
     useState<SearchStatus>("idle");
@@ -449,12 +451,27 @@ export const LibraryScreen = ({
 
   const closeBookForm = () => {
     setIsBookFormOpen(false);
+    setBookFormStep("search");
     setNewBook(emptyNewBook);
     setBookSearchQuery("");
     setBookSearchStatus("idle");
     setBookSearchMessage("");
     setBookSearchResults([]);
     setBookDateError("");
+  };
+
+  const openBookSearchStep = () => {
+    setBookFormStep("search");
+    setBookDateError("");
+  };
+
+  const startManualBookEntry = () => {
+    setNewBook({
+      ...emptyNewBook,
+      title: bookSearchQuery.trim(),
+    });
+    setBookDateError("");
+    setBookFormStep("details");
   };
 
   const saveBook = async () => {
@@ -554,6 +571,8 @@ export const LibraryScreen = ({
       author: book.authors.join(", ") || current.author,
       thumbnail: book.thumbnail,
     }));
+    setBookDateError("");
+    setBookFormStep("details");
   };
 
   useBackNavigationLayer(
@@ -582,7 +601,18 @@ export const LibraryScreen = ({
     () => setSelectedRoundId(null),
     "library-round-detail",
   );
-  useBackNavigationLayer(isBookFormOpen, closeBookForm, "library-book-form");
+  useBackNavigationLayer(
+    isBookFormOpen,
+    () => {
+      if (bookFormStep === "details") {
+        openBookSearchStep();
+        return;
+      }
+
+      closeBookForm();
+    },
+    "library-book-form",
+  );
 
   return (
     <div className="space-y-4">
@@ -715,7 +745,7 @@ export const LibraryScreen = ({
                 onClick={() => setSelectedRoundId(null)}
                 aria-label="책 상세로 돌아가기"
               >
-                <Icon name="chevronLeft" className="h-5 w-5" />
+                <Icon name="chevronLeft" className="h-7 w-7" />
               </button>
               <div className="min-w-0 flex-1 text-center">
                 <p className="pixel-label">ROUND DETAIL</p>
@@ -1469,23 +1499,41 @@ export const LibraryScreen = ({
         ariaLabel="새 책 추가"
         backdropClassName="modal-backdrop-top"
       >
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="pixel-label">NEW BOOK</p>
-                <h2 className="mt-1 text-xl font-black">새 책 추가</h2>
-              </div>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {bookFormStep === "details" && (
               <button
                 type="button"
-                className="icon-button"
-                onClick={closeBookForm}
-                aria-label="닫기"
+                className="book-form-back-button"
+                onClick={openBookSearchStep}
+                aria-label="책 검색으로 돌아가기"
               >
-                <Icon name="close" className="h-5 w-5" />
+                <Icon name="chevronLeft" className="h-7 w-7" />
               </button>
+            )}
+            <div className="min-w-0">
+              <p className="pixel-label">
+                {bookFormStep === "search" ? "BOOK SEARCH" : "BOOK DETAIL"}
+              </p>
+              <h2 className="mt-1 truncate text-xl font-black">
+                {bookFormStep === "search" ? "책 검색" : "상세정보 입력"}
+              </h2>
             </div>
+          </div>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={closeBookForm}
+            aria-label="닫기"
+          >
+            <Icon name="close" className="h-5 w-5" />
+          </button>
+        </div>
 
+        {bookFormStep === "search" ? (
+          <div className="space-y-3">
             <form
-              className="mb-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3"
+              className="border-2 border-[#2F2A26] bg-[#FCFBF7] p-3"
               onSubmit={(event) => {
                 event.preventDefault();
                 void submitBookSearch();
@@ -1522,7 +1570,7 @@ export const LibraryScreen = ({
                 </p>
               )}
               {bookSearchResults.length > 0 && (
-                <div className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+                <div className="mt-3 max-h-[52svh] space-y-2 overflow-y-auto">
                   {bookSearchResults.map((book) => (
                     <button
                       key={book.id}
@@ -1533,14 +1581,14 @@ export const LibraryScreen = ({
                       <div className="flex gap-3">
                         {book.thumbnail ? (
                           <img
-                            className="h-16 w-11 shrink-0 border-2 border-[#2F2A26] object-cover"
+                            className="h-20 w-14 shrink-0 border-2 border-[#2F2A26] object-cover"
                             src={book.thumbnail}
                             alt=""
                           />
                         ) : (
-                          <div className="h-16 w-11 shrink-0 border-2 border-[#2F2A26] bg-[#A97B5B]" />
+                          <div className="h-20 w-14 shrink-0 border-2 border-[#2F2A26] bg-[#A97B5B]" />
                         )}
-                        <div className="min-w-0">
+                        <div className="min-w-0 self-center">
                           <p className="truncate text-sm font-black text-stone-900">
                             {book.title}
                           </p>
@@ -1557,6 +1605,45 @@ export const LibraryScreen = ({
                 </div>
               )}
             </form>
+            <button
+              type="button"
+              className="secondary-button w-full"
+              onClick={startManualBookEntry}
+            >
+              <Icon name="plus" className="h-5 w-5" />
+              직접 입력
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 grid grid-cols-[4.25rem_1fr] gap-3 border-2 border-[#2F2A26] bg-[#F3E8D0] p-3">
+              {newBook.thumbnail ? (
+                <img
+                  className="h-24 w-16 border-2 border-[#2F2A26] object-cover"
+                  src={newBook.thumbnail}
+                  alt=""
+                />
+              ) : (
+                <div className="flex h-24 w-16 items-center justify-center border-2 border-[#2F2A26] bg-[#A97B5B] text-[10px] font-black text-[#FFFDF8]">
+                  직접 입력
+                </div>
+              )}
+              <div className="min-w-0 self-center">
+                <p className="truncate text-sm font-black text-stone-900">
+                  {newBook.title.trim() || "책 제목을 입력해 주세요"}
+                </p>
+                <p className="mt-1 truncate text-xs font-bold text-stone-600">
+                  {newBook.author.trim() || "저자 정보 없음"}
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 text-xs font-black text-[#2563EB] underline underline-offset-4"
+                  onClick={openBookSearchStep}
+                >
+                  다시 검색
+                </button>
+              </div>
+            </div>
 
             <label className="field-label" htmlFor="new-book-title">
               책 제목
@@ -1750,9 +1837,9 @@ export const LibraryScreen = ({
               <button
                 type="button"
                 className="secondary-button"
-                onClick={closeBookForm}
+                onClick={openBookSearchStep}
               >
-                취소
+                이전
               </button>
               <button
                 type="button"
@@ -1764,6 +1851,8 @@ export const LibraryScreen = ({
                 추가
               </button>
             </div>
+          </>
+        )}
       </BottomSheetModal>
     </div>
   );

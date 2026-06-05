@@ -294,7 +294,7 @@ export const HomeScreen = ({
               오늘 진행과 이번 주 흐름
             </p>
           </div>
-          <Icon name="records" className="h-5 w-5 text-[#5B8DEE]" />
+          <Icon name="records" className="h-5 w-5 text-[#2563EB]" />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -350,7 +350,7 @@ export const HomeScreen = ({
           <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-black text-stone-500">주간 루틴</p>
-              <span className="text-[10px] font-black text-[#5B8DEE]">
+              <span className="text-[10px] font-black text-[#2563EB]">
                 {weeklyReadingDays}/{weeklyGoalDays}일
               </span>
             </div>
@@ -363,7 +363,7 @@ export const HomeScreen = ({
               {Array.from({ length: weeklyGoalDays }, (_, index) => (
                 <span
                   key={index}
-                  className={`h-3 border-2 border-[#2F2A26] ${index < weeklyGoalFilledDays ? "bg-[#5B8DEE]" : "bg-[#FCFBF7]"}`}
+                  className={`h-3 border-2 border-[#2F2A26] ${index < weeklyGoalFilledDays ? "bg-[#2563EB]" : "bg-[#FCFBF7]"}`}
                   aria-hidden="true"
                 />
               ))}

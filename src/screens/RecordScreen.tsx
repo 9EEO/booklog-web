@@ -593,20 +593,16 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
       {view === 'calendar' && (
         <div className="space-y-3">
           <PixelCard className="bg-[#F3E8D0]">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-[#5F6D57]">
-                  <Icon name="calendar" className="h-5 w-5" />
-                  <p className="text-xs font-black">독서 캘린더</p>
-                </div>
-                <h2 className="mt-1 text-xl font-black">{formatMonthTitle(monthCursor)}</h2>
+                <h2 className="text-xl font-black">{formatMonthTitle(monthCursor)}</h2>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <button type="button" className="mini-icon-button" onClick={() => moveMonth(-1)} aria-label="이전 달">
                   <Icon name="chevronLeft" className="h-4 w-4" />
                 </button>
-                <button type="button" className="secondary-button min-h-8 px-2 py-1 text-xs" onClick={moveToToday}>
-                  오늘
+                <button type="button" className="calendar-today-button" onClick={moveToToday}>
+                  TODAY
                 </button>
                 <button type="button" className="mini-icon-button" onClick={() => moveMonth(1)} aria-label="다음 달">
                   <Icon name="chevronRight" className="h-4 w-4" />
@@ -614,18 +610,18 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
               </div>
             </div>
 
-            <div className="mb-4 grid grid-cols-3 gap-2">
-              <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
-                <p className="text-[10px] font-black text-stone-500">독서일</p>
-                <p className="mt-1 text-sm font-black">{monthStats.readingDates.size}일</p>
+            <div className="calendar-month-summary">
+              <div className="calendar-month-summary-item">
+                <p>독서일</p>
+                <strong>{monthStats.readingDates.size}일</strong>
               </div>
-              <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
-                <p className="text-[10px] font-black text-stone-500">독서 시간</p>
-                <p className="mt-1 text-sm font-black">{formatCompactDuration(monthStats.durationSeconds)}</p>
+              <div className="calendar-month-summary-item">
+                <p>독서 시간</p>
+                <strong>{formatCompactDuration(monthStats.durationSeconds)}</strong>
               </div>
-              <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
-                <p className="text-[10px] font-black text-stone-500">페이지</p>
-                <p className="mt-1 text-sm font-black">{monthStats.pages}p</p>
+              <div className="calendar-month-summary-item">
+                <p>페이지</p>
+                <strong>{monthStats.pages}p</strong>
               </div>
             </div>
 
@@ -643,6 +639,12 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                 const isCurrentMonth = isSameMonth(date, monthCursor)
                 const isSelected = dateLabel === selectedDate
                 const isToday = dateLabel === todayDateLabel
+                const weekendClass =
+                  date.getDay() === 0
+                    ? 'calendar-day-sunday'
+                    : date.getDay() === 6
+                      ? 'calendar-day-saturday'
+                      : ''
                 const dayBookPreviews = dayStats
                   ? Array.from(
                       dayStats.records
@@ -695,7 +697,7 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                   >
                     {hasRecord && primaryBookPreview ? (
                       <>
-                        <span className={`calendar-day-header ${isToday ? 'calendar-day-header-today' : ''}`}>
+                        <span className={`calendar-day-header ${weekendClass} ${isToday ? 'calendar-day-header-today' : ''}`}>
                           {date.getDate()}
                           {hiddenBookCount > 0 && (
                             <span className="calendar-day-count">
@@ -712,7 +714,7 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                         </span>
                       </>
                     ) : (
-                      <span className={`calendar-day-empty-date ${isToday ? 'calendar-day-empty-date-today' : ''}`}>{date.getDate()}</span>
+                      <span className={`calendar-day-empty-date ${weekendClass} ${isToday ? 'calendar-day-empty-date-today' : ''}`}>{date.getDate()}</span>
                     )}
                   </button>
                 )
