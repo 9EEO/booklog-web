@@ -655,23 +655,25 @@ export const LibraryScreen = ({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="library-page">
       {!selectedBook && (
         <>
-      <header className="flex items-center justify-between gap-3">
+      <header className="library-page-header">
         <div>
-          <p className="pixel-label">
-            {libraryView === "tier" ? "TIER MAKER" : "MY LIBRARY"}
-          </p>
-          <h1 className="mt-1 text-2xl font-black">
+          <h1>
             {libraryView === "tier" ? "완독 책 티어" : "서재"}
           </h1>
+          <p>
+            {libraryView === "tier"
+              ? "완독한 책을 나만의 기준으로 정리해요."
+              : "읽는 책과 완독한 책을 한곳에서 관리해요."}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="library-page-actions">
           {libraryView === "tier" ? (
             <button
               type="button"
-              className="secondary-button px-3 py-2 text-xs"
+              className="library-text-button"
               onClick={() => setLibraryView("shelf")}
             >
               서재로
@@ -680,7 +682,7 @@ export const LibraryScreen = ({
             <>
               <button
                 type="button"
-                className="icon-button"
+                className="library-icon-button"
                 onClick={() => setLibraryView("tier")}
                 aria-label="티어메이커"
               >
@@ -688,7 +690,7 @@ export const LibraryScreen = ({
               </button>
               <button
                 type="button"
-                className="icon-button"
+                className="library-icon-button library-icon-button-primary"
                 onClick={() => setIsBookFormOpen(true)}
                 aria-label="새 책 추가"
               >
@@ -716,8 +718,8 @@ export const LibraryScreen = ({
           />
         </Suspense>
       ) : (
-        <div className="space-y-3">
-        <div className="library-shelf-tabs grid grid-cols-2 gap-2 border-2 border-[#2F2A26] bg-[#E8DFC2] p-1 shadow-pixel">
+        <div className="library-shelf-view">
+        <div className="library-shelf-tabs">
           {[
             { id: "reading" as const, label: "독서중", count: readingBooks.length },
             { id: "completed" as const, label: "완독", count: completedBooks.length },
@@ -728,20 +730,20 @@ export const LibraryScreen = ({
               <button
                 key={tab.id}
                 type="button"
-                className={`library-shelf-tab flex items-center justify-center gap-2 border-2 border-[#2F2A26] px-3 py-2 text-sm font-black transition ${
+                className={`library-shelf-tab ${
                   isActive
-                    ? "library-shelf-tab-active bg-[#87937A] text-[#FFFDF8] shadow-[2px_2px_0_rgba(47,42,38,0.78)]"
-                    : "bg-[#FCFBF7] text-[#2F2A26]"
+                    ? "library-shelf-tab-active"
+                    : ""
                 }`}
                 onClick={() => setActiveShelfTab(tab.id)}
                 aria-pressed={isActive}
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`library-shelf-tab-count min-w-6 border-2 px-1 text-xs ${
+                  className={`library-shelf-tab-count ${
                     isActive
-                      ? "library-shelf-tab-count-active border-[#FFFDF8] bg-[#5F6D57] text-[#FFFDF8]"
-                      : "border-[#2F2A26] bg-[#F3E8D0] text-[#2F2A26]"
+                      ? "library-shelf-tab-count-active"
+                      : ""
                   }`}
                 >
                   {tab.count}
@@ -1971,27 +1973,27 @@ const BookShelfSection = ({
   const completedPages = books.reduce((sum, book) => sum + (book.totalPages ?? book.currentPage), 0);
 
   return (
-    <section>
+    <section className="library-shelf-section">
       {books.length === 0 ? (
-        <div className="border-2 border-dashed border-stone-500 bg-[#F3E8D0] p-4 text-center text-sm font-black text-stone-600">
+        <div className="library-empty-state">
           {tone === "reading"
             ? "읽는 중인 책이 없습니다."
             : "완독한 책이 없습니다."}
         </div>
       ) : tone === "completed" ? (
-        <div className="space-y-3">
+        <div className="completed-library-layout">
           <div className="completed-library-hero">
             <div>
-              <h2 className="text-lg font-black">완독 컬렉션</h2>
-              <p className="mt-1 text-xs font-black text-stone-500">
+              <h2>완독 컬렉션</h2>
+              <p>
                 읽어낸 책들이 쌓이고 있어요.
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-black">{books.length}권</p>
-              <p className="mt-1 text-xs font-black text-stone-500">
+            <div className="completed-library-summary">
+              <strong>{books.length}권</strong>
+              <span>
                 총 {completedPages.toLocaleString()}p
-              </p>
+              </span>
             </div>
           </div>
           <div className="completed-library-grid">
@@ -2002,10 +2004,10 @@ const BookShelfSection = ({
                 <button
                   key={book.id}
                   type="button"
-                  className="h-full w-full text-left"
+                  className="completed-book-button"
                   onClick={() => onSelectBook(book.id)}
                 >
-                  <PixelCard className="completed-book-card h-full bg-[#FCFBF7]">
+                  <div className="completed-book-card">
                     <div className="completed-book-card-inner">
                       <div
                         className="completed-book-cover"
@@ -2035,14 +2037,14 @@ const BookShelfSection = ({
                         <p className="completed-book-title">{book.title}</p>
                       </div>
                     </div>
-                  </PixelCard>
+                  </div>
                 </button>
               );
             })}
           </div>
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="library-reading-list">
           {books.map((book) => {
             const progress = getBookProgress(book.currentPage, book.totalPages);
 
@@ -2050,35 +2052,25 @@ const BookShelfSection = ({
               <button
                 key={book.id}
                 type="button"
-                className="text-left"
+                className="library-book-card"
                 onClick={() => onSelectBook(book.id)}
               >
-                <PixelCard
-                  className={
-                    tone === "reading" ? "bg-[#FCFBF7]" : "bg-[#F3E8D0]"
-                  }
-                >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="library-book-card-main">
                     <MiniBook book={book} />
                     <span
-                      className={`shrink-0 border-2 border-[#2F2A26] px-2 py-1 text-sm font-black ${tone === "reading" ? "bg-[#DCE3D2] text-[#5F6D57]" : "bg-[#2F2A26] text-[#FFFDF8]"}`}
+                      className="library-book-progress-badge"
                     >
                       {progress !== null ? `${progress}%` : `${book.currentPage}p`}
                     </span>
                   </div>
                   {progress !== null && (
-                    <div className="mt-3 h-3 rounded-full border-2 border-[#2F2A26] bg-[#F3E8D0]">
+                    <div className="library-book-progress-track">
                       <div
-                        className={
-                          tone === "reading"
-                            ? "h-full rounded-full bg-[#5F6D57]"
-                            : "h-full rounded-full bg-[#2F2A26]"
-                        }
+                        className="library-book-progress-fill"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
                   )}
-                </PixelCard>
               </button>
             );
           })}

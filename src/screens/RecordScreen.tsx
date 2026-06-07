@@ -1,7 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { BottomSheetModal } from '../components/BottomSheetModal'
 import { Icon } from '../components/Icon'
-import { PixelCard } from '../components/PixelCard'
 import { useBackNavigationLayer } from '../hooks/useBackNavigationLayer'
 import type { Book, ReadingRecord, ReadingRecordUpdateInput } from '../types/reading'
 import { formatDuration } from '../utils/formatDuration'
@@ -391,35 +390,32 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
   useBackNavigationLayer(Boolean(deleteRecord), () => setDeleteRecordId(null), 'record-delete')
 
   return (
-    <div className="space-y-4">
-      <header>
-        <p className="pixel-label">READING LOG</p>
-        <h1 className="mt-1 text-2xl font-black">기록</h1>
+    <div className="record-page">
+      <header className="record-page-header">
+        <h1>기록</h1>
+        <p>날짜별 독서 흐름과 남겨둔 문장을 확인해요.</p>
       </header>
 
-      <div className="grid grid-cols-3 gap-2">
-        <button type="button" className={`preset-button ${view === 'calendar' ? 'preset-button-active' : ''}`} onClick={() => setView('calendar')}>
+      <div className="record-view-tabs">
+        <button type="button" className={`record-view-tab ${view === 'calendar' ? 'record-view-tab-active' : ''}`} onClick={() => setView('calendar')}>
           캘린더
         </button>
-        <button type="button" className={`preset-button ${view === 'records' ? 'preset-button-active' : ''}`} onClick={() => setView('records')}>
+        <button type="button" className={`record-view-tab ${view === 'records' ? 'record-view-tab-active' : ''}`} onClick={() => setView('records')}>
           기록
         </button>
-        <button type="button" className={`preset-button ${view === 'sentences' ? 'preset-button-active' : ''}`} onClick={() => setView('sentences')}>
+        <button type="button" className={`record-view-tab ${view === 'sentences' ? 'record-view-tab-active' : ''}`} onClick={() => setView('sentences')}>
           문장
         </button>
       </div>
 
       {view === 'records' &&
         (records.length === 0 ? (
-          <PixelCard className="bg-[#FCFBF7] text-center">
-            <Icon name="records" className="mx-auto mb-3 h-8 w-8 text-[#87937A]" />
-            <p className="font-black">아직 저장된 독서 기록이 없습니다.</p>
-          </PixelCard>
+          <div className="record-empty-state">아직 저장된 독서 기록이 없습니다.</div>
         ) : (
-          <div className="space-y-3">
-            <PixelCard className="bg-[#F3E8D0]">
+          <div className="record-panel">
+            <div className="record-filter-card">
               <select
-                className="min-h-10 w-full border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 text-xs font-black outline-none"
+                className="record-select"
                 value={recordBookFilter}
                 onChange={(event) => setRecordBookFilter(event.target.value)}
                 aria-label="기록 책 필터"
@@ -433,53 +429,48 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                     </option>
                   ))}
               </select>
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="record-filter-actions">
                 <button
                   type="button"
-                  className={`preset-button min-h-10 ${recordSentenceFilter === 'all' ? 'preset-button-active' : ''}`}
+                  className={`record-filter-button ${recordSentenceFilter === 'all' ? 'record-filter-button-active' : ''}`}
                   onClick={() => setRecordSentenceFilter('all')}
                 >
                   전체
                 </button>
                 <button
                   type="button"
-                  className={`preset-button min-h-10 ${recordSentenceFilter === 'withSentence' ? 'preset-button-active' : ''}`}
+                  className={`record-filter-button ${recordSentenceFilter === 'withSentence' ? 'record-filter-button-active' : ''}`}
                   onClick={() => setRecordSentenceFilter('withSentence')}
                 >
                   문장 있음
                 </button>
               </div>
-            </PixelCard>
+            </div>
 
             {recordGroups.length === 0 ? (
-              <PixelCard className="bg-[#FCFBF7] text-center">
-                <Icon name="records" className="mx-auto mb-3 h-8 w-8 text-[#87937A]" />
-                <p className="font-black">조건에 맞는 기록이 없습니다.</p>
-              </PixelCard>
+              <div className="record-empty-state">조건에 맞는 기록이 없습니다.</div>
             ) : (
               recordGroups.map((group) => (
-                <section key={group.date} className="space-y-2">
-                  <div className="flex items-center justify-between gap-3 border-2 border-[#2F2A26] bg-[#F3E8D0] px-3 py-2 shadow-[2px_2px_0_rgba(47,42,38,0.72)]">
-                    <h2 className="text-sm font-black">{group.date}</h2>
-                    <p className="text-xs font-black text-[#5F6D57]">총 {formatDuration(group.durationSeconds)}</p>
+                <section key={group.date} className="record-group">
+                  <div className="record-group-header">
+                    <h2>{group.date}</h2>
+                    <p>총 {formatDuration(group.durationSeconds)}</p>
                   </div>
-                  <div className="space-y-3">
+                  <div className="record-list">
                     {group.records.map((record) => (
-                      <PixelCard key={record.id} className="bg-[#FCFBF7]">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-base font-black">{record.bookTitle}</p>
-                            <p className="mt-1 text-xs font-black text-stone-500">
+                      <article key={record.id} className="record-card">
+                        <div className="record-card-main">
+                          <div className="record-card-copy">
+                            <p className="record-card-title">{record.bookTitle}</p>
+                            <p className="record-card-meta">
                               {formatRoundLabel(record)} · {record.startPage}p → {record.endPage}p
                             </p>
                             {formatSessionTimeRange(record) && (
-                              <p className="mt-1 text-xs font-black text-[#5F6D57]">{formatSessionTimeRange(record)}</p>
+                              <p className="record-card-time">{formatSessionTimeRange(record)}</p>
                             )}
                           </div>
-                          <div className="flex shrink-0 items-start gap-1">
-                            <time className="border-2 border-[#2F2A26] bg-[#2F2A26] px-2 py-1 text-xs font-black leading-none text-[#FFFDF8] shadow-[2px_2px_0_rgba(47,42,38,0.8)]">
-                              {formatDuration(record.durationSeconds)}
-                            </time>
+                          <div className="record-card-actions">
+                            <time className="record-duration-badge">{formatDuration(record.durationSeconds)}</time>
                             <button type="button" className="mini-icon-button" onClick={() => openRecordEditor(record)} aria-label="기록 수정">
                               <Icon name="edit" className="h-4 w-4" />
                             </button>
@@ -497,13 +488,12 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                           </div>
                         </div>
                         {record.sentence && (
-                          <blockquote className="mt-3 border-l-4 border-[#5F6D57] bg-[#F3E8D0] p-3 text-sm font-bold leading-relaxed">
-                            <Icon name="quote" className="mb-2 h-4 w-4 text-[#5F6D57]" />
+                          <blockquote className="record-quote-card">
                             {record.sentence}
-                            {record.sentencePage && <span className="mt-2 block text-xs font-black text-stone-500">{record.sentencePage}p</span>}
+                            {record.sentencePage && <span>{record.sentencePage}p</span>}
                           </blockquote>
                         )}
-                      </PixelCard>
+                      </article>
                     ))}
                   </div>
                 </section>
@@ -513,11 +503,11 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
         ))}
 
       {view === 'sentences' && (
-        <div className="space-y-3">
-          <PixelCard className="bg-[#F3E8D0]">
-            <div className="grid grid-cols-[1fr_auto] gap-2">
+        <div className="record-panel">
+          <div className="record-filter-card">
+            <div className="record-sentence-filter-row">
               <select
-                className="min-h-10 border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 text-xs font-black outline-none"
+                className="record-select"
                 value={bookFilter}
                 onChange={(event) => {
                   setBookFilter(event.target.value)
@@ -534,75 +524,67 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                     </option>
                   ))}
               </select>
-              <button type="button" className="secondary-button min-h-10 px-3 text-xs" onClick={pickRandomSentence} disabled={visibleSentences.length === 0}>
+              <button type="button" className="record-random-button" onClick={pickRandomSentence} disabled={visibleSentences.length === 0}>
                 랜덤
               </button>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="record-filter-actions">
               <button
                 type="button"
-                className={`preset-button min-h-10 ${sentenceSort === 'recent' ? 'preset-button-active' : ''}`}
+                className={`record-filter-button ${sentenceSort === 'recent' ? 'record-filter-button-active' : ''}`}
                 onClick={() => setSentenceSort('recent')}
               >
                 등록순
               </button>
               <button
                 type="button"
-                className={`preset-button min-h-10 ${sentenceSort === 'page' ? 'preset-button-active' : ''}`}
+                className={`record-filter-button ${sentenceSort === 'page' ? 'record-filter-button-active' : ''}`}
                 onClick={() => setSentenceSort('page')}
               >
                 페이지순
               </button>
             </div>
-          </PixelCard>
+          </div>
 
           {randomSentence && (
-            <PixelCard className="bg-[#2F2A26] text-[#FFFDF8]">
-              <div className="mb-3 flex items-center gap-2 text-[#F2C94C]">
-                <Icon name="leaf" className="h-5 w-5" />
-                <p className="text-xs font-black">오늘의 문장</p>
-              </div>
-              <p className="text-sm font-black leading-relaxed">“{randomSentence.text}”</p>
-              <p className="mt-3 text-right text-xs font-black text-[#E8DFC2]">
+            <article className="record-random-sentence">
+              <p>오늘의 문장</p>
+              <blockquote>“{randomSentence.text}”</blockquote>
+              <span>
                 {randomSentence.bookTitle} · p.{randomSentence.page}
-              </p>
-            </PixelCard>
+              </span>
+            </article>
           )}
 
           {visibleSentences.length === 0 ? (
-            <PixelCard className="bg-[#FCFBF7] text-center">
-              <Icon name="quote" className="mx-auto mb-3 h-8 w-8 text-[#87937A]" />
-              <p className="font-black">아직 모아둔 문장이 없습니다.</p>
-            </PixelCard>
+            <div className="record-empty-state">아직 모아둔 문장이 없습니다.</div>
           ) : (
             visibleSentences.map((sentence) => (
-              <PixelCard key={sentence.id} className="bg-[#FCFBF7]">
-                <blockquote className="text-sm font-black leading-relaxed">“{sentence.text}”</blockquote>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs font-black text-stone-500">
-                  <p className="min-w-0 truncate">{sentence.bookTitle}</p>
-                  <p className="shrink-0 text-[#5F6D57]">
+              <article key={sentence.id} className="record-sentence-card">
+                <blockquote>“{sentence.text}”</blockquote>
+                <div>
+                  <p>{sentence.bookTitle}</p>
+                  <span>
                     p.{sentence.page} · {sentence.recordedAt}
-                  </p>
+                  </span>
                 </div>
-              </PixelCard>
+              </article>
             ))
           )}
         </div>
       )}
 
       {view === 'calendar' && (
-        <div className="space-y-3">
-          <PixelCard className="bg-[#F3E8D0]">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-xl font-black">{formatMonthTitle(monthCursor)}</h2>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
+        <div className="record-panel">
+          <section className="record-calendar-card">
+            <div className="record-calendar-header">
+              <h2>{formatMonthTitle(monthCursor)}</h2>
+              <div className="record-calendar-nav">
                 <button type="button" className="mini-icon-button" onClick={() => moveMonth(-1)} aria-label="이전 달">
                   <Icon name="chevronLeft" className="h-4 w-4" />
                 </button>
                 <button type="button" className="calendar-today-button" onClick={moveToToday}>
-                  TODAY
+                  오늘
                 </button>
                 <button type="button" className="mini-icon-button" onClick={() => moveMonth(1)} aria-label="다음 달">
                   <Icon name="chevronRight" className="h-4 w-4" />
@@ -625,13 +607,13 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
               </div>
             </div>
 
-            <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-black text-stone-500">
+            <div className="record-weekdays">
               {weekdayLabels.map((weekday) => (
                 <span key={weekday}>{weekday}</span>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-1">
+            <div className="record-calendar-grid">
               {calendarDays.map((date) => {
                 const dateLabel = formatDateLabel(date)
                 const dayStats = calendarStatsByDate[dateLabel]
@@ -720,8 +702,7 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                 )
               })}
             </div>
-          </PixelCard>
-
+          </section>
         </div>
       )}
 
