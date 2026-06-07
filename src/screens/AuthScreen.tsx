@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import focusSproutStill from '../assets/focus-sprout-still.png'
 import { Icon } from '../components/Icon'
-import { PixelCard } from '../components/PixelCard'
 import { hasSupabaseConfig } from '../services/supabase'
 
 type AuthScreenProps = {
@@ -65,97 +65,101 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
   }
 
   return (
-    <main className="min-h-svh bg-[#F8F8F5] text-stone-900">
-      <div className="mx-auto flex min-h-svh max-w-[430px] flex-col justify-center bg-[#FCFBF7] px-4 py-8 shadow-[0_18px_60px_rgba(47,42,38,0.12)]">
-        <div className="space-y-4">
-          <header>
-            <p className="pixel-label">BOOKLOG TIMER</p>
-            <h1 className="mt-2 text-3xl font-black leading-tight text-stone-950">독서 기록을 이어가요</h1>
+    <main className="auth-screen">
+      <div className="auth-shell">
+        <section className="auth-panel">
+          <header className="auth-header">
+            <div className="auth-brand">
+              <Icon name="book" className="h-4 w-4" />
+              <span>BOOKLOG</span>
+            </div>
+            <div className="auth-focus-display" aria-hidden="true">
+              <img src={focusSproutStill} alt="" />
+              <span>READY TO READ</span>
+            </div>
+            <h1>{mode === 'signIn' ? '다시, 읽던 곳부터' : '나만의 독서 기록 시작하기'}</h1>
+            <p>{mode === 'signIn' ? '로그인하고 오늘의 독서를 이어가세요.' : '계정을 만들고 독서 시간을 차곡차곡 쌓아보세요.'}</p>
           </header>
 
-          <PixelCard className="bg-[#F3E8D0]">
-            <div className="mb-4 grid h-14 w-14 place-items-center border-2 border-[#2F2A26] bg-[#87937A] text-[#FFFDF8] shadow-pixel">
-              <Icon name="profile" className="h-8 w-8" />
-            </div>
-            <p className="text-sm font-bold leading-relaxed text-stone-700">
-              이메일과 비밀번호로 로그인하면 설치한 앱 안에서 바로 독서 기록을 이어갈 수 있습니다.
-            </p>
-          </PixelCard>
-
-          <div className="grid grid-cols-2 border-2 border-[#2F2A26] bg-[#FCFBF7] text-sm font-black">
+          <div className={`auth-mode-switch ${mode === 'signUp' ? 'auth-mode-switch-sign-up' : ''}`} role="tablist" aria-label="계정 인증 방식">
             <button
               type="button"
-              className={`px-3 py-2 ${mode === 'signIn' ? 'bg-[#87937A] text-[#FFFDF8]' : 'text-stone-700'}`}
+              className={mode === 'signIn' ? 'auth-mode-option auth-mode-option-active' : 'auth-mode-option'}
               onClick={() => switchMode('signIn')}
+              role="tab"
+              aria-selected={mode === 'signIn'}
             >
               로그인
             </button>
             <button
               type="button"
-              className={`border-l-2 border-[#2F2A26] px-3 py-2 ${mode === 'signUp' ? 'bg-[#87937A] text-[#FFFDF8]' : 'text-stone-700'}`}
+              className={mode === 'signUp' ? 'auth-mode-option auth-mode-option-active' : 'auth-mode-option'}
               onClick={() => switchMode('signUp')}
+              role="tab"
+              aria-selected={mode === 'signUp'}
             >
               회원가입
             </button>
           </div>
 
-          <form className="space-y-3" onSubmit={submit}>
-            <label className="field-label" htmlFor="auth-email">
-              이메일
-            </label>
-            <input
-              id="auth-email"
-              className="pixel-input"
-              type="email"
-              autoComplete="email"
-              placeholder="reader@example.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
+          <form className="auth-form" onSubmit={submit}>
+            <div className="auth-field">
+              <label htmlFor="auth-email">이메일</label>
+              <div className="auth-input-wrap">
+                <Icon name="profile" className="h-4 w-4" />
+                <input
+                  id="auth-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="reader@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </div>
+            </div>
 
-            <label className="field-label" htmlFor="auth-password">
-              비밀번호
-            </label>
-            <input
-              id="auth-password"
-              className="pixel-input"
-              type="password"
-              autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-              placeholder="6자 이상"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+            <div className="auth-field">
+              <label htmlFor="auth-password">비밀번호</label>
+              <div className="auth-input-wrap">
+                <Icon name="save" className="h-4 w-4" />
+                <input
+                  id="auth-password"
+                  type="password"
+                  autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+                  placeholder="6자 이상"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </div>
+            </div>
 
-            <button type="submit" className="primary-button w-full" disabled={!canSubmit}>
-              <Icon name="save" className="h-5 w-5" />
+            <button type="submit" className="auth-submit" disabled={!canSubmit}>
+              <Icon name={mode === 'signIn' ? 'play' : 'plus'} className="h-5 w-5" />
               {status === 'submitting' ? '처리 중' : mode === 'signIn' ? '로그인' : '회원가입'}
             </button>
           </form>
 
           {mode === 'signIn' && (
-            <button type="button" className="secondary-button w-full text-xs" onClick={resetPassword} disabled={!hasSupabaseConfig || trimmedEmail.length === 0 || status === 'submitting'}>
-              비밀번호 재설정 메일 받기
+            <button type="button" className="auth-reset" onClick={resetPassword} disabled={!hasSupabaseConfig || trimmedEmail.length === 0 || status === 'submitting'}>
+              비밀번호를 잊으셨나요?
             </button>
           )}
 
           {message && (
-            <PixelCard className="bg-[#DCE3D2]">
-              <p className="text-sm font-black leading-relaxed">{message}</p>
-            </PixelCard>
+            <p className="auth-notice auth-notice-success" aria-live="polite">
+              <Icon name="check" className="h-4 w-4" />
+              {message}
+            </p>
           )}
 
           {!hasSupabaseConfig && (
-            <PixelCard className="bg-[#F3E8D0]">
-              <p className="text-sm font-black leading-relaxed text-[#B58A7A]">Supabase 환경변수가 설정되지 않았습니다.</p>
-            </PixelCard>
+            <p className="auth-notice">Supabase 환경변수가 설정되지 않았습니다.</p>
           )}
 
           {error && (
-            <PixelCard className="bg-[#F3E8D0]">
-              <p className="text-sm font-black leading-relaxed text-[#B58A7A]">{error}</p>
-            </PixelCard>
+            <p className="auth-notice auth-notice-error" role="alert">{error}</p>
           )}
-        </div>
+        </section>
       </div>
     </main>
   )

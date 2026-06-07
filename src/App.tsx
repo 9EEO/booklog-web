@@ -30,7 +30,6 @@ import {
 import {
   defaultDailyGoalSeconds,
   defaultWeeklyGoalDays,
-  getInitialActiveTab,
   getInitialBooks,
   getInitialCurrentBookId,
   getInitialDailyGoalSeconds,
@@ -49,6 +48,7 @@ import {
 } from './storage/readingStorage'
 import type { Book, BookStatus, NewBookInput, ReadingCompletionInput, ReadingRecord, ReadingRecordUpdateInput, ReadingRound, TabKey } from './types/reading'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from './types/tier'
+import { clampBookPage, isBookCompletedByPage } from './utils/bookPages'
 
 const todayLabel = () =>
   new Intl.DateTimeFormat('ko-KR', {
@@ -69,6 +69,15 @@ const bookPalettes = [
 ]
 
 const clampNumber = (value: number, min: number, max: number) => Math.min(Math.max(Math.floor(value) || min, min), max)
+
+const getErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+    return error.message
+  }
+
+  return fallbackMessage
+}
 
 const sortRecordsByRecent = (nextRecords: ReadingRecord[]) =>
   [...nextRecords].sort((left, right) => right.date.localeCompare(left.date) || right.id.localeCompare(left.id))
@@ -148,7 +157,7 @@ const removeBookRound = (book: Book, roundId: string, nextActiveRound: ReadingRo
 }
 
 function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Promise<void> }) {
-  const [activeTab, setActiveTab] = useState<TabKey>(getInitialActiveTab)
+  const [activeTab, setActiveTab] = useState<TabKey>('home')
   const [books, setBooks] = useState<Book[]>(getInitialBooks)
   const [records, setRecords] = useState<ReadingRecord[]>(getInitialRecords)
   const [currentBookId, setCurrentBookId] = useState(() => getInitialCurrentBookId(getInitialBooks()))
@@ -160,6 +169,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [syncError, setSyncError] = useState<string | null>(null)
   const readingTimer = useReadingTimer(15 * 60)
+  const resetReadingTimer = readingTimer.reset
 
   const currentBook = useMemo(
     () => books.find((book) => book.id === currentBookId) ?? books[0] ?? null,
@@ -167,9 +177,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   )
 
   const handleSyncFailure = (error: unknown, fallbackMessage: string) => {
-    const message = error instanceof Error ? error.message : fallbackMessage
+    const message = getErrorMessage(error, fallbackMessage)
     setSyncError(message)
-    throw error instanceof Error ? error : new Error(message)
+    throw new Error(message)
   }
 
   useEffect(() => {
@@ -177,15 +187,17 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   }, [activeTab])
 
   useEffect(() => {
-    saveDataOwnerUserId(user.id)
-  }, [user.id])
-
-  useEffect(() => {
     let isMounted = true
 
     const loadSnapshot = async () => {
       setIsDataLoading(true)
       setSyncError(null)
+      const localDataOwnerUserId = getStoredDataOwnerUserId()
+      const isDifferentDataOwner = localDataOwnerUserId !== user.id
+
+      if (isDifferentDataOwner) {
+        resetReadingTimer()
+      }
 
       try {
         const remoteSnapshot = await fetchReadingSnapshot(user.id)
@@ -197,7 +209,6 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           weeklyGoalDays: getInitialWeeklyGoalDays(),
           tierBoard: getInitialTierBoard(),
         }
-        const localDataOwnerUserId = getStoredDataOwnerUserId()
 
         const hasRemoteData =
           remoteSnapshot.books.length > 0 ||
@@ -228,10 +239,19 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
         setDailyGoalSeconds(nextSnapshot.dailyGoalSeconds)
         setWeeklyGoalDays(nextSnapshot.weeklyGoalDays)
         setTierBoard(nextSnapshot.tierBoard)
+        saveDataOwnerUserId(user.id)
       } catch (error) {
         if (!isMounted) return
 
-        setSyncError(error instanceof Error ? error.message : '데이터를 불러오지 못했습니다.')
+        if (isDifferentDataOwner) {
+          setBooks([])
+          setRecords([])
+          setCurrentBookId('')
+          setDailyGoalSeconds(defaultDailyGoalSeconds)
+          setWeeklyGoalDays(defaultWeeklyGoalDays)
+          setTierBoard(createEmptyTierBoard())
+        }
+        setSyncError(getErrorMessage(error, '데이터를 불러오지 못했습니다.'))
       } finally {
         if (isMounted) {
           setIsDataLoading(false)
@@ -244,33 +264,37 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
     return () => {
       isMounted = false
     }
-  }, [user.id])
+  }, [resetReadingTimer, user.id])
 
   useEffect(() => {
+    if (isDataLoading) return
     saveBooks(books)
-  }, [books])
+  }, [books, isDataLoading])
 
   useEffect(() => {
+    if (isDataLoading) return
     saveRecords(records)
-  }, [records])
+  }, [isDataLoading, records])
 
   useEffect(() => {
-    if (currentBookId) {
-      saveCurrentBookId(currentBookId)
-    }
-  }, [currentBookId])
+    if (isDataLoading) return
+    saveCurrentBookId(currentBookId)
+  }, [currentBookId, isDataLoading])
 
   useEffect(() => {
+    if (isDataLoading) return
     saveDailyGoalSeconds(dailyGoalSeconds)
-  }, [dailyGoalSeconds])
+  }, [dailyGoalSeconds, isDataLoading])
 
   useEffect(() => {
+    if (isDataLoading) return
     saveWeeklyGoalDays(weeklyGoalDays)
-  }, [weeklyGoalDays])
+  }, [isDataLoading, weeklyGoalDays])
 
   useEffect(() => {
+    if (isDataLoading) return
     saveTierBoard(tierBoard)
-  }, [tierBoard])
+  }, [isDataLoading, tierBoard])
 
   useEffect(() => {
     if (isDataLoading) return
@@ -281,7 +305,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       weeklyGoalDays,
       tierBoard,
     }).catch((error) => {
-      setSyncError(error instanceof Error ? error.message : '설정을 저장하지 못했습니다.')
+      setSyncError(getErrorMessage(error, '설정을 저장하지 못했습니다.'))
     })
   }, [currentBookId, dailyGoalSeconds, weeklyGoalDays, isDataLoading, tierBoard, user.id])
 
@@ -313,9 +337,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       const activeRound = getActiveRound(currentBook)
       const date = todayLabel()
       const startPage = currentBook.currentPage
-      const endPage = Math.min(Math.max(input.endPage, startPage), currentBook.totalPages)
+      const endPage = clampBookPage(input.endPage, currentBook.totalPages, startPage)
       const sentence = input.sentence?.trim()
-      const sentencePage = input.sentencePage ? Math.min(Math.max(input.sentencePage, 1), currentBook.totalPages) : undefined
+      const sentencePage = input.sentencePage ? clampBookPage(input.sentencePage, currentBook.totalPages) : undefined
 
       const newRecord = await createRemoteRecord(user.id, {
         bookId: currentBook.id,
@@ -332,7 +356,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
         sentencePage,
       })
 
-      const isCompleted = endPage >= currentBook.totalPages
+      const isCompleted = isBookCompletedByPage(endPage, currentBook.totalPages)
       const nextRoundStatus: BookStatus = isCompleted ? 'completed' : 'reading'
       const nextRound = activeRound
         ? {
@@ -466,19 +490,20 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
         const isActiveRound = Boolean(targetRound && targetRound.id === targetBook.activeRoundId)
         const nextRoundCurrentPage =
           targetRound && targetRound.currentPage === targetRecord.endPage
-            ? clampNumber(maxRecordedPage, 1, targetBook.totalPages)
-            : clampNumber(Math.max(targetRound?.currentPage ?? targetBook.currentPage, updatedRecord.endPage), 1, targetBook.totalPages)
+            ? clampBookPage(maxRecordedPage, targetBook.totalPages)
+            : clampBookPage(Math.max(targetRound?.currentPage ?? targetBook.currentPage, updatedRecord.endPage), targetBook.totalPages)
         const nextCurrentPage = isActiveRound ? nextRoundCurrentPage : targetBook.currentPage
         const nextAccumulatedSeconds = Math.max((targetRound?.accumulatedSeconds ?? targetBook.accumulatedSeconds) + durationDelta, 0)
-        const isCompleted = nextCurrentPage >= targetBook.totalPages
-        const nextRoundStatus: BookStatus = nextRoundCurrentPage >= targetBook.totalPages ? 'completed' : 'reading'
+        const isCompleted = isBookCompletedByPage(nextCurrentPage, targetBook.totalPages)
+        const nextRoundCompleted = isBookCompletedByPage(nextRoundCurrentPage, targetBook.totalPages)
+        const nextRoundStatus: BookStatus = nextRoundCompleted ? 'completed' : 'reading'
         const nextRound = targetRound
           ? {
               ...targetRound,
               currentPage: nextRoundCurrentPage,
               accumulatedSeconds: nextAccumulatedSeconds,
               status: nextRoundStatus,
-              completedAt: nextRoundCurrentPage >= targetBook.totalPages ? targetRound.completedAt ?? updatedRecord.date : undefined,
+              completedAt: nextRoundCompleted ? targetRound.completedAt ?? updatedRecord.date : undefined,
             }
           : null
 
@@ -560,18 +585,19 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
         const fallbackPage = Math.max(targetRecord.startPage, ...remainingBookRecords.map((record) => record.endPage), 1)
         const isActiveRound = Boolean(targetRound && targetRound.id === targetBook.activeRoundId)
         const nextRoundCurrentPage =
-          targetRound?.currentPage === targetRecord.endPage ? clampNumber(fallbackPage, 1, targetBook.totalPages) : (targetRound?.currentPage ?? targetBook.currentPage)
+          targetRound?.currentPage === targetRecord.endPage ? clampBookPage(fallbackPage, targetBook.totalPages) : (targetRound?.currentPage ?? targetBook.currentPage)
         const nextCurrentPage = isActiveRound ? nextRoundCurrentPage : targetBook.currentPage
         const nextAccumulatedSeconds = Math.max((targetRound?.accumulatedSeconds ?? targetBook.accumulatedSeconds) - targetRecord.durationSeconds, 0)
-        const isCompleted = nextCurrentPage >= targetBook.totalPages
-        const nextRoundStatus: BookStatus = nextRoundCurrentPage >= targetBook.totalPages ? 'completed' : 'reading'
+        const isCompleted = isBookCompletedByPage(nextCurrentPage, targetBook.totalPages)
+        const nextRoundCompleted = isBookCompletedByPage(nextRoundCurrentPage, targetBook.totalPages)
+        const nextRoundStatus: BookStatus = nextRoundCompleted ? 'completed' : 'reading'
         const nextRound = targetRound
           ? {
               ...targetRound,
               currentPage: nextRoundCurrentPage,
               accumulatedSeconds: nextAccumulatedSeconds,
               status: nextRoundStatus,
-              completedAt: nextRoundCurrentPage >= targetBook.totalPages ? targetRound.completedAt ?? targetRecord.date : undefined,
+              completedAt: nextRoundCompleted ? targetRound.completedAt ?? targetRecord.date : undefined,
             }
           : null
 
@@ -634,7 +660,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       setSyncError(null)
       await updateRemoteHighlight(sentenceId, {
         text,
-        page: Math.min(Math.max(page, 1), targetBook.totalPages),
+        page: clampBookPage(page, targetBook.totalPages),
       })
 
       setBooks((current) =>
@@ -648,7 +674,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
                 ? {
                     ...sentence,
                     text: text.trim(),
-                    page: Math.min(Math.max(page, 1), book.totalPages),
+                    page: clampBookPage(page, book.totalPages),
                   }
                 : sentence,
             ),
@@ -669,7 +695,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       const newHighlight = await createRemoteHighlight(user.id, {
         bookId,
         text,
-        page: Math.min(Math.max(page, 1), targetBook.totalPages),
+        page: clampBookPage(page, targetBook.totalPages),
         recordedAt: date,
       })
 
@@ -695,8 +721,8 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
     try {
       setSyncError(null)
       const activeRound = getActiveRound(targetBook)
-      const currentPage = Math.min(Math.max(Math.floor(page) || 1, 1), targetBook.totalPages)
-      const isCompleted = currentPage >= targetBook.totalPages
+      const currentPage = clampBookPage(page, targetBook.totalPages)
+      const isCompleted = isBookCompletedByPage(currentPage, targetBook.totalPages)
       const nextRoundStatus: BookStatus = isCompleted ? 'completed' : 'reading'
       const nextRound = activeRound
         ? {
@@ -736,6 +762,53 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
       )
     } catch (error) {
       handleSyncFailure(error, '현재 페이지를 저장하지 못했습니다.')
+    }
+  }
+
+  const handleUpdateBookTotalPages = async (bookId: string, totalPages: number) => {
+    const targetBook = books.find((book) => book.id === bookId)
+    if (!targetBook) return
+
+    const nextTotalPages = Math.max(Math.floor(totalPages) || targetBook.currentPage, targetBook.currentPage)
+    const isCompleted = targetBook.currentPage >= nextTotalPages
+    const date = todayLabel()
+    const activeRound = getActiveRound(targetBook)
+    const nextRound = activeRound
+      ? {
+          ...activeRound,
+          status: (isCompleted ? 'completed' : activeRound.status) as BookStatus,
+          completedAt: isCompleted ? activeRound.completedAt ?? date : activeRound.completedAt,
+        }
+      : null
+
+    try {
+      setSyncError(null)
+      if (nextRound && !nextRound.id.includes('-round-')) {
+        await updateRemoteReadingRound(nextRound.id, {
+          status: nextRound.status,
+          completedAt: nextRound.status === 'completed' ? nextRound.completedAt ?? date : null,
+        })
+      }
+      await updateRemoteBook(bookId, {
+        totalPages: nextTotalPages,
+        status: isCompleted ? 'completed' : targetBook.status,
+        completedAt: isCompleted ? targetBook.completedAt ?? date : targetBook.completedAt ?? null,
+      })
+      setBooks((current) =>
+        current.map((book) => {
+          if (book.id !== bookId) return book
+          const nextBook = nextRound ? applyActiveRoundToBook(book, nextRound) : book
+
+          return {
+            ...nextBook,
+            totalPages: nextTotalPages,
+            status: isCompleted ? 'completed' : nextBook.status,
+            completedAt: isCompleted ? nextBook.completedAt ?? date : nextBook.completedAt,
+          }
+        }),
+      )
+    } catch (error) {
+      handleSyncFailure(error, '전체 페이지를 저장하지 못했습니다.')
     }
   }
 
@@ -913,6 +986,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           onDeleteSentence={handleDeleteSentence}
           onDeleteBook={handleDeleteBook}
           onUpdateBookPage={handleUpdateBookPage}
+          onUpdateBookTotalPages={handleUpdateBookTotalPages}
           onStartReread={handleStartReread}
           onDeleteRound={handleDeleteRound}
           shouldOpenBookForm={bookFormOpenRequest > 0 && books.length === 0}
@@ -956,7 +1030,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
           )}
           {activeScreen}
         </div>
-        {!shouldHideBottomTabs && <BottomTabs activeTab={activeTab} onChange={setActiveTab} />}
+        {!shouldHideBottomTabs && (
+          <BottomTabs
+            activeTab={activeTab}
+            disabledTabs={books.length === 0 ? ['session'] : []}
+            onChange={setActiveTab}
+          />
+        )}
       </div>
     </main>
   )

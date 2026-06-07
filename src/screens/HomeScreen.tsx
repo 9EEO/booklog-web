@@ -1,9 +1,8 @@
 import { DigitalTimer } from "../components/DigitalTimer";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
-import { PixelCard } from "../components/PixelCard";
-import { ReadingCharacter } from "../components/ReadingCharacter";
 import type { Book, ReadingRecord } from "../types/reading";
+import { getBookProgress } from "../utils/bookPages";
 import { formatDuration } from "../utils/formatDuration";
 
 type HomeScreenProps = {
@@ -138,8 +137,8 @@ export const HomeScreen = ({
       Boolean(book.rounds?.some((round) => round.status === "completed")),
   ).length;
   const currentProgress = currentBook
-    ? Math.round((currentBook.currentPage / currentBook.totalPages) * 100)
-    : 0;
+    ? getBookProgress(currentBook.currentPage, currentBook.totalPages)
+    : null;
   const currentRoundLabel =
     currentBook?.activeRoundNumber && currentBook.activeRoundNumber > 1
       ? `${currentBook.activeRoundNumber}회독`
@@ -153,6 +152,10 @@ export const HomeScreen = ({
     0,
   );
   const weeklyGoalFilledDays = Math.min(weeklyReadingDays, weeklyGoalDays);
+  const totalReadingSeconds = books.reduce(
+    (sum, book) => sum + book.accumulatedSeconds,
+    0,
+  );
   const recentSentence = books
     .flatMap((book) =>
       book.sentences.map((sentence) => ({
@@ -164,245 +167,142 @@ export const HomeScreen = ({
 
   if (books.length === 0) {
     return (
-      <div className="space-y-4">
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <p className="pixel-label">BOOKLOG TIMER</p>
-            <h1 className="mt-2 text-3xl font-black leading-tight text-stone-950">
-              첫 책을 추가하고 독서를 시작해요
-            </h1>
-          </div>
-          <div className="rounded-md border-2 border-[#2F2A26] bg-[#87937A] p-2 shadow-pixel">
-            <Icon name="leaf" className="h-6 w-6 text-[#FFFDF8]" />
-          </div>
+      <div className="home-empty-screen">
+        <header className="home-empty-header">
+          <h1>읽을 책을 등록해 주세요</h1>
+          <p>책을 등록하면 독서 타이머를 시작할 수 있습니다.</p>
         </header>
 
-        <PixelCard className="overflow-hidden bg-[#F3E8D0]">
-          <div className="grid grid-cols-[1fr_116px] items-center gap-3">
-            <div>
-              <p className="text-lg font-black leading-tight">
-                서재에 책을 담으면 타이머와 기록이 이어집니다.
-              </p>
-              <p className="mt-3 text-sm font-bold leading-relaxed text-stone-600">
-                카카오 책 검색으로 제목과 표지를 빠르게 불러올 수 있어요.
-              </p>
-              <button
-                type="button"
-                className="primary-button mt-4 w-full"
-                onClick={onAddFirstBook}
-              >
-                <Icon name="plus" className="h-5 w-5" />책 추가하기
-              </button>
-            </div>
-            <ReadingCharacter />
-          </div>
-        </PixelCard>
+        <div className="home-empty-action">
+          <button
+            type="button"
+            className="home-empty-add-button"
+            onClick={onAddFirstBook}
+          >
+            <Icon name="plus" className="h-5 w-5" />
+            첫 책 등록하기
+          </button>
 
-        <div className="grid gap-3">
-          {[
-            ["1", "책 추가", "서재에 첫 책을 등록합니다."],
-            ["2", "타이머 시작", "독서중 탭에서 목표 시간을 정하고 읽습니다."],
-            [
-              "3",
-              "문장 기록",
-              "완료 화면에서 기억할 문장을 선택으로 남깁니다.",
-            ],
-          ].map(([step, title, description]) => (
-            <PixelCard key={step} className="bg-[#FCFBF7]">
-              <div className="flex gap-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center border-2 border-[#2F2A26] bg-[#DCE3D2] text-sm font-black text-[#5F6D57]">
-                  {step}
-                </span>
-                <div>
-                  <p className="font-black">{title}</p>
-                  <p className="mt-1 text-sm font-bold leading-relaxed text-stone-600">
-                    {description}
-                  </p>
-                </div>
-              </div>
-            </PixelCard>
-          ))}
+          <p className="home-empty-search-hint">
+            제목이나 저자로 검색해 빠르게 등록할 수 있어요.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {currentBook ? (
-        <PixelCard className="overflow-hidden bg-[#F3E8D0] p-3">
-          <div className="space-y-3">
+    <div className="home-dashboard">
+      {currentBook && (
+        <section className="home-current-panel">
+          <div className="home-current-heading">
             <div>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-black text-stone-700">
-                  지금 읽는 책
-                </p>
-                <span className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-1 text-[11px] font-black text-[#5F6D57]">
-                  {currentRoundLabel ? `${currentRoundLabel} · ` : ""}
-                  {currentProgress}%
-                </span>
-              </div>
-              <div className="mt-2">
-                <MiniBook book={currentBook} compact />
-              </div>
+              <p>NOW READING</p>
+              <h1>오늘도 이어서 읽어요</h1>
             </div>
-            <div className="h-3 rounded-full border-2 border-[#2F2A26] bg-[#FCFBF7]">
-              <div
-                className="h-full rounded-full bg-[#5F6D57]"
-                style={{ width: `${currentProgress}%` }}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs font-black">
-              <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2 text-stone-600">
-                <p className="text-[10px] text-stone-500">현재 페이지</p>
-                <p className="mt-1 text-sm text-stone-900">
-                  {currentBook.currentPage}/{currentBook.totalPages}p
-                </p>
-              </div>
-              <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2 text-stone-600">
-                <p className="text-[10px] text-stone-500">오늘 목표</p>
-                <p className="mt-1 text-sm text-stone-900">
-                  {dailyGoalProgress}%
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="primary-button min-h-10 w-full"
-              onClick={onStart}
-            >
-              <Icon name="play" className="h-5 w-5" />
-              독서 시작
-            </button>
+            <span>
+              {currentRoundLabel ? `${currentRoundLabel} · ` : ""}
+              {currentProgress !== null ? `${currentProgress}%` : `${currentBook.currentPage}p`}
+            </span>
           </div>
-        </PixelCard>
-      ) : (
-        <PixelCard className="bg-[#F3E8D0] p-3 text-center">
-          <Icon name="book" className="mx-auto mb-2 h-7 w-7 text-[#5F6D57]" />
-          <p className="text-base font-black">첫 책을 서재에 추가해 주세요.</p>
-          <p className="mt-1 text-sm font-bold leading-relaxed text-stone-600">
-            책을 추가하면 독서 타이머와 기록을 시작할 수 있습니다.
-          </p>
-        </PixelCard>
+
+          <div className="home-current-book">
+            <MiniBook book={currentBook} />
+          </div>
+
+          {currentProgress !== null && (
+            <div className="home-current-progress" aria-label={`책 진행률 ${currentProgress}%`}>
+              <span style={{ width: `${currentProgress}%` }} />
+            </div>
+          )}
+
+          <button type="button" className="home-start-button" onClick={onStart}>
+            <Icon name="play" className="h-5 w-5" />
+            독서 시작
+          </button>
+        </section>
       )}
 
-      <PixelCard className="bg-[#FCFBF7] p-3">
-        <div className="mb-3 flex items-center justify-between gap-3">
+      <section className="home-summary-panel">
+        <header className="home-section-heading">
           <div>
-            <p className="text-xs font-black text-stone-500">독서 요약</p>
-            <p className="mt-0.5 text-base font-black">
-              오늘 진행과 이번 주 흐름
-            </p>
+            <p>READING FLOW</p>
+            <h2>독서 흐름</h2>
           </div>
-          <Icon name="records" className="h-5 w-5 text-[#2563EB]" />
+          <Icon name="records" className="h-5 w-5" />
+        </header>
+
+        <div className="home-summary-stats">
+          <div><span>오늘</span><strong>{formatShortDuration(todaySeconds)}</strong></div>
+          <div><span>이번 주</span><strong>{formatShortDuration(weekSeconds)}</strong></div>
+          <div><span>연속 독서</span><strong>{readingStreakDays}일</strong></div>
+          <div><span>이번 달</span><strong>{monthlyReadingDays}일</strong></div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2">
-            <p className="text-[10px] font-black text-stone-500">오늘 독서</p>
-            <p className="mt-1 text-sm font-black">
-              {formatShortDuration(todaySeconds)}
-            </p>
+        <div className="home-goal-row">
+          <div className="home-goal-copy">
+            <span>오늘 목표</span>
+            <strong>{dailyGoalProgress}%</strong>
           </div>
-          <div className="border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2">
-            <p className="text-[10px] font-black text-stone-500">이번 주</p>
-            <p className="mt-1 text-sm font-black">
-              {formatShortDuration(weekSeconds)}
-            </p>
+          <div className="home-goal-progress">
+            <span style={{ width: `${dailyGoalProgress}%` }} />
           </div>
+          <p>
+            {remainingDailyGoalSeconds === 0
+              ? "오늘 목표 달성"
+              : `${formatShortDuration(remainingDailyGoalSeconds)} 남음`}
+          </p>
         </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2">
-            <p className="text-[10px] font-black text-stone-500">연속 독서</p>
-            <p className="mt-1 text-sm font-black">
-              {readingStreakDays}일
-            </p>
+        <div className="home-weekly-row">
+          <div className="home-goal-copy">
+            <span>주간 루틴</span>
+            <strong>{weeklyReadingDays}/{weeklyGoalDays}일</strong>
           </div>
-          <div className="border-2 border-[#2F2A26] bg-[#F8F8F5] px-2 py-2">
-            <p className="text-[10px] font-black text-stone-500">이번 달</p>
-            <p className="mt-1 text-sm font-black">
-              {monthlyReadingDays}일 · {formatShortDuration(monthSeconds)}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-black text-stone-500">오늘 목표</p>
-              <span className="text-[10px] font-black text-[#5F6D57]">
-                {dailyGoalProgress}%
-              </span>
-            </div>
-            <div className="mt-2 h-2.5 rounded-full border-2 border-[#2F2A26] bg-[#FCFBF7]">
-              <div
-                className="h-full rounded-full bg-[#76B852]"
-                style={{ width: `${dailyGoalProgress}%` }}
+          <div
+            className="home-weekly-track"
+            style={{
+              gridTemplateColumns: `repeat(${weeklyGoalDays}, minmax(0, 1fr))`,
+            }}
+          >
+            {Array.from({ length: weeklyGoalDays }, (_, index) => (
+              <span
+                key={index}
+                className={index < weeklyGoalFilledDays ? "home-weekly-day-active" : ""}
+                aria-hidden="true"
               />
-            </div>
-            <p className="mt-1 text-[10px] font-black text-stone-500">
-              {remainingDailyGoalSeconds === 0
-                ? "오늘 목표 달성"
-                : `${formatShortDuration(remainingDailyGoalSeconds)} 남음`}
-            </p>
-          </div>
-          <div className="border-2 border-[#2F2A26] bg-[#FCFBF7] px-2 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-black text-stone-500">주간 루틴</p>
-              <span className="text-[10px] font-black text-[#2563EB]">
-                {weeklyReadingDays}/{weeklyGoalDays}일
-              </span>
-            </div>
-            <div
-              className="mt-2 grid gap-1"
-              style={{
-                gridTemplateColumns: `repeat(${weeklyGoalDays}, minmax(0, 1fr))`,
-              }}
-            >
-              {Array.from({ length: weeklyGoalDays }, (_, index) => (
-                <span
-                  key={index}
-                  className={`h-3 border-2 border-[#2F2A26] ${index < weeklyGoalFilledDays ? "bg-[#2563EB]" : "bg-[#FCFBF7]"}`}
-                  aria-hidden="true"
-                />
-              ))}
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="mt-2 flex items-center justify-between gap-3 border-t-2 border-dashed border-stone-300 pt-2 text-[11px] font-black text-stone-500">
-          <span>
-            누적 독서{" "}
-            {formatDuration(
-              books.reduce((sum, book) => sum + book.accumulatedSeconds, 0),
-            )}
-          </span>
+        <footer className="home-summary-footer">
+          <span>누적 {formatDuration(totalReadingSeconds)}</span>
           <span>완독 {completedBooks}권</span>
-        </div>
-      </PixelCard>
+          <span>이번 달 {formatShortDuration(monthSeconds)}</span>
+        </footer>
+      </section>
 
-      <PixelCard className="bg-[#2F2A26] p-3 text-[#FFFDF8]">
+      <section className="home-highlight-panel">
         {recentSentence ? (
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-[#F2C94C]">
+          <>
+            <div className="home-highlight-label">
               <Icon name="quote" className="h-4 w-4" />
-              <p className="text-xs font-black">최근 문장</p>
+              <p>최근 문장</p>
             </div>
-            <p className="line-clamp-3 text-sm font-black leading-relaxed">
+            <blockquote>
               “{recentSentence.text}”
-            </p>
-            <p className="mt-2 text-right text-[11px] font-black text-[#E8DFC2]">
+            </blockquote>
+            <p className="home-highlight-source">
               {recentSentence.bookTitle} · p.{recentSentence.page}
             </p>
-          </div>
+          </>
         ) : (
-          <div className="space-y-2">
-            <p className="text-xs font-black text-[#E8DFC2]">오늘 독서 시간</p>
+          <div className="home-today-time">
+            <p>오늘 독서 시간</p>
             <DigitalTimer seconds={todaySeconds} />
           </div>
         )}
-      </PixelCard>
+      </section>
     </div>
   );
 };

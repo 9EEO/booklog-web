@@ -29,6 +29,7 @@ import {
   vibrateWarning,
 } from "../utils/haptics";
 import { parsePageInput } from "../utils/pageInput";
+import { formatBookPages, getBookProgress } from "../utils/bookPages";
 
 type SessionScreenProps = {
   books: Book[];
@@ -175,9 +176,7 @@ export const SessionScreen = ({
   const sentencePage = isFormForCurrentBook
     ? form.sentencePage
     : currentBook.currentPage;
-  const bookProgress = Math.round(
-    (currentBook.currentPage / currentBook.totalPages) * 100,
-  );
+  const bookProgress = getBookProgress(currentBook.currentPage, currentBook.totalPages);
   const roundLabel =
     currentBook.activeRoundNumber && currentBook.activeRoundNumber > 1
       ? `${currentBook.activeRoundNumber}회독`
@@ -396,11 +395,13 @@ export const SessionScreen = ({
               </button>
             </div>
             <div>
-              <div className="session-book-progress">
-                <span style={{ width: `${bookProgress}%` }} />
-              </div>
+              {bookProgress !== null && (
+                <div className="session-book-progress">
+                  <span style={{ width: `${bookProgress}%` }} />
+                </div>
+              )}
               <p className="session-page-count mt-1 text-right text-[11px] font-black">
-                {currentBook.currentPage}/{currentBook.totalPages}p
+                {formatBookPages(currentBook.currentPage, currentBook.totalPages)}
               </p>
             </div>
           </div>
@@ -610,7 +611,7 @@ export const SessionScreen = ({
           type="text"
           inputMode="numeric"
           min={currentBook.currentPage}
-          max={currentBook.totalPages}
+          max={currentBook.totalPages ?? undefined}
           value={endPage}
           onChange={(event) =>
             updateForm({ endPage: parsePageInput(event.target.value) })
@@ -653,7 +654,7 @@ export const SessionScreen = ({
                     type="text"
                     inputMode="numeric"
                     min={1}
-                    max={currentBook.totalPages}
+                    max={currentBook.totalPages ?? undefined}
                     value={sentencePage}
                     onChange={(event) =>
                       updateForm({

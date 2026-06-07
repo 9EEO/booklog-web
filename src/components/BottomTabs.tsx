@@ -4,6 +4,7 @@ import type { TabKey } from '../types/reading'
 
 type BottomTabsProps = {
   activeTab: TabKey
+  disabledTabs?: TabKey[]
   onChange: (tab: TabKey) => void
 }
 
@@ -62,21 +63,23 @@ const BottomTabIcon = ({ tab }: { tab: TabKey }) => (
   </svg>
 )
 
-export const BottomTabs = ({ activeTab, onChange }: BottomTabsProps) => (
+export const BottomTabs = ({ activeTab, disabledTabs = [], onChange }: BottomTabsProps) => (
   <nav className="bottom-tabs" aria-label="주요 화면">
     <div className="bottom-tabs-shell">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key
+        const isDisabled = disabledTabs.includes(tab.key)
 
         return (
           <motion.button
             key={tab.key}
             type="button"
-            className={`bottom-tab-button ${isActive ? 'bottom-tab-button-active' : ''}`}
+            className={`bottom-tab-button ${isActive ? 'bottom-tab-button-active' : ''} ${isDisabled ? 'bottom-tab-button-disabled' : ''}`}
             onClick={() => onChange(tab.key)}
+            disabled={isDisabled}
             aria-current={isActive ? 'page' : undefined}
             aria-label={tab.label}
-            whileTap={{ scale: 0.96 }}
+            whileTap={isDisabled ? undefined : { scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 500, damping: 28 }}
           >
             <span className="bottom-tab-icon">

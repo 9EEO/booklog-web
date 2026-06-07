@@ -8,7 +8,7 @@ type BookRow = {
   user_id: string
   title: string
   author: string
-  total_pages: number
+  total_pages: number | null
   current_page: number
   started_at: string
   completed_at: string | null
@@ -238,9 +238,14 @@ export const createRemoteBook = async (
   fallbackDate: string,
 ): Promise<Book> => {
   const supabase = requireSupabase()
-  const totalPages = Math.max(Math.floor(input.totalPages) || 1, 1)
+  const totalPages = input.totalPages ? Math.max(Math.floor(input.totalPages), 1) : null
   const isCompletedInput = input.status === 'completed'
-  const currentPage = isCompletedInput ? totalPages : Math.min(Math.max(Math.floor(input.currentPage) || 1, 1), totalPages)
+  const currentPage = isCompletedInput && totalPages
+    ? totalPages
+    : totalPages
+      ? Math.min(Math.max(Math.floor(input.currentPage) || 1, 1), totalPages)
+      : Math.max(Math.floor(input.currentPage) || 1, 1)
+  const isCompletedByPage = totalPages !== null && currentPage >= totalPages
   const payload = {
     user_id: userId,
     title: input.title.trim(),
@@ -248,9 +253,9 @@ export const createRemoteBook = async (
     total_pages: totalPages,
     current_page: currentPage,
     started_at: toDbDate(input.startedAt?.trim() || fallbackDate),
-    completed_at: isCompletedInput || currentPage >= totalPages ? toDbDate(input.completedAt?.trim() || fallbackDate) : null,
+    completed_at: isCompletedInput || isCompletedByPage ? toDbDate(input.completedAt?.trim() || fallbackDate) : null,
     accumulated_seconds: 0,
-    status: (isCompletedInput || currentPage >= totalPages ? 'completed' : 'reading') as BookStatus,
+    status: (isCompletedInput || isCompletedByPage ? 'completed' : 'reading') as BookStatus,
     cover_color: palette.coverColor,
     accent_color: palette.accentColor,
     thumbnail: input.thumbnail ?? null,
@@ -475,6 +480,7 @@ export const deleteRemoteHighlight = async (highlightId: string) => {
 export const updateRemoteBook = async (
   bookId: string,
   input: Partial<{
+    totalPages: number | null
     currentPage: number
     accumulatedSeconds: number
     status: BookStatus
@@ -484,6 +490,7 @@ export const updateRemoteBook = async (
   const supabase = requireSupabase()
   const payload: Record<string, unknown> = {}
 
+  if (input.totalPages !== undefined) payload.total_pages = input.totalPages
   if (input.currentPage !== undefined) payload.current_page = input.currentPage
   if (input.accumulatedSeconds !== undefined) payload.accumulated_seconds = input.accumulatedSeconds
   if (input.status !== undefined) payload.status = input.status

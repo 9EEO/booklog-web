@@ -24,7 +24,7 @@ export type Book = {
   id: string
   title: string
   author: string
-  totalPages: number
+  totalPages: number | null
   currentPage: number
   startedAt: string
   completedAt?: string
@@ -75,7 +75,7 @@ export type ReadingRecordUpdateInput = {
 export type NewBookInput = {
   title: string
   author: string
-  totalPages: number
+  totalPages: number | null
   currentPage: number
   status: BookStatus
   startedAt?: string
