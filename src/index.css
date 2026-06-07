@@ -665,14 +665,16 @@ button {
 .record-card-actions {
   display: flex;
   flex: 0 0 auto;
-  align-items: flex-start;
+  align-items: center;
   gap: 5px;
 }
 
 .record-duration-badge {
   display: inline-flex;
-  min-height: 28px;
+  width: fit-content;
+  min-height: 26px;
   align-items: center;
+  margin-top: 9px;
   border-radius: 999px;
   background: rgba(111, 182, 75, 0.14);
   color: #4e9a2b;
@@ -680,6 +682,33 @@ button {
   font-size: 11px;
   font-weight: 950;
   white-space: nowrap;
+}
+
+.record-card-actions button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(21, 21, 21, 0.18);
+  border-radius: 999px;
+  background: #ffffff;
+  color: rgba(21, 21, 21, 0.68);
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.1);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.record-card-actions button:active {
+  transform: translate(1px, 1px) scale(0.98);
+  box-shadow: none;
+}
+
+.record-card-actions .record-card-delete-button {
+  background: #e76f51;
+  color: #ffffff;
 }
 
 .record-quote-card {
@@ -779,6 +808,30 @@ button {
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
+}
+
+.record-calendar-nav-button,
+.record-sheet-close-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(21, 21, 21, 0.22);
+  border-radius: 999px;
+  background: #ffffff;
+  color: rgba(21, 21, 21, 0.72);
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.12);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.record-calendar-nav-button:active,
+.record-sheet-close-button:active {
+  transform: translate(1px, 1px) scale(0.98);
+  box-shadow: none;
 }
 
 .record-weekdays,
@@ -999,6 +1052,493 @@ button {
   line-height: 1;
 }
 
+.record-date-sheet {
+  border-color: rgba(21, 21, 21, 0.2);
+  background: #ffffff;
+}
+
+.record-date-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.record-date-sheet-header p {
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.record-date-sheet-header h2 {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.record-date-empty {
+  border: 1px dashed rgba(21, 21, 21, 0.24);
+  border-radius: 10px;
+  background: #fafaf8;
+  color: rgba(21, 21, 21, 0.48);
+  padding: 20px 14px;
+  font-size: 13px;
+  font-weight: 850;
+  text-align: center;
+}
+
+.record-date-sheet-body {
+  display: grid;
+  gap: 12px;
+}
+
+.record-date-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(21, 21, 21, 0.16);
+  border-radius: 10px;
+  background: #fafaf8;
+}
+
+.record-date-summary-item {
+  min-width: 0;
+  padding: 9px 6px;
+  text-align: center;
+}
+
+.record-date-summary-item + .record-date-summary-item {
+  border-left: 1px solid rgba(21, 21, 21, 0.12);
+}
+
+.record-date-summary-item p {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.46);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-date-summary-item strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.record-date-book-card {
+  border: 1px solid rgba(21, 21, 21, 0.22);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.1);
+  padding: 14px;
+}
+
+.record-date-book-header,
+.record-date-book-main,
+.record-date-record-row,
+.record-date-record-actions {
+  display: flex;
+  align-items: flex-start;
+}
+
+.record-date-book-header {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.record-date-book-main {
+  min-width: 0;
+  gap: 10px;
+}
+
+.record-date-book-cover {
+  width: 36px;
+  height: 50px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(21, 21, 21, 0.26);
+  border-radius: 5px;
+  background: #f2c94c;
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.16);
+}
+
+.record-date-book-cover img,
+.record-date-book-cover span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.record-date-book-cover img {
+  object-fit: cover;
+}
+
+.record-date-book-cover span {
+  border-left: 5px solid;
+}
+
+.record-date-book-main div:last-child {
+  min-width: 0;
+}
+
+.record-date-book-main h3 {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 950;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-date-book-main p {
+  margin-top: 5px;
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.record-date-book-header > strong {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(111, 182, 75, 0.14);
+  color: #4e9a2b;
+  padding: 6px 9px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.record-date-record-list {
+  overflow: hidden;
+  margin-top: 12px;
+  border: 1px solid rgba(21, 21, 21, 0.14);
+  border-radius: 9px;
+  background: #fafaf8;
+}
+
+.record-date-record-item {
+  padding: 11px;
+}
+
+.record-date-record-item + .record-date-record-item {
+  border-top: 1px solid rgba(21, 21, 21, 0.12);
+}
+
+.record-date-record-row {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-date-record-meta {
+  min-width: 0;
+}
+
+.record-date-record-meta p {
+  color: rgba(21, 21, 21, 0.66);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.record-date-record-meta span,
+.record-date-record-meta time {
+  display: block;
+}
+
+.record-date-record-meta span {
+  margin-top: 4px;
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.record-date-record-meta time {
+  width: fit-content;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: rgba(111, 182, 75, 0.14);
+  color: #4e9a2b;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.record-date-record-actions {
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.record-date-record-actions button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(21, 21, 21, 0.18);
+  border-radius: 999px;
+  background: #ffffff;
+  color: rgba(21, 21, 21, 0.68);
+}
+
+.record-date-record-actions .record-date-delete-button {
+  background: #e76f51;
+  color: #ffffff;
+}
+
+.record-date-record-sentence {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 9px;
+  border-left: 3px solid #f2c94c;
+  background: #fffaf0;
+  padding: 9px 10px;
+  color: rgba(21, 21, 21, 0.7);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.record-date-record-sentence span {
+  margin-left: 4px;
+  color: rgba(21, 21, 21, 0.44);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.record-date-sentence-count {
+  margin-top: 10px;
+  color: rgba(21, 21, 21, 0.44);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: right;
+}
+
+.profile-page {
+  display: grid;
+  gap: 16px;
+  color: #151515;
+}
+
+.profile-page-header h1 {
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.profile-page-header p {
+  margin-top: 6px;
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.profile-hero-card,
+.profile-goal-card,
+.profile-stat-card,
+.profile-build-info {
+  border: 1px solid rgba(21, 21, 21, 0.22);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.1);
+}
+
+.profile-hero-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px;
+}
+
+.profile-avatar {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(21, 21, 21, 0.22);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.profile-hero-copy {
+  min-width: 0;
+}
+
+.profile-hero-copy h2 {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-hero-copy p {
+  overflow: hidden;
+  margin-top: 5px;
+  color: rgba(21, 21, 21, 0.5);
+  font-size: 12px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-goal-card {
+  display: grid;
+  gap: 13px;
+  padding: 14px;
+}
+
+.profile-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-card-heading p {
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.profile-card-heading strong {
+  color: #151515;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.profile-stepper {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-step-button {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(21, 21, 21, 0.18);
+  border-radius: 999px;
+  background: #ffffff;
+  color: rgba(21, 21, 21, 0.72);
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.1);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.profile-step-button:active:not(:disabled) {
+  transform: translate(1px, 1px) scale(0.98);
+  box-shadow: none;
+}
+
+.profile-step-button:disabled {
+  color: rgba(21, 21, 21, 0.22);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.profile-step-value {
+  min-width: 0;
+  border: 1px solid rgba(21, 21, 21, 0.14);
+  border-radius: 9px;
+  background: #fafaf8;
+  padding: 9px 10px;
+  text-align: center;
+}
+
+.profile-step-value span,
+.profile-step-value strong {
+  display: block;
+}
+
+.profile-step-value span {
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.profile-step-value strong {
+  margin-top: 4px;
+  color: #2563eb;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-stat-card {
+  min-width: 0;
+  padding: 13px;
+}
+
+.profile-stat-card p {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 11px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-stat-card strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 7px;
+  color: #151515;
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-sign-out-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(231, 111, 81, 0.36);
+  border-radius: 10px;
+  background: rgba(231, 111, 81, 0.1);
+  color: #c75538;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.profile-build-info {
+  border-style: dashed;
+  color: rgba(21, 21, 21, 0.42);
+  padding: 11px 12px;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.55;
+}
+
 @media (max-width: 380px) {
   .record-card-main {
     display: grid;
@@ -1006,11 +1546,7 @@ button {
   }
 
   .record-card-actions {
-    justify-content: space-between;
-  }
-
-  .record-duration-badge {
-    margin-right: auto;
+    justify-content: flex-start;
   }
 
   .record-calendar-card {
@@ -1020,6 +1556,28 @@ button {
   .record-weekdays,
   .record-calendar-grid {
     gap: 4px;
+  }
+
+  .record-date-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .record-date-summary-item:nth-child(3) {
+    border-left: 0;
+    border-top: 1px solid rgba(21, 21, 21, 0.12);
+  }
+
+  .record-date-summary-item:nth-child(4) {
+    border-top: 1px solid rgba(21, 21, 21, 0.12);
+  }
+
+  .record-date-record-row {
+    display: grid;
+    gap: 8px;
+  }
+
+  .record-date-record-actions {
+    justify-content: flex-start;
   }
 }
 

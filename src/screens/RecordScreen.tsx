@@ -468,15 +468,15 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                             {formatSessionTimeRange(record) && (
                               <p className="record-card-time">{formatSessionTimeRange(record)}</p>
                             )}
+                            <time className="record-duration-badge">{formatDuration(record.durationSeconds)}</time>
                           </div>
                           <div className="record-card-actions">
-                            <time className="record-duration-badge">{formatDuration(record.durationSeconds)}</time>
-                            <button type="button" className="mini-icon-button" onClick={() => openRecordEditor(record)} aria-label="기록 수정">
+                            <button type="button" onClick={() => openRecordEditor(record)} aria-label="기록 수정">
                               <Icon name="edit" className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
-                              className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8]"
+                              className="record-card-delete-button"
                               onClick={() => {
                                 setRecordEditError(null)
                                 setDeleteRecordId(record.id)
@@ -580,13 +580,13 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
             <div className="record-calendar-header">
               <h2>{formatMonthTitle(monthCursor)}</h2>
               <div className="record-calendar-nav">
-                <button type="button" className="mini-icon-button" onClick={() => moveMonth(-1)} aria-label="이전 달">
+                <button type="button" className="record-calendar-nav-button" onClick={() => moveMonth(-1)} aria-label="이전 달">
                   <Icon name="chevronLeft" className="h-4 w-4" />
                 </button>
                 <button type="button" className="calendar-today-button" onClick={moveToToday}>
                   오늘
                 </button>
-                <button type="button" className="mini-icon-button" onClick={() => moveMonth(1)} aria-label="다음 달">
+                <button type="button" className="record-calendar-nav-button" onClick={() => moveMonth(1)} aria-label="다음 달">
                   <Icon name="chevronRight" className="h-4 w-4" />
                 </button>
               </div>
@@ -709,41 +709,39 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
       <BottomSheetModal
         isOpen={view === 'calendar' && isDateDetailOpen}
         ariaLabel="날짜별 독서 기록"
+        panelClassName="record-date-sheet"
         onBackdropClick={() => setIsDateDetailOpen(false)}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="record-date-sheet-header">
           <div>
-            <p className="text-xs font-black text-stone-500">선택한 날짜</p>
-            <h2 className="mt-1 text-lg font-black">{selectedDate}</h2>
+            <p>선택한 날짜</p>
+            <h2>{selectedDate}</h2>
           </div>
-          <button type="button" className="icon-button" onClick={() => setIsDateDetailOpen(false)} aria-label="닫기">
+          <button type="button" className="record-sheet-close-button" onClick={() => setIsDateDetailOpen(false)} aria-label="닫기">
             <Icon name="close" className="h-5 w-5" />
           </button>
         </div>
 
         {!selectedDateStats ? (
-          <div className="border-2 border-dashed border-stone-300 bg-[#F8F8F5] p-4 text-center">
-            <Icon name="calendar" className="mx-auto mb-2 h-7 w-7 text-[#87937A]" />
-            <p className="text-sm font-black text-stone-600">이 날의 독서 기록이 없습니다.</p>
-          </div>
+          <div className="record-date-empty">이 날의 독서 기록이 없습니다.</div>
         ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-4 gap-2">
-              <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
-                <p className="text-[10px] font-black text-stone-500">시간</p>
-                <p className="mt-1 text-xs font-black">{formatCompactDuration(selectedDateStats.durationSeconds)}</p>
+          <div className="record-date-sheet-body">
+            <div className="record-date-summary">
+              <div className="record-date-summary-item">
+                <p>시간</p>
+                <strong>{formatCompactDuration(selectedDateStats.durationSeconds)}</strong>
               </div>
-              <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
-                <p className="text-[10px] font-black text-stone-500">페이지</p>
-                <p className="mt-1 text-xs font-black">{selectedDateStats.pages}p</p>
+              <div className="record-date-summary-item">
+                <p>페이지</p>
+                <strong>{selectedDateStats.pages}p</strong>
               </div>
-              <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
-                <p className="text-[10px] font-black text-stone-500">세션</p>
-                <p className="mt-1 text-xs font-black">{selectedDateStats.records.length}개</p>
+              <div className="record-date-summary-item">
+                <p>세션</p>
+                <strong>{selectedDateStats.records.length}개</strong>
               </div>
-              <div className="border-2 border-[#2F2A26] bg-[#F3E8D0] px-2 py-2">
-                <p className="text-[10px] font-black text-stone-500">문장</p>
-                <p className="mt-1 text-xs font-black">{selectedDateSentenceCount}개</p>
+              <div className="record-date-summary-item">
+                <p>문장</p>
+                <strong>{selectedDateSentenceCount}개</strong>
               </div>
             </div>
 
@@ -751,47 +749,47 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
               const book = booksById.get(group.bookId)
 
               return (
-                <div key={group.bookId} className="border-2 border-[#2F2A26] bg-[#FCFBF7] p-3 shadow-[2px_2px_0_rgba(47,42,38,0.58)]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-2">
+                <article key={group.bookId} className="record-date-book-card">
+                  <div className="record-date-book-header">
+                    <div className="record-date-book-main">
                       <div
-                        className="h-12 w-9 shrink-0 overflow-hidden border-2 border-[#2F2A26] bg-[#F3E8D0] shadow-[1px_1px_0_rgba(47,42,38,0.58)]"
+                        className="record-date-book-cover"
                         style={{ backgroundColor: book?.coverColor ?? '#8a5a3c' }}
                       >
                         {book?.thumbnail ? (
-                          <img src={book.thumbnail} alt="" className="h-full w-full object-cover" />
+                          <img src={book.thumbnail} alt="" />
                         ) : (
-                          <span className="block h-full w-full border-l-4" style={{ borderColor: book?.accentColor ?? '#e8c48f' }} />
+                          <span style={{ borderColor: book?.accentColor ?? '#e8c48f' }} />
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black">{group.bookTitle}</p>
-                        <p className="mt-1 text-xs font-black text-stone-500">{group.pages}p · 세션 {group.records.length}개</p>
+                      <div>
+                        <h3>{group.bookTitle}</h3>
+                        <p>{group.pages}p · 세션 {group.records.length}개</p>
                       </div>
                     </div>
-                    <p className="shrink-0 text-xs font-black text-[#5F6D57]">{formatDuration(group.durationSeconds)}</p>
+                    <strong>{formatDuration(group.durationSeconds)}</strong>
                   </div>
 
-                  <div className="mt-3 divide-y-2 divide-[#2F2A26] border-2 border-[#2F2A26] bg-[#F8F8F5]">
+                  <div className="record-date-record-list">
                     {group.records.map((record) => (
-                      <div key={record.id} className="px-2 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-xs font-black text-stone-600">
+                      <div key={record.id} className="record-date-record-item">
+                        <div className="record-date-record-row">
+                          <div className="record-date-record-meta">
+                            <p>
                               {formatRoundLabel(record)} · {record.startPage}p → {record.endPage}p
                             </p>
                             {formatSessionTimeRange(record) && (
-                              <p className="mt-1 text-[11px] font-black text-stone-500">{formatSessionTimeRange(record)}</p>
+                              <span>{formatSessionTimeRange(record)}</span>
                             )}
+                            <time>{formatDuration(record.durationSeconds)}</time>
                           </div>
-                          <div className="flex shrink-0 items-center gap-1">
-                            <p className="text-[11px] font-black text-[#5F6D57]">{formatDuration(record.durationSeconds)}</p>
-                            <button type="button" className="mini-icon-button" onClick={() => openRecordEditor(record)} aria-label="기록 수정">
+                          <div className="record-date-record-actions">
+                            <button type="button" onClick={() => openRecordEditor(record)} aria-label="기록 수정">
                               <Icon name="edit" className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
-                              className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8]"
+                              className="record-date-delete-button"
                               onClick={() => {
                                 setRecordEditError(null)
                                 setDeleteRecordId(record.id)
@@ -803,9 +801,9 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                           </div>
                         </div>
                         {record.sentence && (
-                          <p className="mt-2 line-clamp-2 border-l-4 border-[#5F6D57] bg-[#F3E8D0] p-2 text-xs font-bold leading-relaxed">
+                          <p className="record-date-record-sentence">
                             {record.sentence}
-                            {record.sentencePage && <span className="ml-1 text-[10px] font-black text-stone-500">{record.sentencePage}p</span>}
+                            {record.sentencePage && <span>{record.sentencePage}p</span>}
                           </p>
                         )}
                       </div>
@@ -813,11 +811,11 @@ export const RecordScreen = ({ books, records, onUpdateRecord, onDeleteRecord }:
                   </div>
 
                   {group.sentenceCount > 0 && (
-                    <p className="mt-2 text-right text-[11px] font-black text-stone-500">
+                    <p className="record-date-sentence-count">
                       기록 문장 {group.sentenceCount}개
                     </p>
                   )}
-                </div>
+                </article>
               )
             })}
           </div>
