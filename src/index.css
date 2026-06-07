@@ -2792,7 +2792,7 @@ button {
   --detail-green: #6fb64b;
   --detail-yellow: #f2c94c;
   --detail-red: #d95f45;
-  --detail-paper: #fffef8;
+  --detail-paper: #ffffff;
   --detail-line: rgba(21, 21, 21, 0.22);
   min-height: calc(100svh - 132px);
   min-width: 0;
@@ -2802,17 +2802,17 @@ button {
 
 .book-detail-page-header {
   position: sticky;
-  top: -20px;
+  top: 0;
   z-index: 5;
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 8px;
-  margin: -5px -4px 14px;
+  margin: 0;
   border-bottom: 1px solid rgba(21, 21, 21, 0.16);
-  background: rgba(255, 248, 232, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
-  padding: 10px 4px 9px;
+  padding: 10px 16px 9px;
 }
 
 .book-detail-page-header .icon-button {
@@ -2834,33 +2834,36 @@ button {
 }
 
 .book-detail-header {
-  border: 2px solid var(--detail-ink);
-  border-radius: 14px;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 1px solid rgba(21, 21, 21, 0.12);
+  border-left: 0;
+  border-radius: 0;
   background: var(--detail-paper);
-  box-shadow:
-    4px 4px 0 rgba(21, 21, 21, 0.22),
-    0 18px 38px rgba(21, 21, 21, 0.1);
-  padding: 15px;
+  box-shadow: none;
+  padding: 20px 16px 18px;
 }
 
 .book-detail-hero {
   display: grid;
-  grid-template-columns: 82px minmax(0, 1fr);
-  align-items: center;
-  gap: 14px;
+  justify-items: center;
+  gap: 11px;
+  text-align: center;
 }
 
 .book-detail-cover {
   position: relative;
   display: grid;
-  width: 78px;
+  width: 86px;
   aspect-ratio: 2 / 3;
   place-items: center;
   overflow: hidden;
-  border: 2px solid var(--detail-ink);
+  border: 3px solid var(--detail-ink);
   border-radius: 8px;
   background: var(--detail-yellow);
-  box-shadow: 4px 5px 0 rgba(21, 21, 21, 0.18);
+  box-shadow:
+    5px 6px 0 rgba(21, 21, 21, 0.24),
+    0 14px 28px rgba(21, 21, 21, 0.16);
 }
 
 .book-detail-cover::after {
@@ -2887,15 +2890,17 @@ button {
 }
 
 .book-detail-hero-copy {
+  max-width: 300px;
   min-width: 0;
 }
 
 .book-detail-hero-meta {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   color: rgba(21, 21, 21, 0.5);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
 }
 
@@ -2907,13 +2912,21 @@ button {
   padding: 4px 7px;
 }
 
+.book-detail-round-label {
+  border: 1px solid rgba(37, 99, 235, 0.24);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--detail-blue);
+  padding: 4px 7px;
+}
+
 .book-detail-hero-copy h2 {
   display: -webkit-box;
   overflow: hidden;
   margin-top: 7px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 950;
   line-height: 1.25;
 }
@@ -2922,21 +2935,18 @@ button {
   margin-top: 5px;
   overflow: hidden;
   color: rgba(21, 21, 21, 0.48);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .book-detail-hero-progress {
-  grid-column: 1 / -1;
+  width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 12px;
-  margin-top: 2px;
-  border-top: 1px solid rgba(21, 21, 21, 0.18);
-  padding-top: 12px;
+  gap: 7px;
+  margin-top: 5px;
+  text-align: left;
 }
 
 .book-detail-hero-progress-label {
@@ -2947,22 +2957,22 @@ button {
 }
 
 .book-detail-hero-progress-label span {
-  color: rgba(21, 21, 21, 0.5);
-  font-size: 9px;
+  color: rgba(21, 21, 21, 0.58);
+  font-size: 10px;
   font-weight: 900;
 }
 
 .book-detail-hero-progress-label strong {
   color: var(--detail-blue);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 950;
+  line-height: 1;
 }
 
 .book-detail-progress-track {
-  grid-column: 1 / -1;
-  height: 8px;
+  height: 7px;
   overflow: hidden;
-  border: 1px solid rgba(21, 21, 21, 0.24);
+  border: 1px solid rgba(21, 21, 21, 0.18);
   border-radius: 999px;
   background: rgba(21, 21, 21, 0.08);
 }
@@ -2972,20 +2982,42 @@ button {
   height: 100%;
   border-radius: inherit;
   background: var(--detail-blue);
+  animation: book-detail-progress-enter 1200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.book-detail-hero-progress > p {
-  grid-column: 2;
-  grid-row: 1;
+@keyframes book-detail-progress-enter {
+  from {
+    width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-detail-progress-track span {
+    animation: none;
+  }
+}
+
+.book-detail-hero-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 2px;
+}
+
+.book-detail-hero-progress-meta span,
+.book-detail-hero-progress-meta strong {
   color: rgba(21, 21, 21, 0.42);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
 }
 
 .book-detail-body {
   display: grid;
-  gap: 18px;
-  padding: 20px 0 0;
+  gap: 14px;
+  background: #f7f8f7;
+  padding: 16px;
 }
 
 .book-detail-progress-section,
@@ -2994,10 +3026,10 @@ button {
 .book-detail-rounds {
   min-width: 0;
   width: 100%;
-  border: 2px solid var(--detail-ink);
-  border-radius: 12px;
-  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.18);
-  padding: 14px;
+  border: 1px solid rgba(21, 21, 21, 0.24);
+  border-radius: 10px;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.1);
+  padding: 16px;
 }
 
 .book-detail-progress-section {
@@ -3005,75 +3037,36 @@ button {
 }
 
 .book-detail-records-section {
-  background: #f5faef;
+  background: #ffffff;
 }
 
 .book-detail-sentence-section {
-  background: #fff9df;
+  background: #ffffff;
 }
 
 .book-detail-section-title {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 9px;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
-.book-detail-section-title > div:nth-child(2) {
-  min-width: 0;
-}
-
-.book-detail-section-icon {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border: 2px solid var(--detail-ink);
-  border-radius: 8px;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.18);
-}
-
-.book-detail-section-icon-blue {
-  background: var(--detail-blue);
-  color: #ffffff;
-}
-
-.book-detail-section-icon-green {
-  background: var(--detail-green);
-  color: #ffffff;
-}
-
-.book-detail-section-icon-yellow {
-  background: var(--detail-yellow);
-  color: var(--detail-ink);
-}
-
-.book-detail-section-title span {
-  display: block;
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 7px;
-  font-weight: 950;
-  letter-spacing: 0.1em;
-}
-
 .book-detail-section-title h2 {
-  margin-top: 2px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 950;
 }
 
 .book-detail-section-title > strong {
-  color: #4d8c31;
+  color: rgba(21, 21, 21, 0.42);
   font-size: 10px;
   font-weight: 950;
 }
 
 .book-detail-page-control {
-  border-top: 1px solid var(--detail-line);
-  border-bottom: 1px solid var(--detail-line);
-  background: rgba(37, 99, 235, 0.055);
-  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .book-detail-page-control-heading {
@@ -3086,26 +3079,27 @@ button {
 
 .book-detail-page-control-heading label {
   color: rgba(21, 21, 21, 0.68);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
 }
 
 .book-detail-page-control-heading strong {
   color: var(--detail-blue);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 950;
 }
 
 .book-detail-page-control-heading p {
   margin-top: 3px;
   color: rgba(21, 21, 21, 0.4);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
 }
 
 .book-detail-total-pages-control {
-  margin-top: -1px;
-  background: rgba(242, 201, 76, 0.09);
+  margin-top: 12px;
+  border-top: 1px solid var(--detail-line);
+  padding-top: 12px;
 }
 
 .book-detail-inline-form {
@@ -3136,7 +3130,7 @@ button {
   background: var(--detail-blue);
   box-shadow: 2px 2px 0 var(--detail-ink);
   color: #ffffff;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .book-detail-page-control .primary-button:disabled {
@@ -3145,129 +3139,79 @@ button {
   color: rgba(21, 21, 21, 0.35);
 }
 
-.book-detail-key-stats {
+.book-detail-progress-list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
   margin-top: 14px;
-  overflow: hidden;
-  border: 1px solid var(--detail-line);
-  border-radius: 9px;
-  background: #ffffff;
-}
-
-.book-detail-key-stats .detail-box {
-  min-width: 0;
-  border-left: 1px solid var(--detail-line);
-  padding: 11px 8px;
-}
-
-.book-detail-key-stats .detail-box:first-child {
-  border-left: 0;
-}
-
-.book-detail-key-stats span,
-.book-detail-key-stats strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.book-detail-key-stats span {
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 7px;
-  font-weight: 900;
-}
-
-.book-detail-key-stats strong {
-  margin-top: 5px;
-  font-size: 11px;
-  font-weight: 950;
-}
-
-.book-detail-key-stats .detail-box:first-child strong {
-  color: var(--detail-blue);
-}
-
-.book-detail-supporting-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.book-detail-supporting-stats .detail-box {
-  min-width: 0;
-  border: 1px solid rgba(21, 21, 21, 0.16);
-  border-radius: 8px;
-  background: rgba(21, 21, 21, 0.035);
-  padding: 8px;
-}
-
-.book-detail-supporting-stats svg {
-  color: rgba(21, 21, 21, 0.42);
-}
-
-.book-detail-supporting-stats span,
-.book-detail-supporting-stats strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.book-detail-supporting-stats span {
-  margin-top: 5px;
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 7px;
-  font-weight: 850;
-}
-
-.book-detail-supporting-stats strong {
-  margin-top: 3px;
-  font-size: 9px;
-  font-weight: 950;
-}
-
-.book-detail-dates {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 12px;
   border-top: 1px solid var(--detail-line);
 }
 
-.book-detail-dates .detail-box {
+.book-detail-progress-item {
+  display: flex;
   min-width: 0;
-  padding: 10px 4px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 2px;
 }
 
-.book-detail-dates .detail-box + .detail-box {
-  border-left: 1px solid var(--detail-line);
-  padding-left: 12px;
+.book-detail-progress-item + .book-detail-progress-item {
+  border-top: 1px dashed rgba(21, 21, 21, 0.14);
 }
 
-.book-detail-dates span,
-.book-detail-dates strong {
-  display: block;
-}
-
-.book-detail-dates span {
-  color: rgba(21, 21, 21, 0.38);
-  font-size: 7px;
+.book-detail-progress-item span {
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 10px;
   font-weight: 900;
 }
 
-.book-detail-dates strong {
-  margin-top: 4px;
-  font-size: 9px;
+.book-detail-progress-item strong {
+  color: rgba(21, 21, 21, 0.82);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.book-detail-meta-list {
+  display: grid;
+  gap: 0;
+  margin-top: 8px;
+  border-top: 2px solid rgba(21, 21, 21, 0.18);
+  padding-top: 5px;
+}
+
+.book-detail-meta-item {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+}
+
+.book-detail-meta-item + .book-detail-meta-item {
+  border-top: 1px dashed rgba(21, 21, 21, 0.14);
+}
+
+.book-detail-meta-item span {
+  color: rgba(21, 21, 21, 0.46);
+  font-size: 10px;
   font-weight: 900;
+}
+
+.book-detail-meta-item strong {
+  color: rgba(21, 21, 21, 0.78);
+  font-size: 11px;
+  font-weight: 950;
 }
 
 .book-detail-record-list {
   position: relative;
   display: grid;
   gap: 0;
-  border-top: 1px solid rgba(21, 21, 21, 0.18);
+  border: 1px solid rgba(21, 21, 21, 0.14);
+  border-radius: 8px;
+  background: #fafcf9;
+  padding: 4px 10px;
 }
 
 .book-detail-record-item {
@@ -3288,7 +3232,7 @@ button {
   height: 9px;
   border: 2px solid var(--detail-ink);
   border-radius: 999px;
-  background: var(--detail-green);
+  background: #8abf70;
 }
 
 .book-detail-record-item div {
@@ -3296,7 +3240,7 @@ button {
 }
 
 .book-detail-record-item p {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 950;
 }
 
@@ -3305,15 +3249,15 @@ button {
   margin-top: 3px;
   overflow: hidden;
   color: rgba(21, 21, 21, 0.42);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .book-detail-record-item strong {
-  color: #4d8c31;
-  font-size: 9px;
+  color: #568f3b;
+  font-size: 11px;
   font-weight: 950;
 }
 
@@ -3322,10 +3266,10 @@ button {
   width: 34px;
   height: 34px;
   place-items: center;
-  border: 2px solid var(--detail-ink);
+  border: 1px solid rgba(21, 21, 21, 0.28);
   border-radius: 999px;
   background: var(--detail-blue);
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.24);
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.18);
   color: #ffffff;
 }
 
@@ -3344,7 +3288,7 @@ button {
   min-height: 29px;
   border: 0;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 950;
 }
 
@@ -3367,7 +3311,7 @@ button {
 .book-detail-sentence-editor-new {
   border: 1px solid rgba(21, 21, 21, 0.24);
   border-radius: 9px;
-  background: #fffef8;
+  background: #ffffff;
   box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.08);
   padding: 12px;
 }
@@ -3385,12 +3329,10 @@ button {
 .book-sentence-sheet {
   --detail-ink: #151515;
   --detail-blue: #2563eb;
-  --detail-yellow: #f2c94c;
+  --detail-red: #d95f45;
   border: 2px solid var(--detail-ink);
   border-bottom: 0;
-  background:
-    linear-gradient(180deg, rgba(242, 201, 76, 0.16), transparent 116px),
-    #fffef8;
+  background: #ffffff;
   box-shadow:
     0 -12px 42px rgba(21, 21, 21, 0.16),
     inset 0 0 0 1px rgba(255, 255, 255, 0.7);
@@ -3399,45 +3341,26 @@ button {
 
 .book-sentence-sheet-header {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 34px;
+  grid-template-columns: minmax(0, 1fr) 34px;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
-.book-sentence-sheet-icon {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 2px solid var(--detail-ink);
-  border-radius: 9px;
-  background: var(--detail-yellow);
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.2);
-}
-
-.book-sentence-sheet-header div:nth-child(2) {
+.book-sentence-sheet-header > div {
   min-width: 0;
 }
 
-.book-sentence-sheet-header span {
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 7px;
-  font-weight: 950;
-  letter-spacing: 0.1em;
-}
-
 .book-sentence-sheet-header h2 {
-  margin-top: 2px;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 950;
 }
 
 .book-sentence-sheet-header p {
   overflow: hidden;
-  margin-top: 3px;
+  margin-top: 4px;
   color: rgba(21, 21, 21, 0.45);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3456,7 +3379,7 @@ button {
 
 .book-sentence-sheet-form {
   gap: 12px;
-  border-top: 1px solid rgba(21, 21, 21, 0.18);
+  border-top: 1px solid rgba(21, 21, 21, 0.14);
   padding-top: 14px;
 }
 
@@ -3473,7 +3396,10 @@ button {
 }
 
 .book-sentence-sheet-form .book-detail-editor-cancel {
-  background: #fffef8;
+  border-color: #a83e2b;
+  background: var(--detail-red);
+  color: #ffffff;
+  box-shadow: 2px 2px 0 rgba(113, 35, 23, 0.42);
 }
 
 .book-sentence-sheet-form .book-detail-editor-save {
@@ -3494,7 +3420,7 @@ button {
   border-radius: 999px;
   background: rgba(242, 201, 76, 0.24);
   padding: 4px 7px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 950;
 }
 
@@ -3522,7 +3448,7 @@ button {
   border-left: 3px solid var(--detail-yellow);
   color: rgba(21, 21, 21, 0.8);
   padding-left: 9px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.65;
 }
@@ -3531,13 +3457,13 @@ button {
   display: block;
   margin-top: 7px;
   color: rgba(21, 21, 21, 0.36);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 850;
 }
 
 .book-detail-sentence-editor-page label {
   color: rgba(21, 21, 21, 0.58);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
 }
 
@@ -3549,7 +3475,7 @@ button {
   outline: 0;
   background: #ffffff;
   padding: 5px 8px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 900;
   text-align: right;
 }
@@ -3563,7 +3489,7 @@ button {
   outline: 0;
   background: #ffffff;
   padding: 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   line-height: 1.6;
 }
@@ -3588,7 +3514,7 @@ button {
   gap: 5px;
   border: 0;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 950;
 }
 
@@ -3613,7 +3539,7 @@ button {
   background: rgba(255, 255, 255, 0.48);
   color: rgba(21, 21, 21, 0.42);
   padding: 14px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   text-align: center;
 }
@@ -3624,11 +3550,12 @@ button {
   justify-content: space-between;
   gap: 10px;
   border-bottom: 1px solid rgba(21, 21, 21, 0.2);
-  padding: 0 2px 10px;
+  background: #eef4ff;
+  padding: 12px 16px;
 }
 
 .book-detail-rounds {
-  background: #eef4ff;
+  background: #ffffff;
 }
 
 .book-detail-round-item {
@@ -3670,11 +3597,14 @@ button {
 }
 
 .book-detail-reread {
-  border: 2px solid var(--detail-ink);
-  border-radius: 12px;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 2px solid var(--detail-ink);
+  border-left: 0;
+  border-radius: 0;
   background: #f5faef;
-  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.18);
-  padding: 14px;
+  box-shadow: none;
+  padding: 20px 16px;
 }
 
 .book-detail-reread .primary-button {
@@ -3690,7 +3620,7 @@ button {
   align-items: flex-end;
   gap: 7px;
   border-top: 1px solid rgba(21, 21, 21, 0.16);
-  padding-top: 12px;
+  padding: 18px 16px 24px;
 }
 
 .book-detail-delete-button {
@@ -3741,10 +3671,13 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
-  border: 2px solid var(--detail-ink);
-  border-radius: 10px;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 2px solid var(--detail-ink);
+  border-left: 0;
+  border-radius: 0;
   background: var(--detail-paper);
-  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.16);
+  box-shadow: none;
 }
 
 .book-round-stat {
@@ -3786,7 +3719,10 @@ button {
 }
 
 .book-detail-section {
-  margin-top: 2px;
+  margin-top: 0;
+  border-bottom: 2px solid var(--detail-ink);
+  background: var(--detail-paper);
+  padding: 20px 16px;
 }
 
 .book-detail-section-heading {

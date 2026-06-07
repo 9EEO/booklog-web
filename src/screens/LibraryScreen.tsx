@@ -111,6 +111,22 @@ const toDateTime = (dateLabel: string) => {
   return new Date(year, month - 1, day).getTime();
 };
 
+const formatDateWithWeekday = (dateLabel: string) => {
+  const [year, month, day] = dateLabel.split(".").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    !Number.isFinite(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return dateLabel;
+  }
+
+  return `${dateLabel}(${["일", "월", "화", "수", "목", "금", "토"][date.getDay()]})`;
+};
+
 const hasCompletedRound = (book: Book) =>
   book.status === "completed" ||
   Boolean(book.rounds?.some((round) => round.status === "completed"));
@@ -905,20 +921,27 @@ export const LibraryScreen = ({
                     <span className="book-detail-status-badge">
                       {selectedBook.status === "completed" ? "완독" : "읽는 중"}
                     </span>
-                    <span>{getActiveRoundLabel(selectedBook)}</span>
+                    {(selectedBook.activeRoundNumber ?? 1) > 1 && (
+                      <span className="book-detail-round-label">
+                        {selectedBook.activeRoundNumber}회차
+                      </span>
+                    )}
                   </div>
                   <h2>{selectedBook.title}</h2>
                   <p>{selectedBook.author}</p>
                 </div>
                 <div className="book-detail-hero-progress" aria-label="독서 진행률">
                   <div className="book-detail-hero-progress-label">
-                    <span>독서 진행</span>
+                    <span>진행률</span>
                     <strong>{selectedBookStats.progress !== null ? `${selectedBookStats.progress}%` : "페이지 미설정"}</strong>
                   </div>
                   <div className="book-detail-progress-track">
                     <span style={{ width: `${selectedBookStats.progress ?? 0}%` }} />
                   </div>
-                  <p>{formatBookPages(selectedBook.currentPage, selectedBook.totalPages)}</p>
+                  <div className="book-detail-hero-progress-meta">
+                    <span>현재 페이지</span>
+                    <strong>{formatBookPages(selectedBook.currentPage, selectedBook.totalPages)}</strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -999,13 +1022,7 @@ export const LibraryScreen = ({
 
               <section className="book-detail-progress-section">
                 <div className="book-detail-section-title">
-                  <div className="book-detail-section-icon book-detail-section-icon-blue">
-                    <Icon name="book" className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span>READING STATUS</span>
-                    <h2>독서 진행</h2>
-                  </div>
+                  <h2>독서 진행</h2>
                 </div>
 
                 <div className="book-detail-page-control">
@@ -1067,16 +1084,12 @@ export const LibraryScreen = ({
                   </div>
                 )}
 
-                <div className="book-detail-key-stats">
-                  <div className="detail-box">
-                    <span>진행률</span>
-                    <strong>{selectedBookStats.progress !== null ? `${selectedBookStats.progress}%` : "-"}</strong>
-                  </div>
-                  <div className="detail-box">
+                <div className="book-detail-progress-list">
+                  <div className="book-detail-progress-item">
                     <span>남은 페이지</span>
                     <strong>{selectedBookStats.remainingPages !== null ? `${selectedBookStats.remainingPages}p` : "-"}</strong>
                   </div>
-                  <div className="detail-box">
+                  <div className="book-detail-progress-item">
                     <span>예상 남은 시간</span>
                     <strong>
                       {selectedBookStats.estimatedSecondsLeft !== null && selectedBookStats.estimatedSecondsLeft > 0
@@ -1084,57 +1097,39 @@ export const LibraryScreen = ({
                         : "-"}
                     </strong>
                   </div>
-                </div>
-
-                <div className="book-detail-supporting-stats">
-                  <div className="detail-box">
-                    <Icon name="clock" className="h-4 w-4" />
-                    <div>
-                      <span>누적 시간</span>
-                      <strong>{formatDuration(selectedBook.accumulatedSeconds)}</strong>
-                    </div>
+                  <div className="book-detail-progress-item">
+                    <span>누적 시간</span>
+                    <strong>{formatDuration(selectedBook.accumulatedSeconds)}</strong>
                   </div>
-                  <div className="detail-box">
-                    <Icon name="leaf" className="h-4 w-4" />
-                    <div>
-                      <span>평균 속도</span>
-                      <strong>
-                        {selectedBookStats.averagePagesPerHour > 0
-                          ? `${selectedBookStats.averagePagesPerHour}p/h`
-                          : "-"}
-                      </strong>
-                    </div>
-                  </div>
-                  <div className="detail-box">
-                    <Icon name="records" className="h-4 w-4" />
-                    <div>
-                      <span>독서 기록</span>
-                      <strong>{selectedBookRecords.length}회</strong>
-                    </div>
+                  <div className="book-detail-progress-item">
+                    <span>평균 속도</span>
+                    <strong>
+                      {selectedBookStats.averagePagesPerHour > 0
+                        ? `${selectedBookStats.averagePagesPerHour}p/h`
+                        : "-"}
+                    </strong>
                   </div>
                 </div>
 
-                <div className="book-detail-dates">
-                  <div className="detail-box">
+                <div className="book-detail-meta-list">
+                  <div className="book-detail-meta-item">
                     <span>시작일</span>
                     <strong>{selectedBook.startedAt}</strong>
                   </div>
-                  <div className="detail-box">
+                  <div className="book-detail-meta-item">
                     <span>완독일</span>
                     <strong>{selectedBook.completedAt ?? "-"}</strong>
+                  </div>
+                  <div className="book-detail-meta-item">
+                    <span>독서 기록</span>
+                    <strong>{selectedBookRecords.length}회</strong>
                   </div>
                 </div>
               </section>
 
-              <section className="book-detail-section book-detail-records-section">
+              <section className="book-detail-records-section">
                 <div className="book-detail-section-title">
-                  <div className="book-detail-section-icon book-detail-section-icon-green">
-                    <Icon name="records" className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span>RECENT SESSIONS</span>
-                    <h2>최근 독서 기록</h2>
-                  </div>
+                  <h2>최근 독서 기록</h2>
                   <strong>{selectedBookStats.recordedPages}p</strong>
                 </div>
                 {recentBookRecords.length === 0 ? (
@@ -1150,7 +1145,7 @@ export const LibraryScreen = ({
                       >
                         <span className="book-detail-record-marker" />
                         <div>
-                          <p>{record.date}</p>
+                          <p>{formatDateWithWeekday(record.date)}</p>
                           <span>
                             {record.roundNumber ?? 1}회독 · {record.startPage}p → {record.endPage}p
                           </span>
@@ -1166,13 +1161,7 @@ export const LibraryScreen = ({
 
               <section className="book-detail-sentence-section">
                 <div className="book-detail-section-title">
-                  <div className="book-detail-section-icon book-detail-section-icon-yellow">
-                    <Icon name="quote" className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <span>HIGHLIGHTS</span>
-                    <h2>기록한 문장</h2>
-                  </div>
+                  <h2>기록한 문장</h2>
                   <button
                     type="button"
                     className="book-detail-add-sentence"
@@ -1367,11 +1356,7 @@ export const LibraryScreen = ({
         {selectedBook && (
           <>
             <div className="book-sentence-sheet-header">
-              <div className="book-sentence-sheet-icon">
-                <Icon name="quote" className="h-5 w-5" />
-              </div>
               <div>
-                <span>NEW HIGHLIGHT</span>
                 <h2>기록할 문장</h2>
                 <p>{selectedBook.title}</p>
               </div>

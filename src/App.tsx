@@ -1022,7 +1022,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   return (
     <main className="min-h-svh bg-[#F8F8F5] text-stone-900">
       <div className="mx-auto flex min-h-svh max-w-[430px] flex-col bg-[#FCFBF7] shadow-[0_18px_60px_rgba(47,42,38,0.12)]">
-        <div className={`min-h-0 flex-1 overflow-y-auto px-4 pt-5 ${shouldHideBottomTabs ? 'pb-5' : 'pb-28'}`}>
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto ${
+            shouldHideBottomTabs ? 'pb-0' : 'px-4 pb-28 pt-5'
+          }`}
+        >
           {syncError && (
             <div className="mb-4 border-2 border-[#2F2A26] bg-[#F4D8CF] px-3 py-2 text-sm font-black text-[#8A3F2D]">
               {syncError}
