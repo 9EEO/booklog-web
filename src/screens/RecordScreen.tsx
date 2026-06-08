@@ -45,6 +45,14 @@ type RecordEditDraft = {
   sentencePage: number;
 };
 
+type RecordBookGroup = {
+  bookId: string;
+  bookTitle: string;
+  durationSeconds: number;
+  pages: number;
+  records: ReadingRecord[];
+};
+
 const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
 
 const pad2 = (value: number) => value.toString().padStart(2, "0");
@@ -130,6 +138,56 @@ const createRecordEditDraft = (record: ReadingRecord): RecordEditDraft => ({
   sentencePage: record.sentencePage ?? record.endPage,
 });
 
+const formatSentenceForSharing = (sentence: SentenceItem) =>
+  `“${sentence.text}”\n\n${sentence.bookTitle} · p.${sentence.page}`;
+
+const copyText = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+};
+
+const getRecordBookGroups = (records: ReadingRecord[]): RecordBookGroup[] =>
+  Array.from(
+    records
+      .reduce<Map<string, RecordBookGroup>>((groups, record) => {
+        const group = groups.get(record.bookId) ?? {
+          bookId: record.bookId,
+          bookTitle: record.bookTitle,
+          durationSeconds: 0,
+          pages: 0,
+          records: [],
+        };
+
+        group.durationSeconds += record.durationSeconds;
+        group.pages += Math.max(record.endPage - record.startPage, 0);
+        group.records.push(record);
+        groups.set(record.bookId, group);
+
+        return groups;
+      }, new Map())
+      .values(),
+  )
+    .map((group) => ({
+      ...group,
+      records: [...group.records].sort(
+        (left, right) =>
+          (left.startedAt ?? "").localeCompare(right.startedAt ?? "") ||
+          left.id.localeCompare(right.id),
+      ),
+    }))
+    .sort((left, right) => right.durationSeconds - left.durationSeconds);
+
 export const RecordScreen = ({
   books,
   records,
@@ -156,6 +214,7 @@ export const RecordScreen = ({
     useState<RecordEditDraft | null>(null);
   const [recordEditError, setRecordEditError] = useState<string | null>(null);
   const [isRecordMutating, setIsRecordMutating] = useState(false);
+  const [sentenceActionId, setSentenceActionId] = useState<string | null>(null);
 
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
@@ -353,6 +412,40 @@ export const RecordScreen = ({
     const nextSentence =
       visibleSentences[Math.floor(Math.random() * visibleSentences.length)];
     setRandomSentenceId(nextSentence.id);
+  };
+
+  const showSentenceActionFeedback = (sentenceId: string) => {
+    setSentenceActionId(sentenceId);
+    window.setTimeout(() => {
+      setSentenceActionId((current) =>
+        current === sentenceId ? null : current,
+      );
+    }, 1400);
+  };
+
+  const copySentence = async (sentence: SentenceItem) => {
+    await copyText(formatSentenceForSharing(sentence));
+    showSentenceActionFeedback(sentence.id);
+  };
+
+  const shareSentence = async (sentence: SentenceItem) => {
+    const text = formatSentenceForSharing(sentence);
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: sentence.bookTitle,
+          text,
+        });
+        showSentenceActionFeedback(sentence.id);
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    await copyText(text);
+    showSentenceActionFeedback(sentence.id);
   };
 
   const moveMonth = (delta: number) => {
@@ -568,57 +661,104 @@ export const RecordScreen = ({
                     <p>총 {formatCompactDuration(group.durationSeconds)}</p>
                   </div>
                   <div className="record-list">
-                    {group.records.map((record) => (
-                      <article key={record.id} className="record-card">
-                        <div className="record-card-main">
-                          <div className="record-card-copy">
-                            <p className="record-card-title">
-                              {record.bookTitle}
-                            </p>
-                            <p className="record-card-meta">
-                              {formatRoundLabel(record)} · {record.startPage}p →{" "}
-                              {record.endPage}p
-                            </p>
-                            {formatSessionTimeRange(record) && (
-                              <p className="record-card-time">
-                                {formatSessionTimeRange(record)}
-                              </p>
-                            )}
-                            <time className="record-duration-badge">
-                              {formatCompactDuration(record.durationSeconds)}
-                            </time>
+                    {getRecordBookGroups(group.records).map((bookGroup) => {
+                      const recordBook = booksById.get(bookGroup.bookId);
+
+                      return (
+                        <article key={bookGroup.bookId} className="record-card">
+                          <div className="record-card-main">
+                            <div className="record-card-book">
+                              <span
+                                className="record-card-cover"
+                                style={{
+                                  backgroundColor:
+                                    recordBook?.coverColor ?? "#f2c94c",
+                                }}
+                              >
+                                {recordBook?.thumbnail ? (
+                                  <img src={recordBook.thumbnail} alt="" />
+                                ) : (
+                                  <span
+                                    style={{
+                                      backgroundColor:
+                                        recordBook?.accentColor ?? "#76b852",
+                                    }}
+                                  />
+                                )}
+                              </span>
+                              <div className="record-card-copy">
+                                <p className="record-card-title">
+                                  {bookGroup.bookTitle}
+                                </p>
+                                <p className="record-card-meta">
+                                  세션 {bookGroup.records.length}개 ·{" "}
+                                  {bookGroup.pages}p
+                                </p>
+                              </div>
+                            </div>
+                            <strong className="record-card-total-duration">
+                              {formatCompactDuration(bookGroup.durationSeconds)}
+                            </strong>
                           </div>
-                          <div className="record-card-actions">
-                            <button
-                              type="button"
-                              onClick={() => openRecordEditor(record)}
-                              aria-label="기록 수정"
-                            >
-                              <Icon name="edit" className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              className="record-card-delete-button"
-                              onClick={() => {
-                                setRecordEditError(null);
-                                setDeleteRecordId(record.id);
-                              }}
-                              aria-label="기록 삭제"
-                            >
-                              <Icon name="trash" className="h-4 w-4" />
-                            </button>
+
+                          <div className="record-session-list">
+                            {bookGroup.records.map((record) => (
+                              <div
+                                key={record.id}
+                                className="record-session-item"
+                              >
+                                <div className="record-session-row">
+                                  <div className="record-session-copy">
+                                    <p>
+                                      {formatRoundLabel(record)} ·{" "}
+                                      {record.startPage}p → {record.endPage}p
+                                    </p>
+                                    {formatSessionTimeRange(record) && (
+                                      <span>
+                                        {formatSessionTimeRange(record)}
+                                      </span>
+                                    )}
+                                    <time className="record-duration-badge">
+                                      {formatCompactDuration(
+                                        record.durationSeconds,
+                                      )}
+                                    </time>
+                                  </div>
+                                  <div className="record-card-actions">
+                                    <button
+                                      type="button"
+                                      onClick={() => openRecordEditor(record)}
+                                      aria-label="기록 수정"
+                                    >
+                                      수정
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="record-card-delete-button"
+                                      onClick={() => {
+                                        setRecordEditError(null);
+                                        setDeleteRecordId(record.id);
+                                      }}
+                                      aria-label="기록 삭제"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                                </div>
+                                {record.sentence && (
+                                  <blockquote className="record-quote-card">
+                                    {record.sentence}
+                                    {record.sentencePage && (
+                                      <span>{record.sentencePage}p</span>
+                                    )}
+                                  </blockquote>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                        {record.sentence && (
-                          <blockquote className="record-quote-card">
-                            {record.sentence}
-                            {record.sentencePage && (
-                              <span>{record.sentencePage}p</span>
-                            )}
-                          </blockquote>
-                        )}
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 </section>
               ))
@@ -654,6 +794,7 @@ export const RecordScreen = ({
                 onClick={pickRandomSentence}
                 disabled={visibleSentences.length === 0}
               >
+                <Icon name="swap" className="h-4 w-4" />
                 랜덤
               </button>
             </div>
@@ -692,8 +833,33 @@ export const RecordScreen = ({
           ) : (
             visibleSentences.map((sentence) => (
               <article key={sentence.id} className="record-sentence-card">
-                <blockquote>“{sentence.text}”</blockquote>
-                <div>
+                <div className="record-sentence-card-header">
+                  <blockquote>“{sentence.text}”</blockquote>
+                  <div className="record-sentence-actions">
+                    <button
+                      type="button"
+                      onClick={() => void copySentence(sentence)}
+                      aria-label="문장 복사"
+                      title="복사"
+                    >
+                      <Icon
+                        name={
+                          sentenceActionId === sentence.id ? "check" : "copy"
+                        }
+                        className="h-4 w-4"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void shareSentence(sentence)}
+                      aria-label="문장 공유"
+                      title="공유"
+                    >
+                      <Icon name="share" className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="record-sentence-meta">
                   <p>{sentence.bookTitle}</p>
                   <span>
                     p.{sentence.page} · {sentence.recordedAt}

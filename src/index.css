@@ -585,14 +585,17 @@ button {
 }
 
 .record-filter-button-active {
-  background: #151515;
-  color: #ffffff;
+  border-color: rgba(37, 99, 235, 0.28);
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
 }
 
 .record-random-button {
   flex: 0 0 auto;
-  background: #2563eb;
-  color: #ffffff;
+  gap: 5px;
+  border-color: rgba(37, 99, 235, 0.28);
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
 }
 
 .record-random-button:disabled {
@@ -638,6 +641,40 @@ button {
   gap: 12px;
 }
 
+.record-card-book {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-card-cover {
+  display: block;
+  width: 34px;
+  height: 46px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(21, 21, 21, 0.22);
+  border-radius: 6px;
+  background: #f2c94c;
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.12);
+}
+
+.record-card-cover img,
+.record-card-cover span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.record-card-cover img {
+  object-fit: cover;
+}
+
+.record-card-cover span {
+  border-left: 5px solid rgba(21, 21, 21, 0.12);
+}
+
 .record-card-copy {
   min-width: 0;
 }
@@ -662,11 +699,64 @@ button {
   margin-top: 5px;
 }
 
+.record-card-total-duration {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(111, 182, 75, 0.14);
+  color: #4e9a2b;
+  padding: 6px 9px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.record-session-list {
+  overflow: hidden;
+  margin-top: 12px;
+  border: 1px solid rgba(21, 21, 21, 0.14);
+  border-radius: 9px;
+  background: #fafaf8;
+}
+
+.record-session-item {
+  padding: 11px;
+}
+
+.record-session-item + .record-session-item {
+  border-top: 1px solid rgba(21, 21, 21, 0.12);
+}
+
+.record-session-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-session-copy {
+  min-width: 0;
+}
+
+.record-session-copy p {
+  color: rgba(21, 21, 21, 0.66);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.record-session-copy span {
+  display: block;
+  margin-top: 4px;
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .record-card-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 5px;
+  gap: 2px;
 }
 
 .record-duration-badge {
@@ -686,38 +776,39 @@ button {
 
 .record-card-actions button {
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  min-width: 20px;
+  min-height: 34px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(21, 21, 21, 0.18);
-  border-radius: 999px;
-  background: #ffffff;
-  color: rgba(21, 21, 21, 0.68);
-  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.1);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.46);
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 950;
   transition:
     transform 120ms ease,
-    box-shadow 120ms ease,
-    background-color 120ms ease;
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .record-card-actions button:active {
-  transform: translate(1px, 1px) scale(0.98);
-  box-shadow: none;
+  background: rgba(21, 21, 21, 0.06);
+  transform: scale(0.98);
 }
 
 .record-card-actions .record-card-delete-button {
-  background: #e76f51;
-  color: #ffffff;
+  color: rgba(217, 95, 69, 0.74);
 }
 
 .record-quote-card {
-  margin-top: 12px;
+  margin-top: 9px;
   border-left: 3px solid #f2c94c;
   background: #fffaf0;
-  padding: 10px 11px;
+  padding: 9px 10px;
   color: rgba(21, 21, 21, 0.74);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.6;
 }
@@ -758,14 +849,50 @@ button {
   text-align: right;
 }
 
-.record-sentence-card blockquote {
+.record-sentence-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-sentence-card-header blockquote {
+  min-width: 0;
   color: rgba(21, 21, 21, 0.82);
   font-size: 14px;
   font-weight: 850;
   line-height: 1.7;
 }
 
-.record-sentence-card div {
+.record-sentence-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin: -6px -6px 0 0;
+}
+
+.record-sentence-actions button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.34);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.record-sentence-actions button:active {
+  background: rgba(21, 21, 21, 0.06);
+  color: #2563eb;
+  transform: scale(0.96);
+}
+
+.record-sentence-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -776,17 +903,17 @@ button {
   font-weight: 850;
 }
 
-.record-sentence-card p {
+.record-sentence-meta p {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.record-sentence-card span {
+.record-sentence-meta span {
   flex: 0 0 auto;
-  color: #4e9a2b;
-  font-weight: 950;
+  color: rgba(21, 21, 21, 0.38);
+  font-weight: 850;
 }
 
 .record-calendar-header {
