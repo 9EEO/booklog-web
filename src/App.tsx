@@ -918,7 +918,6 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => Pr
   }
 
   const handleDeleteBook = async (bookId: string) => {
-    if (books.length <= 1) return
     try {
       setSyncError(null)
       await deleteRemoteBook(bookId)

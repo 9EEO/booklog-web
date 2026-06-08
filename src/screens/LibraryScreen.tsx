@@ -1332,15 +1332,9 @@ export const LibraryScreen = ({
                   type="button"
                   className="book-detail-delete-button"
                   onClick={() => setDeleteBookId(selectedBook.id)}
-                  disabled={books.length <= 1}
                 >
                   <Icon name="trash" className="h-4 w-4" />책 삭제
                 </button>
-                {books.length <= 1 && (
-                  <p className="text-right text-xs font-black text-stone-500">
-                    서재에는 최소 1권의 책이 필요합니다.
-                  </p>
-                )}
               </div>
             </div>
           </>
