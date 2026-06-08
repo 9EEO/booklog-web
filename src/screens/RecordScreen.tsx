@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
+import { SwipeableView } from "../components/SwipeableView";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import type {
   Book,
@@ -598,7 +599,14 @@ export const RecordScreen = ({
         className="record-view-tabs"
       />
 
-      <div key={view} className="record-view-content">
+      <SwipeableView
+        key={view}
+        options={recordViewOptions}
+        value={view}
+        onChange={setView}
+        className="record-view-content"
+        ariaLabel="기록 보기 본문"
+      >
         {view === "records" &&
           (records.length === 0 ? (
             <div className="record-empty-state">
@@ -1061,7 +1069,7 @@ export const RecordScreen = ({
             </section>
           </div>
         )}
-      </div>
+      </SwipeableView>
 
       <BottomSheetModal
         isOpen={view === "calendar" && isDateDetailOpen}
