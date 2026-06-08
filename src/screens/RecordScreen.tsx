@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
+import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import type {
   Book,
@@ -22,6 +23,12 @@ type RecordScreenProps = {
 type RecordView = "records" | "sentences" | "calendar";
 type SentenceSort = "recent" | "page";
 type RecordSentenceFilter = "all" | "withSentence";
+
+const recordViewOptions: Array<{ value: RecordView; label: string }> = [
+  { value: "calendar", label: "캘린더" },
+  { value: "records", label: "기록" },
+  { value: "sentences", label: "문장" },
+];
 
 type SentenceItem = {
   id: string;
@@ -440,7 +447,8 @@ export const RecordScreen = ({
         showSentenceActionFeedback(sentence.id);
         return;
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
       }
     }
 
@@ -582,477 +590,478 @@ export const RecordScreen = ({
         <p>날짜별 독서 흐름과 남겨둔 문장을 확인해요.</p>
       </header>
 
-      <div className="record-view-tabs">
-        <button
-          type="button"
-          className={`record-view-tab ${view === "calendar" ? "record-view-tab-active" : ""}`}
-          onClick={() => setView("calendar")}
-        >
-          캘린더
-        </button>
-        <button
-          type="button"
-          className={`record-view-tab ${view === "records" ? "record-view-tab-active" : ""}`}
-          onClick={() => setView("records")}
-        >
-          기록
-        </button>
-        <button
-          type="button"
-          className={`record-view-tab ${view === "sentences" ? "record-view-tab-active" : ""}`}
-          onClick={() => setView("sentences")}
-        >
-          문장
-        </button>
-      </div>
+      <SwipeSegmentedControl
+        options={recordViewOptions}
+        value={view}
+        onChange={setView}
+        ariaLabel="기록 보기 방식"
+        className="record-view-tabs"
+      />
 
-      {view === "records" &&
-        (records.length === 0 ? (
-          <div className="record-empty-state">
-            아직 저장된 독서 기록이 없습니다.
-          </div>
-        ) : (
+      <div key={view} className="record-view-content">
+        {view === "records" &&
+          (records.length === 0 ? (
+            <div className="record-empty-state">
+              아직 저장된 독서 기록이 없습니다.
+            </div>
+          ) : (
+            <div className="record-panel">
+              <div className="record-filter-card">
+                <select
+                  className="record-select"
+                  value={recordBookFilter}
+                  onChange={(event) => setRecordBookFilter(event.target.value)}
+                  aria-label="기록 책 필터"
+                >
+                  <option value="all">전체 책</option>
+                  {books
+                    .filter((book) =>
+                      records.some((record) => record.bookId === book.id),
+                    )
+                    .map((book) => (
+                      <option key={book.id} value={book.id}>
+                        {book.title}
+                      </option>
+                    ))}
+                </select>
+                <div className="record-filter-actions">
+                  <button
+                    type="button"
+                    className={`record-filter-button ${recordSentenceFilter === "all" ? "record-filter-button-active" : ""}`}
+                    onClick={() => setRecordSentenceFilter("all")}
+                  >
+                    전체
+                  </button>
+                  <button
+                    type="button"
+                    className={`record-filter-button ${recordSentenceFilter === "withSentence" ? "record-filter-button-active" : ""}`}
+                    onClick={() => setRecordSentenceFilter("withSentence")}
+                  >
+                    문장 있음
+                  </button>
+                </div>
+              </div>
+
+              {recordGroups.length === 0 ? (
+                <div className="record-empty-state">
+                  조건에 맞는 기록이 없습니다.
+                </div>
+              ) : (
+                recordGroups.map((group) => (
+                  <section key={group.date} className="record-group">
+                    <div className="record-group-header">
+                      <h2>{group.date}</h2>
+                      <p>총 {formatCompactDuration(group.durationSeconds)}</p>
+                    </div>
+                    <div className="record-list">
+                      {getRecordBookGroups(group.records).map((bookGroup) => {
+                        const recordBook = booksById.get(bookGroup.bookId);
+
+                        return (
+                          <article
+                            key={bookGroup.bookId}
+                            className="record-card"
+                          >
+                            <div className="record-card-main">
+                              <div className="record-card-book">
+                                <span
+                                  className="record-card-cover"
+                                  style={{
+                                    backgroundColor:
+                                      recordBook?.coverColor ?? "#f2c94c",
+                                  }}
+                                >
+                                  {recordBook?.thumbnail ? (
+                                    <img src={recordBook.thumbnail} alt="" />
+                                  ) : (
+                                    <span
+                                      style={{
+                                        backgroundColor:
+                                          recordBook?.accentColor ?? "#76b852",
+                                      }}
+                                    />
+                                  )}
+                                </span>
+                                <div className="record-card-copy">
+                                  <p className="record-card-title">
+                                    {bookGroup.bookTitle}
+                                  </p>
+                                  <p className="record-card-meta">
+                                    세션 {bookGroup.records.length}개 ·{" "}
+                                    {bookGroup.pages}p
+                                  </p>
+                                </div>
+                              </div>
+                              <strong className="record-card-total-duration">
+                                {formatCompactDuration(
+                                  bookGroup.durationSeconds,
+                                )}
+                              </strong>
+                            </div>
+
+                            <div className="record-session-list">
+                              {bookGroup.records.map((record) => {
+                                const roundLabel = formatRoundLabel(record);
+                                const pagesRead = Math.max(
+                                  record.endPage - record.startPage,
+                                  0,
+                                );
+
+                                return (
+                                  <div
+                                    key={record.id}
+                                    className="record-session-item"
+                                  >
+                                    <div className="record-session-row">
+                                      <div className="record-session-copy">
+                                        <p className="record-session-pages">
+                                          {roundLabel && <>{roundLabel} · </>}
+                                          {record.startPage}p → {record.endPage}
+                                          p
+                                        </p>
+                                        {formatSessionTimeRange(record) && (
+                                          <span className="record-session-time">
+                                            {formatSessionTimeRange(record)}
+                                          </span>
+                                        )}
+                                        <div className="record-session-badges">
+                                          <time className="record-duration-badge">
+                                            {formatCompactDuration(
+                                              record.durationSeconds,
+                                            )}
+                                          </time>
+                                          <span className="record-page-delta">
+                                            +{pagesRead}p
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="record-card-actions">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openRecordEditor(record)
+                                          }
+                                          aria-label="기록 수정"
+                                        >
+                                          수정
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="record-card-delete-button"
+                                          onClick={() => {
+                                            setRecordEditError(null);
+                                            setDeleteRecordId(record.id);
+                                          }}
+                                          aria-label="기록 삭제"
+                                        >
+                                          삭제
+                                        </button>
+                                      </div>
+                                    </div>
+                                    {record.sentence && (
+                                      <blockquote className="record-quote-card">
+                                        {record.sentence}
+                                        {record.sentencePage && (
+                                          <span>{record.sentencePage}p</span>
+                                        )}
+                                      </blockquote>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))
+              )}
+            </div>
+          ))}
+
+        {view === "sentences" && (
           <div className="record-panel">
             <div className="record-filter-card">
-              <select
-                className="record-select"
-                value={recordBookFilter}
-                onChange={(event) => setRecordBookFilter(event.target.value)}
-                aria-label="기록 책 필터"
-              >
-                <option value="all">전체 책</option>
-                {books
-                  .filter((book) =>
-                    records.some((record) => record.bookId === book.id),
-                  )
-                  .map((book) => (
-                    <option key={book.id} value={book.id}>
-                      {book.title}
-                    </option>
-                  ))}
-              </select>
+              <div className="record-sentence-filter-row">
+                <select
+                  className="record-select"
+                  value={bookFilter}
+                  onChange={(event) => {
+                    setBookFilter(event.target.value);
+                    setRandomSentenceId(null);
+                  }}
+                  aria-label="책 필터"
+                >
+                  <option value="all">전체 책</option>
+                  {books
+                    .filter((book) => book.sentences.length > 0)
+                    .map((book) => (
+                      <option key={book.id} value={book.id}>
+                        {book.title}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  className="record-random-button"
+                  onClick={pickRandomSentence}
+                  disabled={visibleSentences.length === 0}
+                >
+                  <Icon name="swap" className="h-4 w-4" />
+                  랜덤
+                </button>
+              </div>
               <div className="record-filter-actions">
                 <button
                   type="button"
-                  className={`record-filter-button ${recordSentenceFilter === "all" ? "record-filter-button-active" : ""}`}
-                  onClick={() => setRecordSentenceFilter("all")}
+                  className={`record-filter-button ${sentenceSort === "recent" ? "record-filter-button-active" : ""}`}
+                  onClick={() => setSentenceSort("recent")}
                 >
-                  전체
+                  등록순
                 </button>
                 <button
                   type="button"
-                  className={`record-filter-button ${recordSentenceFilter === "withSentence" ? "record-filter-button-active" : ""}`}
-                  onClick={() => setRecordSentenceFilter("withSentence")}
+                  className={`record-filter-button ${sentenceSort === "page" ? "record-filter-button-active" : ""}`}
+                  onClick={() => setSentenceSort("page")}
                 >
-                  문장 있음
+                  페이지순
                 </button>
               </div>
             </div>
 
-            {recordGroups.length === 0 ? (
+            {randomSentence && (
+              <article className="record-random-sentence">
+                <p>오늘의 문장</p>
+                <blockquote>“{randomSentence.text}”</blockquote>
+                <span>
+                  {randomSentence.bookTitle} · p.{randomSentence.page}
+                </span>
+              </article>
+            )}
+
+            {visibleSentences.length === 0 ? (
               <div className="record-empty-state">
-                조건에 맞는 기록이 없습니다.
+                아직 모아둔 문장이 없습니다.
               </div>
             ) : (
-              recordGroups.map((group) => (
-                <section key={group.date} className="record-group">
-                  <div className="record-group-header">
-                    <h2>{group.date}</h2>
-                    <p>총 {formatCompactDuration(group.durationSeconds)}</p>
+              visibleSentences.map((sentence) => (
+                <article key={sentence.id} className="record-sentence-card">
+                  <div className="record-sentence-card-header">
+                    <blockquote>“{sentence.text}”</blockquote>
+                    <div className="record-sentence-actions">
+                      <button
+                        type="button"
+                        onClick={() => void copySentence(sentence)}
+                        aria-label="문장 복사"
+                        title="복사"
+                      >
+                        <Icon
+                          name={
+                            sentenceActionId === sentence.id ? "check" : "copy"
+                          }
+                          className="h-4 w-4"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void shareSentence(sentence)}
+                        aria-label="문장 공유"
+                        title="공유"
+                      >
+                        <Icon name="share" className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="record-list">
-                    {getRecordBookGroups(group.records).map((bookGroup) => {
-                      const recordBook = booksById.get(bookGroup.bookId);
-
-                      return (
-                        <article key={bookGroup.bookId} className="record-card">
-                          <div className="record-card-main">
-                            <div className="record-card-book">
-                              <span
-                                className="record-card-cover"
-                                style={{
-                                  backgroundColor:
-                                    recordBook?.coverColor ?? "#f2c94c",
-                                }}
-                              >
-                                {recordBook?.thumbnail ? (
-                                  <img src={recordBook.thumbnail} alt="" />
-                                ) : (
-                                  <span
-                                    style={{
-                                      backgroundColor:
-                                        recordBook?.accentColor ?? "#76b852",
-                                    }}
-                                  />
-                                )}
-                              </span>
-                              <div className="record-card-copy">
-                                <p className="record-card-title">
-                                  {bookGroup.bookTitle}
-                                </p>
-                                <p className="record-card-meta">
-                                  세션 {bookGroup.records.length}개 ·{" "}
-                                  {bookGroup.pages}p
-                                </p>
-                              </div>
-                            </div>
-                            <strong className="record-card-total-duration">
-                              {formatCompactDuration(bookGroup.durationSeconds)}
-                            </strong>
-                          </div>
-
-                          <div className="record-session-list">
-                            {bookGroup.records.map((record) => {
-                              const roundLabel = formatRoundLabel(record);
-                              const pagesRead = Math.max(
-                                record.endPage - record.startPage,
-                                0,
-                              );
-
-                              return (
-                              <div key={record.id} className="record-session-item">
-                                <div className="record-session-row">
-                                  <div className="record-session-copy">
-                                    <p className="record-session-pages">
-                                      {roundLabel && <>{roundLabel} · </>}
-                                      {record.startPage}p → {record.endPage}p
-                                    </p>
-                                    {formatSessionTimeRange(record) && (
-                                      <span className="record-session-time">
-                                        {formatSessionTimeRange(record)}
-                                      </span>
-                                    )}
-                                    <div className="record-session-badges">
-                                      <time className="record-duration-badge">
-                                        {formatCompactDuration(
-                                          record.durationSeconds,
-                                        )}
-                                      </time>
-                                      <span className="record-page-delta">
-                                        +{pagesRead}p
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="record-card-actions">
-                                    <button
-                                      type="button"
-                                      onClick={() => openRecordEditor(record)}
-                                      aria-label="기록 수정"
-                                    >
-                                      수정
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="record-card-delete-button"
-                                      onClick={() => {
-                                        setRecordEditError(null);
-                                        setDeleteRecordId(record.id);
-                                      }}
-                                      aria-label="기록 삭제"
-                                    >
-                                      삭제
-                                    </button>
-                                  </div>
-                                </div>
-                                {record.sentence && (
-                                  <blockquote className="record-quote-card">
-                                    {record.sentence}
-                                    {record.sentencePage && (
-                                      <span>{record.sentencePage}p</span>
-                                    )}
-                                  </blockquote>
-                                )}
-                              </div>
-                              );
-                            })}
-                          </div>
-                        </article>
-                      );
-                    })}
+                  <div className="record-sentence-meta">
+                    <p>{sentence.bookTitle}</p>
+                    <span>
+                      p.{sentence.page} · {sentence.recordedAt}
+                    </span>
                   </div>
-                </section>
+                </article>
               ))
             )}
           </div>
-        ))}
+        )}
 
-      {view === "sentences" && (
-        <div className="record-panel">
-          <div className="record-filter-card">
-            <div className="record-sentence-filter-row">
-              <select
-                className="record-select"
-                value={bookFilter}
-                onChange={(event) => {
-                  setBookFilter(event.target.value);
-                  setRandomSentenceId(null);
-                }}
-                aria-label="책 필터"
-              >
-                <option value="all">전체 책</option>
-                {books
-                  .filter((book) => book.sentences.length > 0)
-                  .map((book) => (
-                    <option key={book.id} value={book.id}>
-                      {book.title}
-                    </option>
-                  ))}
-              </select>
-              <button
-                type="button"
-                className="record-random-button"
-                onClick={pickRandomSentence}
-                disabled={visibleSentences.length === 0}
-              >
-                <Icon name="swap" className="h-4 w-4" />
-                랜덤
-              </button>
-            </div>
-            <div className="record-filter-actions">
-              <button
-                type="button"
-                className={`record-filter-button ${sentenceSort === "recent" ? "record-filter-button-active" : ""}`}
-                onClick={() => setSentenceSort("recent")}
-              >
-                등록순
-              </button>
-              <button
-                type="button"
-                className={`record-filter-button ${sentenceSort === "page" ? "record-filter-button-active" : ""}`}
-                onClick={() => setSentenceSort("page")}
-              >
-                페이지순
-              </button>
-            </div>
-          </div>
-
-          {randomSentence && (
-            <article className="record-random-sentence">
-              <p>오늘의 문장</p>
-              <blockquote>“{randomSentence.text}”</blockquote>
-              <span>
-                {randomSentence.bookTitle} · p.{randomSentence.page}
-              </span>
-            </article>
-          )}
-
-          {visibleSentences.length === 0 ? (
-            <div className="record-empty-state">
-              아직 모아둔 문장이 없습니다.
-            </div>
-          ) : (
-            visibleSentences.map((sentence) => (
-              <article key={sentence.id} className="record-sentence-card">
-                <div className="record-sentence-card-header">
-                  <blockquote>“{sentence.text}”</blockquote>
-                  <div className="record-sentence-actions">
-                    <button
-                      type="button"
-                      onClick={() => void copySentence(sentence)}
-                      aria-label="문장 복사"
-                      title="복사"
-                    >
-                      <Icon
-                        name={
-                          sentenceActionId === sentence.id ? "check" : "copy"
-                        }
-                        className="h-4 w-4"
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void shareSentence(sentence)}
-                      aria-label="문장 공유"
-                      title="공유"
-                    >
-                      <Icon name="share" className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="record-sentence-meta">
-                  <p>{sentence.bookTitle}</p>
-                  <span>
-                    p.{sentence.page} · {sentence.recordedAt}
-                  </span>
-                </div>
-              </article>
-            ))
-          )}
-        </div>
-      )}
-
-      {view === "calendar" && (
-        <div className="record-panel">
-          <section className="record-calendar-card">
-            <div className="record-calendar-header">
-              <h2>{formatMonthTitle(monthCursor)}</h2>
-              <div className="record-calendar-nav">
-                <button
-                  type="button"
-                  className="record-calendar-nav-button"
-                  onClick={() => moveMonth(-1)}
-                  aria-label="이전 달"
-                >
-                  <Icon name="chevronLeft" className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className="calendar-today-button"
-                  onClick={moveToToday}
-                >
-                  오늘
-                </button>
-                <button
-                  type="button"
-                  className="record-calendar-nav-button"
-                  onClick={() => moveMonth(1)}
-                  aria-label="다음 달"
-                >
-                  <Icon name="chevronRight" className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="calendar-month-summary">
-              <div className="calendar-month-summary-item">
-                <p>독서일</p>
-                <strong>{monthStats.readingDates.size}일</strong>
-              </div>
-              <div className="calendar-month-summary-item">
-                <p>독서 시간</p>
-                <strong>
-                  {formatCompactDuration(monthStats.durationSeconds)}
-                </strong>
-              </div>
-              <div className="calendar-month-summary-item">
-                <p>페이지</p>
-                <strong>{monthStats.pages}p</strong>
-              </div>
-            </div>
-
-            <div className="record-weekdays">
-              {weekdayLabels.map((weekday) => (
-                <span key={weekday}>{weekday}</span>
-              ))}
-            </div>
-
-            <div className="record-calendar-grid">
-              {calendarDays.map((date) => {
-                const dateLabel = formatDateLabel(date);
-                const dayStats = calendarStatsByDate[dateLabel];
-                const hasRecord = Boolean(dayStats);
-                const isCurrentMonth = isSameMonth(date, monthCursor);
-                const isSelected = dateLabel === selectedDate;
-                const isToday = dateLabel === todayDateLabel;
-                const weekendClass =
-                  date.getDay() === 0
-                    ? "calendar-day-sunday"
-                    : date.getDay() === 6
-                      ? "calendar-day-saturday"
-                      : "";
-                const dayBookPreviews = dayStats
-                  ? Array.from(
-                      dayStats.records
-                        .reduce<
-                          Map<
-                            string,
-                            CalendarBookPreview & { durationSeconds: number }
-                          >
-                        >((bookMap, record) => {
-                          const existingBook = bookMap.get(record.bookId);
-
-                          if (existingBook) {
-                            existingBook.durationSeconds +=
-                              record.durationSeconds;
-                            return bookMap;
-                          }
-                          const book = booksById.get(record.bookId);
-
-                          bookMap.set(
-                            record.bookId,
-                            book
-                              ? {
-                                  id: book.id,
-                                  title: book.title,
-                                  thumbnail: book.thumbnail,
-                                  coverColor: book.coverColor,
-                                  accentColor: book.accentColor,
-                                  durationSeconds: record.durationSeconds,
-                                }
-                              : {
-                                  id: record.bookId,
-                                  title: record.bookTitle,
-                                  coverColor: "#8a5a3c",
-                                  accentColor: "#e8c48f",
-                                  durationSeconds: record.durationSeconds,
-                                },
-                          );
-
-                          return bookMap;
-                        }, new Map())
-                        .values(),
-                    ).sort(
-                      (left, right) =>
-                        right.durationSeconds - left.durationSeconds,
-                    )
-                  : [];
-                const primaryBookPreview = dayBookPreviews[0];
-                const hiddenBookCount = Math.max(dayBookPreviews.length - 1, 0);
-
-                return (
+        {view === "calendar" && (
+          <div className="record-panel">
+            <section className="record-calendar-card">
+              <div className="record-calendar-header">
+                <h2>{formatMonthTitle(monthCursor)}</h2>
+                <div className="record-calendar-nav">
                   <button
-                    key={dateLabel}
                     type="button"
-                    className={`calendar-day-card ${hasRecord ? "calendar-day-card-record" : "calendar-day-card-empty"} ${
-                      isSelected ? "calendar-day-card-selected" : ""
-                    } ${isCurrentMonth ? "" : "calendar-day-card-muted"}`}
-                    onClick={() => selectCalendarDate(date)}
-                    aria-label={`${dateLabel} 독서 기록 보기`}
+                    className="record-calendar-nav-button"
+                    onClick={() => moveMonth(-1)}
+                    aria-label="이전 달"
                   >
-                    {hasRecord && primaryBookPreview ? (
-                      <>
+                    <Icon name="chevronLeft" className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    className="calendar-today-button"
+                    onClick={moveToToday}
+                  >
+                    오늘
+                  </button>
+                  <button
+                    type="button"
+                    className="record-calendar-nav-button"
+                    onClick={() => moveMonth(1)}
+                    aria-label="다음 달"
+                  >
+                    <Icon name="chevronRight" className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="calendar-month-summary">
+                <div className="calendar-month-summary-item">
+                  <p>독서일</p>
+                  <strong>{monthStats.readingDates.size}일</strong>
+                </div>
+                <div className="calendar-month-summary-item">
+                  <p>독서 시간</p>
+                  <strong>
+                    {formatCompactDuration(monthStats.durationSeconds)}
+                  </strong>
+                </div>
+                <div className="calendar-month-summary-item">
+                  <p>페이지</p>
+                  <strong>{monthStats.pages}p</strong>
+                </div>
+              </div>
+
+              <div className="record-weekdays">
+                {weekdayLabels.map((weekday) => (
+                  <span key={weekday}>{weekday}</span>
+                ))}
+              </div>
+
+              <div className="record-calendar-grid">
+                {calendarDays.map((date) => {
+                  const dateLabel = formatDateLabel(date);
+                  const dayStats = calendarStatsByDate[dateLabel];
+                  const hasRecord = Boolean(dayStats);
+                  const isCurrentMonth = isSameMonth(date, monthCursor);
+                  const isSelected = dateLabel === selectedDate;
+                  const isToday = dateLabel === todayDateLabel;
+                  const weekendClass =
+                    date.getDay() === 0
+                      ? "calendar-day-sunday"
+                      : date.getDay() === 6
+                        ? "calendar-day-saturday"
+                        : "";
+                  const dayBookPreviews = dayStats
+                    ? Array.from(
+                        dayStats.records
+                          .reduce<
+                            Map<
+                              string,
+                              CalendarBookPreview & { durationSeconds: number }
+                            >
+                          >((bookMap, record) => {
+                            const existingBook = bookMap.get(record.bookId);
+
+                            if (existingBook) {
+                              existingBook.durationSeconds +=
+                                record.durationSeconds;
+                              return bookMap;
+                            }
+                            const book = booksById.get(record.bookId);
+
+                            bookMap.set(
+                              record.bookId,
+                              book
+                                ? {
+                                    id: book.id,
+                                    title: book.title,
+                                    thumbnail: book.thumbnail,
+                                    coverColor: book.coverColor,
+                                    accentColor: book.accentColor,
+                                    durationSeconds: record.durationSeconds,
+                                  }
+                                : {
+                                    id: record.bookId,
+                                    title: record.bookTitle,
+                                    coverColor: "#8a5a3c",
+                                    accentColor: "#e8c48f",
+                                    durationSeconds: record.durationSeconds,
+                                  },
+                            );
+
+                            return bookMap;
+                          }, new Map())
+                          .values(),
+                      ).sort(
+                        (left, right) =>
+                          right.durationSeconds - left.durationSeconds,
+                      )
+                    : [];
+                  const primaryBookPreview = dayBookPreviews[0];
+                  const hiddenBookCount = Math.max(
+                    dayBookPreviews.length - 1,
+                    0,
+                  );
+
+                  return (
+                    <button
+                      key={dateLabel}
+                      type="button"
+                      className={`calendar-day-card ${hasRecord ? "calendar-day-card-record" : "calendar-day-card-empty"} ${
+                        isSelected ? "calendar-day-card-selected" : ""
+                      } ${isCurrentMonth ? "" : "calendar-day-card-muted"}`}
+                      onClick={() => selectCalendarDate(date)}
+                      aria-label={`${dateLabel} 독서 기록 보기`}
+                    >
+                      {hasRecord && primaryBookPreview ? (
+                        <>
+                          <span
+                            className={`calendar-day-header ${weekendClass} ${isToday ? "calendar-day-header-today" : ""}`}
+                          >
+                            {date.getDate()}
+                            {hiddenBookCount > 0 && (
+                              <span className="calendar-day-count">
+                                +{hiddenBookCount}
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className="calendar-day-cover"
+                            style={{
+                              backgroundColor: primaryBookPreview.coverColor,
+                            }}
+                          >
+                            {primaryBookPreview.thumbnail ? (
+                              <img src={primaryBookPreview.thumbnail} alt="" />
+                            ) : (
+                              <span
+                                className="calendar-day-cover-fallback"
+                                style={{
+                                  backgroundColor:
+                                    primaryBookPreview.accentColor,
+                                }}
+                              />
+                            )}
+                          </span>
+                        </>
+                      ) : (
                         <span
-                          className={`calendar-day-header ${weekendClass} ${isToday ? "calendar-day-header-today" : ""}`}
+                          className={`calendar-day-empty-date ${weekendClass} ${isToday ? "calendar-day-empty-date-today" : ""}`}
                         >
                           {date.getDate()}
-                          {hiddenBookCount > 0 && (
-                            <span className="calendar-day-count">
-                              +{hiddenBookCount}
-                            </span>
-                          )}
                         </span>
-                        <span
-                          className="calendar-day-cover"
-                          style={{
-                            backgroundColor: primaryBookPreview.coverColor,
-                          }}
-                        >
-                          {primaryBookPreview.thumbnail ? (
-                            <img src={primaryBookPreview.thumbnail} alt="" />
-                          ) : (
-                            <span
-                              className="calendar-day-cover-fallback"
-                              style={{
-                                backgroundColor: primaryBookPreview.accentColor,
-                              }}
-                            />
-                          )}
-                        </span>
-                      </>
-                    ) : (
-                      <span
-                        className={`calendar-day-empty-date ${weekendClass} ${isToday ? "calendar-day-empty-date-today" : ""}`}
-                      >
-                        {date.getDate()}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-      )}
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
 
       <BottomSheetModal
         isOpen={view === "calendar" && isDateDetailOpen}
