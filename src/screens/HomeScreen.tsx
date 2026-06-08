@@ -1,3 +1,4 @@
+import { BookCarousel } from "../components/BookCarousel";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
 import type { Book, ReadingRecord } from "../types/reading";
@@ -10,6 +11,7 @@ type HomeScreenProps = {
   dailyGoalSeconds: number;
   weeklyGoalDays: number;
   onStart: () => void;
+  onSelectBook: (bookId: string) => void;
   onAddFirstBook: () => void;
 };
 
@@ -42,9 +44,15 @@ export const HomeScreen = ({
   currentBook,
   dailyGoalSeconds,
   onStart,
+  onSelectBook,
   onAddFirstBook,
 }: HomeScreenProps) => {
   const today = todayLabel();
+  const readingBooks = books.filter((book) => book.status === "reading");
+  const activeReadingBook =
+    readingBooks.find((book) => book.id === currentBook?.id) ??
+    readingBooks[0] ??
+    currentBook;
   const todaySeconds = records
     .filter((record) => isSameDateLabel(record.date, today))
     .reduce((sum, record) => sum + record.durationSeconds, 0);
@@ -70,6 +78,10 @@ export const HomeScreen = ({
     dailyGoalSeconds - todaySeconds,
     0,
   );
+  const openBook = (bookId: string) => {
+    onSelectBook(bookId);
+    onStart();
+  };
 
   if (books.length === 0) {
     return (
@@ -98,37 +110,50 @@ export const HomeScreen = ({
 
   return (
     <div className="home-dashboard">
-      {currentBook && (
-        <section className="home-current-panel">
-          <div className="home-current-heading">
-            <div>
-              <h1>오늘도 한 장 넘겨볼까요?</h1>
+      {readingBooks.length > 1 && activeReadingBook ? (
+        <BookCarousel
+          books={readingBooks}
+          activeBookId={activeReadingBook.id}
+          onSelectBook={onSelectBook}
+          onOpenBook={openBook}
+        />
+      ) : (
+        currentBook && (
+          <section className="home-current-panel">
+            <div className="home-current-heading">
+              <div>
+                <h1>오늘도 한 장 넘겨볼까요?</h1>
+              </div>
+              <span>
+                {currentRoundLabel ? `${currentRoundLabel} · ` : ""}
+                {currentRemainingPages === 0
+                  ? "완독 가까이"
+                  : `완독까지 ${currentRemainingPages}P`}
+              </span>
             </div>
-            <span>
-              {currentRoundLabel ? `${currentRoundLabel} · ` : ""}
-              {currentRemainingPages === 0
-                ? "완독 가까이"
-                : `완독까지 ${currentRemainingPages}P`}
-            </span>
-          </div>
 
-          <div className="home-current-book">
-            <MiniBook book={currentBook} />
-          </div>
+            <div className="home-current-book">
+              <MiniBook book={currentBook} />
+            </div>
 
-          {currentProgress !== null && (
-            <div
-              className="home-current-progress"
-              aria-label={`책 진행률 ${currentProgress}%`}
+            {currentProgress !== null && (
+              <div
+                className="home-current-progress"
+                aria-label={`책 진행률 ${currentProgress}%`}
+              >
+                <span style={{ width: `${currentProgress}%` }} />
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="home-start-button"
+              onClick={() => openBook(currentBook.id)}
             >
-              <span style={{ width: `${currentProgress}%` }} />
-            </div>
-          )}
-
-          <button type="button" className="home-start-button" onClick={onStart}>
-            <Icon name="play" className="h-5 w-5" />책 펼치기
-          </button>
-        </section>
+              <Icon name="play" className="h-5 w-5" />책 펼치기
+            </button>
+          </section>
+        )
       )}
 
       <section className="home-today-panel">

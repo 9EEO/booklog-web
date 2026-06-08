@@ -353,7 +353,6 @@ button {
 .library-shelf-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
   border: 1px solid rgba(21, 21, 21, 0.18);
   border-radius: 999px;
   background-color: #ffffff !important;
@@ -361,23 +360,8 @@ button {
   padding: 3px;
 }
 
-.library-shelf-tab {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
+.library-shelf-tabs .swipe-segmented-option {
   gap: 6px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(21, 21, 21, 0.54);
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.library-shelf-tab-active {
-  background-color: #151515 !important;
-  color: #ffffff !important;
 }
 
 .library-shelf-tab-count {
@@ -401,6 +385,15 @@ button {
 .library-shelf-section {
   display: grid;
   gap: 12px;
+}
+
+.library-shelf-content {
+  min-height: min(560px, calc(100svh - 210px));
+}
+
+.library-shelf-content > .library-shelf-section {
+  min-height: 100%;
+  align-content: start;
 }
 
 .library-empty-state {
@@ -465,7 +458,9 @@ button {
 
 .record-page {
   display: grid;
+  grid-template-rows: auto auto minmax(260px, 1fr);
   gap: 16px;
+  min-height: 100%;
   color: #151515;
 }
 
@@ -557,6 +552,7 @@ button {
 }
 
 .record-view-content {
+  min-height: min(560px, calc(100svh - 178px));
   animation: record-view-enter 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -589,6 +585,11 @@ button {
 .record-list {
   display: grid;
   gap: 12px;
+}
+
+.record-view-content > .record-panel {
+  min-height: 100%;
+  align-content: start;
 }
 
 .record-filter-card,
@@ -2706,6 +2707,31 @@ button {
   padding: 17px 16px 16px;
 }
 
+.home-book-carousel {
+  border: 2px solid rgba(21, 21, 21, 0.78);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.72),
+      rgba(255, 248, 232, 0.82)
+    ),
+    #fffef8;
+  box-shadow:
+    4px 4px 0 rgba(21, 21, 21, 0.34),
+    0 18px 46px rgba(21, 21, 21, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  padding: 17px 16px 16px;
+}
+
+.home-book-carousel-view {
+  min-height: 125px;
+}
+
+.home-book-carousel-slide {
+  min-height: 125px;
+}
+
 .home-current-heading,
 .home-today-heading,
 .home-goal-copy {
@@ -2753,6 +2779,31 @@ button {
   color: var(--home-blue);
   padding: 6px 9px;
   font-size: 10px;
+  font-weight: 950;
+}
+
+.home-carousel-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.home-carousel-meta span {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.56);
+  font-size: 11px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-carousel-meta strong {
+  flex: 0 0 auto;
+  color: var(--home-blue);
+  font-size: 11px;
   font-weight: 950;
 }
 
@@ -2818,6 +2869,38 @@ button {
 .home-start-button:active {
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0 var(--home-ink);
+}
+
+.home-carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.home-carousel-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.home-carousel-dot {
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(21, 21, 21, 0.2);
+  padding: 0;
+}
+
+.home-carousel-dot-active {
+  width: 18px;
+  background: var(--home-green);
+}
+
+.home-carousel-start-button {
+  margin-top: 12px;
 }
 
 .home-today-panel {

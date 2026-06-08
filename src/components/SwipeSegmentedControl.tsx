@@ -19,7 +19,10 @@ type SwipeSegmentedControlProps<T extends string> = {
   onChange: (value: T) => void;
   ariaLabel: string;
   className?: string;
-  renderOption?: (option: SwipeSegmentedControlOption<T>) => ReactNode;
+  renderOption?: (
+    option: SwipeSegmentedControlOption<T>,
+    isActive: boolean,
+  ) => ReactNode;
 };
 
 type SwipeSegmentedStyle = CSSProperties & {
@@ -191,7 +194,7 @@ export const SwipeSegmentedControl = <T extends string>({
             disabled={option.disabled}
             onClick={() => onChange(option.value)}
           >
-            {renderOption ? renderOption(option) : option.label}
+            {renderOption ? renderOption(option, isActive) : option.label}
             <span className="sr-only">{index + 1}번째 보기</span>
           </button>
         );
