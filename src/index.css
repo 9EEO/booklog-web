@@ -744,7 +744,33 @@ button {
   font-weight: 900;
 }
 
-.record-session-copy span {
+.record-session-pages {
+  display: block;
+}
+
+.record-session-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.record-page-delta {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 26px;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.record-session-time {
   display: block;
   margin-top: 4px;
   color: rgba(21, 21, 21, 0.42);
@@ -764,7 +790,6 @@ button {
   width: fit-content;
   min-height: 26px;
   align-items: center;
-  margin-top: 9px;
   border-radius: 999px;
   background: rgba(111, 182, 75, 0.14);
   color: #4e9a2b;
@@ -1862,7 +1887,25 @@ button {
   padding: 13px;
 }
 
-.profile-stat-card p {
+.profile-stat-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-stat-label span {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+.profile-stat-label p {
   overflow: hidden;
   color: rgba(21, 21, 21, 0.48);
   font-size: 11px;
@@ -1875,7 +1918,7 @@ button {
   display: block;
   overflow: hidden;
   margin-top: 7px;
-  color: #151515;
+  color: #2563eb;
   font-size: 17px;
   font-weight: 950;
   line-height: 1.15;
@@ -1883,8 +1926,13 @@ button {
   white-space: nowrap;
 }
 
+.profile-footer-actions {
+  margin-top: 14px;
+}
+
 .profile-sign-out-button {
   display: inline-flex;
+  width: 100%;
   min-height: 44px;
   align-items: center;
   justify-content: center;
@@ -3611,6 +3659,16 @@ button {
   color: rgba(21, 21, 21, 0.52);
 }
 
+.book-form-research-button {
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.42);
+  padding: 4px 0;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .book-form-fields {
   display: grid;
   gap: 13px;
@@ -3619,12 +3677,12 @@ button {
 .book-form-input {
   width: 100%;
   min-height: 46px;
-  border: 2px solid rgba(21, 21, 21, 0.56);
+  border: 1px solid rgba(21, 21, 21, 0.24);
   border-radius: 10px;
   outline: 0;
   background: #ffffff;
   color: var(--book-form-ink);
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.14);
+  box-shadow: none;
   padding: 0 11px;
   font-size: 13px;
   font-weight: 800;
@@ -3635,17 +3693,17 @@ button {
 
 .book-form-input:focus {
   border-color: var(--book-form-blue);
-  box-shadow: 3px 3px 0 rgba(37, 99, 235, 0.24);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .book-status-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
-  border: 2px solid var(--book-form-ink);
+  border: 1px solid rgba(21, 21, 21, 0.18);
   border-radius: 999px;
-  background: #fffef8;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.54);
+  background: #ffffff;
+  box-shadow: none;
   padding: 2px;
 }
 
@@ -3660,8 +3718,8 @@ button {
 }
 
 .book-status-option-active {
-  background: var(--book-form-blue);
-  color: #ffffff;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--book-form-blue);
 }
 
 .book-form-field-grid {
@@ -3684,10 +3742,10 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
-  border: 2px solid var(--book-form-ink);
+  border: 1px solid rgba(21, 21, 21, 0.18);
   border-radius: 999px;
-  background: #fffef8;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.54);
+  background: #ffffff;
+  box-shadow: none;
   padding: 2px;
 }
 
@@ -3702,8 +3760,8 @@ button {
 }
 
 .book-total-pages-mode-option-active {
-  background: var(--book-form-blue);
-  color: #ffffff;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--book-form-blue);
 }
 
 .book-total-pages-input {
@@ -3748,20 +3806,19 @@ button {
 .book-form-secondary-action,
 .book-form-primary-action {
   display: inline-flex;
-  min-height: 48px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 3px solid var(--book-form-ink);
+  border: 0;
   border-radius: 10px;
-  box-shadow: 4px 4px 0 var(--book-form-ink);
   font-size: 12px;
   font-weight: 950;
 }
 
 .book-form-secondary-action {
-  background: #fffef8;
-  color: var(--book-form-ink);
+  background: rgba(21, 21, 21, 0.08);
+  color: rgba(21, 21, 21, 0.6);
 }
 
 .book-form-primary-action {
@@ -3776,8 +3833,7 @@ button {
 
 .book-form-secondary-action:active,
 .book-form-primary-action:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--book-form-ink);
+  transform: scale(0.98);
 }
 
 .mini-icon-button {

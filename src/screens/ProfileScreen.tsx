@@ -1,7 +1,6 @@
 import { Icon } from '../components/Icon'
 import type { Book, ReadingRecord } from '../types/reading'
 import { buildInfo } from '../utils/buildInfo'
-import { formatDuration } from '../utils/formatDuration'
 
 type ProfileScreenProps = {
   userEmail: string
@@ -15,6 +14,20 @@ type ProfileScreenProps = {
 }
 
 const formatGoalMinutes = (seconds: number) => `${Math.round(seconds / 60)}분`
+const formatCount = (value: number) => value.toLocaleString('ko-KR')
+
+const formatFriendlyDuration = (seconds: number) => {
+  if (seconds <= 0) return '0분'
+
+  const minutes = Math.max(Math.round(seconds / 60), 1)
+  const hours = Math.floor(minutes / 60)
+  const remainMinutes = minutes % 60
+
+  if (hours === 0) return `${minutes}분`
+  if (remainMinutes === 0) return `${hours}시간`
+
+  return `${hours}시간 ${remainMinutes}분`
+}
 
 export const ProfileScreen = ({ userEmail, books, records, dailyGoalSeconds, weeklyGoalDays, onAdjustDailyGoal, onAdjustWeeklyGoal, onSignOut }: ProfileScreenProps) => {
   const totalSeconds = books.reduce(
@@ -109,26 +122,48 @@ export const ProfileScreen = ({ userEmail, books, records, dailyGoalSeconds, wee
 
       <div className="profile-stats-grid">
         <div className="profile-stat-card">
-          <p>총 독서 시간</p>
-          <strong>{formatDuration(totalSeconds)}</strong>
+          <div className="profile-stat-label">
+            <span>
+              <Icon name="clock" className="h-3.5 w-3.5" />
+            </span>
+            <p>총 독서 시간</p>
+          </div>
+          <strong>{formatFriendlyDuration(totalSeconds)}</strong>
         </div>
         <div className="profile-stat-card">
-          <p>독서 기록</p>
-          <strong>{records.length}개</strong>
+          <div className="profile-stat-label">
+            <span>
+              <Icon name="records" className="h-3.5 w-3.5" />
+            </span>
+            <p>독서 기록</p>
+          </div>
+          <strong>{formatCount(records.length)}개</strong>
         </div>
         <div className="profile-stat-card">
-          <p>완독</p>
-          <strong>{completedBooks}권</strong>
+          <div className="profile-stat-label">
+            <span>
+              <Icon name="check" className="h-3.5 w-3.5" />
+            </span>
+            <p>완독</p>
+          </div>
+          <strong>{formatCount(completedBooks)}권</strong>
         </div>
         <div className="profile-stat-card">
-          <p>기록 페이지</p>
-          <strong>{totalPages}p</strong>
+          <div className="profile-stat-label">
+            <span>
+              <Icon name="book" className="h-3.5 w-3.5" />
+            </span>
+            <p>기록 페이지</p>
+          </div>
+          <strong>{formatCount(totalPages)}p</strong>
         </div>
       </div>
 
-      <button type="button" className="profile-sign-out-button" onClick={() => void onSignOut()}>
-        로그아웃
-      </button>
+      <div className="profile-footer-actions">
+        <button type="button" className="profile-sign-out-button" onClick={() => void onSignOut()}>
+          로그아웃
+        </button>
+      </div>
 
       <div className="profile-build-info">
         <p>버전 {buildInfo.version}</p>

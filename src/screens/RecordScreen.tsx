@@ -115,7 +115,7 @@ const formatSessionTimeRange = (record: ReadingRecord) => {
 };
 
 const formatRoundLabel = (record: ReadingRecord) =>
-  `${record.roundNumber ?? 1}회독`;
+  (record.roundNumber ?? 1) > 1 ? `${record.roundNumber}회독` : "";
 
 const getCalendarDays = (monthCursor: Date) => {
   const firstDay = createMonthCursor(monthCursor);
@@ -702,27 +702,36 @@ export const RecordScreen = ({
                           </div>
 
                           <div className="record-session-list">
-                            {bookGroup.records.map((record) => (
-                              <div
-                                key={record.id}
-                                className="record-session-item"
-                              >
+                            {bookGroup.records.map((record) => {
+                              const roundLabel = formatRoundLabel(record);
+                              const pagesRead = Math.max(
+                                record.endPage - record.startPage,
+                                0,
+                              );
+
+                              return (
+                              <div key={record.id} className="record-session-item">
                                 <div className="record-session-row">
                                   <div className="record-session-copy">
-                                    <p>
-                                      {formatRoundLabel(record)} ·{" "}
+                                    <p className="record-session-pages">
+                                      {roundLabel && <>{roundLabel} · </>}
                                       {record.startPage}p → {record.endPage}p
                                     </p>
                                     {formatSessionTimeRange(record) && (
-                                      <span>
+                                      <span className="record-session-time">
                                         {formatSessionTimeRange(record)}
                                       </span>
                                     )}
-                                    <time className="record-duration-badge">
-                                      {formatCompactDuration(
-                                        record.durationSeconds,
-                                      )}
-                                    </time>
+                                    <div className="record-session-badges">
+                                      <time className="record-duration-badge">
+                                        {formatCompactDuration(
+                                          record.durationSeconds,
+                                        )}
+                                      </time>
+                                      <span className="record-page-delta">
+                                        +{pagesRead}p
+                                      </span>
+                                    </div>
                                   </div>
                                   <div className="record-card-actions">
                                     <button
@@ -754,7 +763,8 @@ export const RecordScreen = ({
                                   </blockquote>
                                 )}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </article>
                       );
@@ -1131,8 +1141,10 @@ export const RecordScreen = ({
                         <div className="record-date-record-row">
                           <div className="record-date-record-meta">
                             <p>
-                              {formatRoundLabel(record)} · {record.startPage}p →{" "}
-                              {record.endPage}p
+                              {formatRoundLabel(record) && (
+                                <>{formatRoundLabel(record)} · </>
+                              )}
+                              {record.startPage}p → {record.endPage}p
                             </p>
                             {formatSessionTimeRange(record) && (
                               <span>{formatSessionTimeRange(record)}</span>

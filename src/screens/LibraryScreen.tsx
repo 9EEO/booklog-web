@@ -1710,7 +1710,7 @@ export const LibraryScreen = ({
                 </p>
                 <button
                   type="button"
-                  className="mt-3 text-xs font-black text-[#2563EB] underline underline-offset-4"
+                  className="book-form-research-button"
                   onClick={openBookSearchStep}
                 >
                   다시 검색
