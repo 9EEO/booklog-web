@@ -1783,7 +1783,7 @@ button {
   line-height: 1.45;
 }
 
-.sentence-ocr-selector-backdrop {
+.modal-backdrop.sentence-ocr-selector-backdrop {
   z-index: 80;
 }
 
