@@ -70,7 +70,7 @@ const prepareImage = async (file: File) => {
   return arrayBufferToBase64(await blob.arrayBuffer());
 };
 
-export const recognizeSentenceImage = async (file: File) => {
+export const recognizeSentenceImage = async (file: File): Promise<string> => {
   const imageBase64 = await prepareImage(file);
   const supabase = requireSupabase();
   const { data, error } = await supabase.functions.invoke("recognize-sentence", {
