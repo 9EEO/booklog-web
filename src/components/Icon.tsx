@@ -26,6 +26,7 @@ export type IconName =
   | 'minus'
   | 'copy'
   | 'share'
+  | 'camera'
   | 'tier'
 
 type IconProps = SVGProps<SVGSVGElement> & {
@@ -58,6 +59,7 @@ const paths: Record<IconName, ReactNode> = {
   minus: <path d="M5 11h14v2H5v-2Z" />,
   copy: <path d="M8 3h11v13h-3v5H5V8h3V3Zm2 5h6v6h1V5h-7v3Zm4 2H7v9h7v-9Z" />,
   share: <path d="M18 3a3 3 0 1 1-2.8 4L9.8 10.7a3 3 0 0 1 0 2.6l5.4 3.7a3 3 0 1 1-1.1 1.7L8.7 15a3 3 0 1 1 0-6l5.4-3.7A3 3 0 0 1 18 3Zm0 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM7 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm11 7a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />,
+  camera: <path d="M8.5 4 10 2h4l1.5 2H20a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4.5ZM4 6v13h16V6h-5.5L13 4h-2L9.5 6H4Zm8 11a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
   tier: <path d="M4 5h16v4H4V5Zm2 2h12V7H6Zm-2 4h13v4H4v-4Zm2 2h9v-.1H6v.1Zm-2 4h10v4H4v-4Zm2 2h6v-.1H6v.1Z" />,
 }
 

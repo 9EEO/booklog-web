@@ -1738,6 +1738,57 @@ button {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
+.sentence-ocr-control {
+  display: grid;
+  gap: 5px;
+}
+
+.sentence-ocr-input {
+  display: none;
+}
+
+.sentence-ocr-button {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.06);
+  color: #2563eb;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 950;
+  transition:
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.sentence-ocr-button:active:not(:disabled) {
+  background: rgba(37, 99, 235, 0.12);
+  transform: scale(0.98);
+}
+
+.sentence-ocr-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.sentence-ocr-error {
+  color: rgba(217, 95, 69, 0.82);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.completion-sentence-panel .sentence-ocr-control {
+  border-bottom: 1px solid rgba(21, 21, 21, 0.1);
+  background: #ffffff;
+  padding: 8px 10px;
+}
+
 .record-edit-actions {
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;

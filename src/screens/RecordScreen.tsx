@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
+import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
 import { SwipeableView } from "../components/SwipeableView";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
@@ -1344,6 +1345,16 @@ export const RecordScreen = ({
                     }
                   />
                 </label>
+                <SentenceOcrButton
+                  onRecognized={(text) =>
+                    updateRecordEditDraft({
+                      sentence: recordEditDraft.sentence.trim()
+                        ? `${recordEditDraft.sentence.trim()}\n${text}`
+                        : text,
+                    })
+                  }
+                  disabled={isRecordMutating}
+                />
                 <textarea
                   className="record-edit-textarea"
                   value={recordEditDraft.sentence}

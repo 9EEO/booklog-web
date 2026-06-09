@@ -11,6 +11,7 @@ import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
+import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import focusSprout from "../assets/focus-sprout.gif";
 import focusSproutStill from "../assets/focus-sprout-still.png";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
@@ -686,6 +687,16 @@ export const SessionScreen = ({
                     <span>p</span>
                   </label>
                 </div>
+                <SentenceOcrButton
+                  onRecognized={(text) =>
+                    updateForm({
+                      sentence: sentence.trim()
+                        ? `${sentence.trim()}\n${text}`
+                        : text,
+                    })
+                  }
+                  disabled={isSaving}
+                />
                 <textarea
                   id="sentence"
                   className="completion-sentence-textarea"

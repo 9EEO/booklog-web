@@ -10,6 +10,7 @@ import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
+import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
 import { SwipeableView } from "../components/SwipeableView";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
@@ -1468,6 +1469,14 @@ export const LibraryScreen = ({
                   }
                 />
               </div>
+              <SentenceOcrButton
+                onRecognized={(text) =>
+                  setDraftSentence((current) =>
+                    current.trim() ? `${current.trim()}\n${text}` : text,
+                  )
+                }
+                disabled={isMutating}
+              />
               <textarea
                 className="book-detail-sentence-textarea"
                 placeholder="기억에 남는 문장을 남겨보세요."
