@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { BottomSheetModal } from "../components/BottomSheetModal";
@@ -41,10 +36,10 @@ type SessionScreenProps = {
 
 const presets = [
   { label: "10초", seconds: 10 },
-  { label: "5분", seconds: 5 * 60 },
-  { label: "15분", seconds: 15 * 60 },
-  { label: "30분", seconds: 30 * 60 },
-  { label: "60분", seconds: 60 * 60 },
+  { label: "5 MIN", seconds: 5 * 60 },
+  { label: "15 MIN", seconds: 15 * 60 },
+  { label: "30 MIN", seconds: 30 * 60 },
+  { label: "60 MIN", seconds: 60 * 60 },
 ];
 
 const extensionStepSeconds = 5 * 60;
@@ -201,7 +196,10 @@ export const SessionScreen = ({
     ? timer.elapsedSeconds
     : timer.remainingSeconds;
   const adventureProgress = isStopwatchMode
-    ? Math.min((timer.elapsedSeconds / Math.max(dailyGoalSeconds, 1)) * 100, 100)
+    ? Math.min(
+        (timer.elapsedSeconds / Math.max(dailyGoalSeconds, 1)) * 100,
+        100,
+      )
     : timer.progress;
   const canDecreaseExtension = extensionSeconds > minimumExtensionSeconds;
   const canIncreaseExtension = extensionSeconds < maximumExtensionSeconds;

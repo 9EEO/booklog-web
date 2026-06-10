@@ -55,7 +55,7 @@ const startPanel = keyframes`
 const Scene = styled.section<{ $isPreparing: boolean }>`
   position: relative;
   width: 100%;
-  height: ${({ $isPreparing }) => ($isPreparing ? "300px" : "252px")};
+  height: ${({ $isPreparing }) => ($isPreparing ? "320px" : "252px")};
   overflow: hidden;
   border: 2px solid #151515;
   border-radius: 4px;
@@ -92,80 +92,63 @@ const PrepOverlay = styled.div`
   z-index: 18;
   inset: 8px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 7px;
-  font-family: var(--font-pixel);
-`;
-
-const PrepTitle = styled(PixelPanel)`
-  display: flex;
-  min-height: 35px;
-  align-items: center;
-  justify-content: space-between;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
-  padding: 6px 8px;
-
-  strong {
-    font-size: 11px;
-    font-weight: 950;
-    letter-spacing: 0;
-  }
-
-  span {
-    color: rgba(21, 21, 21, 0.48);
-    font-size: 7px;
-    font-weight: 900;
-  }
+  font-family: var(--font-pixel);
 `;
 
 const MissionSelect = styled(PixelPanel)`
   display: grid;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
-  padding: 7px;
+  padding: 9px;
 `;
 
 const MenuLabel = styled.p`
-  color: rgba(21, 21, 21, 0.48);
-  font-size: 7px;
+  color: rgba(21, 21, 21, 0.5);
+  font-size: 8px;
   font-weight: 950;
-  letter-spacing: 0;
+  letter-spacing: 1px;
 `;
 
 const MissionList = styled.div`
   display: grid;
   align-content: center;
-  gap: 2px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 8px;
 `;
 
 const MissionButton = styled.button<{ $active: boolean }>`
   position: relative;
   display: grid;
-  grid-template-columns: 13px minmax(0, 1fr) auto;
-  min-height: 28px;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  min-height: 38px;
   align-items: center;
-  gap: 3px;
-  border: 0;
-  background: ${({ $active }) => ($active ? "#151515" : "transparent")};
+  gap: 8px;
+  border: 2px solid
+    ${({ $active }) => ($active ? "#151515" : "rgba(21, 21, 21, 0.2)")};
+  border-radius: 2px;
+  background: ${({ $active }) =>
+    $active ? "#151515" : "rgba(255, 255, 255, 0.92)"};
   color: ${({ $active }) => ($active ? "#ffffff" : "#151515")};
-  padding: 3px 5px;
+  padding: 5px 10px;
   font-family: var(--font-pixel);
   text-align: left;
 
   &:active {
-    opacity: 0.72;
+    transform: translateY(1px);
   }
 
   svg {
-    width: 10px;
-    height: 10px;
-    opacity: ${({ $active }) => ($active ? 1 : 0)};
+    width: 11px;
+    height: 11px;
+    opacity: ${({ $active }) => ($active ? 1 : 0.28)};
+    color: ${({ $active }) => ($active ? "#f2c94c" : "#151515")};
   }
 
   strong {
     overflow: hidden;
-    font-size: 8px;
+    font-size: 13px;
     font-weight: 950;
     letter-spacing: 0;
     text-overflow: ellipsis;
@@ -173,10 +156,12 @@ const MissionButton = styled.button<{ $active: boolean }>`
   }
 
   span {
+    justify-self: end;
     color: ${({ $active }) =>
-      $active ? "rgba(255, 255, 255, 0.68)" : "rgba(21, 21, 21, 0.46)"};
-    font-size: 6px;
+      $active ? "rgba(255, 255, 255, 0.7)" : "rgba(21, 21, 21, 0.5)"};
+    font-size: 7px;
     font-weight: 900;
+    letter-spacing: 0.5px;
   }
 `;
 
@@ -392,11 +377,6 @@ export const AdventurePrepare = ({
 
   return (
     <PrepOverlay>
-      <PrepTitle>
-        <strong>PREPARE FOR JOURNEY</strong>
-        <span>READING ADVENTURE</span>
-      </PrepTitle>
-
       <MissionSelect>
         <MenuLabel>MISSION SELECT</MenuLabel>
         <MissionList>
@@ -412,8 +392,8 @@ export const AdventurePrepare = ({
                 onClick={() => onSelectPreset(preset.seconds)}
               >
                 <Icon name="chevronRight" />
-                <strong>STAGE {index + 1}</strong>
-                <span>{preset.label}</span>
+                <strong style={{ fontSize: "0.53em" }}>{preset.label}</strong>
+                <span>STAGE {index + 1}</span>
               </MissionButton>
             );
           })}
@@ -423,7 +403,7 @@ export const AdventurePrepare = ({
             onClick={() => onChangeMode("stopwatch")}
           >
             <Icon name="chevronRight" />
-            <strong>FREE JOURNEY</strong>
+            <strong style={{ fontSize: "0.53em" }}>FREE JOURNEY</strong>
             <span>STOPWATCH</span>
           </MissionButton>
         </MissionList>
