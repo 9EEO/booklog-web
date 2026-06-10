@@ -1,5 +1,4 @@
 import {
-  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   useEffect,
   useMemo,
@@ -7,13 +6,12 @@ import {
   useState,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { AdventureScene } from "../components/adventure/AdventureScene";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
-import focusSprout from "../assets/focus-sprout.gif";
-import focusSproutStill from "../assets/focus-sprout-still.png";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import type { ReadingTimer } from "../hooks/useReadingTimer";
 import { useTimerCompletionSound } from "../hooks/useTimerCompletionSound";
@@ -206,6 +204,9 @@ export const SessionScreen = ({
   const displaySeconds = isStopwatchMode
     ? timer.elapsedSeconds
     : timer.remainingSeconds;
+  const adventureProgress = isStopwatchMode
+    ? Math.min((timer.elapsedSeconds / Math.max(dailyGoalSeconds, 1)) * 100, 100)
+    : timer.progress;
   const minimumTargetSeconds =
     timer.status === "paused"
       ? Math.min(Math.max(timer.elapsedSeconds, 5 * 60), 120 * 60)
@@ -430,27 +431,19 @@ export const SessionScreen = ({
 
         <div className="focus-timer-card">
           <div className="relative z-10">
-            <div className="focus-ring-wrap">
-              <div
-                className={`focus-ring ${isStopwatchMode ? "focus-ring-stopwatch" : ""} ${isStopwatchMode && isReading ? "focus-ring-stopwatch-active" : ""}`}
-                style={{ "--progress": `${timer.progress}%` } as CSSProperties}
-              >
-                <div className="focus-ring-inner">
-                  <img
-                    className="focus-character"
-                    src={
-                      timer.status === "running"
-                        ? focusSprout
-                        : focusSproutStill
-                    }
-                    alt=""
-                  />
-                  <div className="focus-time">
-                    {formatFocusTime(displaySeconds)}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <AdventureScene
+              status={timer.status}
+              displayTime={formatFocusTime(displaySeconds)}
+              progress={adventureProgress}
+              goalApproachProgress={
+                !isStopwatchMode &&
+                timer.elapsedSeconds > 0 &&
+                timer.remainingSeconds <= 10
+                  ? (10 - timer.remainingSeconds) / 10
+                  : null
+              }
+              showStartBanner={isReading && timer.elapsedSeconds < 1}
+            />
 
             <div className="focus-controls grid grid-cols-[1fr_1fr_auto] gap-2">
               <button
