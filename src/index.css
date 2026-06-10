@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "pretendard/dist/web/variable/pretendardvariable.css";
+@import "@fontsource/press-start-2p/latin-400.css";
 
 :root {
   --font-ui:
@@ -8,6 +9,7 @@
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
+  --font-pixel: "Press Start 2P", var(--font-mono);
   --app-bg: #fff8e8;
   --app-surface: #fffef8;
   --paper: #fff8e8;
@@ -3194,15 +3196,6 @@ button {
   }
 }
 
-.session-reading-header {
-  display: flex;
-  justify-content: center;
-}
-
-.session-reading-header .session-timer-mode-grid {
-  margin: 0 auto;
-}
-
 .session-screen .session-focus-panel {
   position: relative;
   overflow: hidden;
@@ -3284,8 +3277,440 @@ button {
   box-shadow: none;
 }
 
+/* === Game Cartridge book card === */
+.session-screen .session-book-card.cartridge {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: #151515;
+  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.85);
+  padding: 2px;
+  font-family: var(--font-pixel);
+  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);
+}
+
+.session-screen .session-book-card.cartridge .cartridge-inner {
+  background: #fffef8;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.session-screen .session-book-card.cartridge .cartridge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+  background: #151515;
+  color: #fffef8;
+  padding: 4px 8px 4px 8px;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #f2c94c;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 1.5px;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-blink {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  background: #f2c94c;
+  animation: cartridge-blink 1s steps(1) infinite;
+}
+
+@keyframes cartridge-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.session-screen .session-book-card.cartridge .session-book-swap {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 0;
+  background: transparent;
+  color: #fffef8;
+  box-shadow: none;
+}
+
+.session-screen .session-book-card.cartridge .session-book-swap:active {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.session-screen .session-book-card.cartridge .cartridge-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 9px 10px;
+}
+
+.session-screen .session-book-card.cartridge .session-book-cover.cartridge-label {
+  width: 46px;
+  height: 60px;
+  flex: 0 0 auto;
+  border: 2px solid #151515 !important;
+  border-radius: 0;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.85);
+  image-rendering: pixelated;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-label::before {
+  display: none;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-label span {
+  position: static;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    #151515 0 4px,
+    #2b2b2b 4px 8px
+  );
+}
+
+.session-screen .session-book-card.cartridge .cartridge-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-title {
+  margin: 0;
+  color: #151515;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-author {
+  margin: 0;
+  color: rgba(21, 21, 21, 0.5);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-round {
+  color: rgba(21, 21, 21, 0.4);
+}
+
+.session-screen .session-book-card.cartridge .cartridge-progress {
+  margin-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: rgba(21, 21, 21, 0.5);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 1.5px;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-progress-head strong {
+  color: #151515;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.session-screen
+  .session-book-card.cartridge
+  .session-book-progress.cartridge-bar {
+  height: 9px;
+  border: 2px solid #151515;
+  border-radius: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    #fffef8 0 6px,
+    rgba(21, 21, 21, 0.08) 6px 7px
+  );
+}
+
+.session-screen
+  .session-book-card.cartridge
+  .session-book-progress.cartridge-bar
+  span {
+  border-radius: 0;
+  background: #151515;
+}
+
+.session-screen .session-book-card.cartridge .cartridge-pages {
+  margin: 0;
+  color: rgba(21, 21, 21, 0.55);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+}
+
+/* === Book select (Quest select) modal === */
+.modal-panel.bookpick-sheet {
+  font-family: var(--font-pixel);
+}
+
+.bookpick-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.bookpick-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #b69000;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 1.5px;
+}
+
+.bookpick-kicker .cartridge-blink {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  background: #b69000;
+  animation: cartridge-blink 1s steps(1) infinite;
+}
+
+.bookpick-title {
+  margin-top: 4px;
+  color: #151515;
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.bookpick-close {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid #151515;
+  border-radius: 0;
+  background: #fffef8;
+  color: #151515;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.85);
+}
+
+.bookpick-close:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.bookpick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 3px 4px 4px;
+  margin: -3px -4px -4px;
+}
+
+.bookpick-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 12px 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 2px solid #151515;
+  border-radius: 0;
+  background: #fffef8;
+  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.85);
+  padding: 9px 12px 9px 8px;
+  font-family: var(--font-pixel);
+  text-align: left;
+  transition:
+    transform 80ms ease,
+    box-shadow 80ms ease;
+}
+
+.bookpick-item:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+.bookpick-item-active {
+  background: #151515;
+  box-shadow: 3px 3px 0 rgba(182, 144, 0, 0.55);
+}
+
+.bookpick-cursor {
+  display: inline-grid;
+  place-items: center;
+  color: rgba(21, 21, 21, 0.32);
+}
+
+.bookpick-cursor svg {
+  width: 10px;
+  height: 10px;
+}
+
+.bookpick-item-active .bookpick-cursor {
+  color: #f2c94c;
+}
+
+.bookpick-cover {
+  position: relative;
+  width: 40px;
+  height: 52px;
+  overflow: hidden;
+  border: 2px solid #151515;
+  border-radius: 0;
+  background: #fffef8;
+  image-rendering: pixelated;
+}
+
+.bookpick-item-active .bookpick-cover {
+  border-color: #fffef8;
+}
+
+.bookpick-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bookpick-cover-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    #151515 0 4px,
+    #2b2b2b 4px 8px
+  );
+}
+
+.bookpick-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bookpick-name {
+  overflow: hidden;
+  color: #151515;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookpick-item-active .bookpick-name {
+  color: #fffef8;
+}
+
+.bookpick-author {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.5);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookpick-item-active .bookpick-author {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.bookpick-round {
+  opacity: 0.78;
+}
+
+.bookpick-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.bookpick-bar {
+  position: relative;
+  flex: 1;
+  height: 7px;
+  overflow: hidden;
+  border: 2px solid #151515;
+  border-radius: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    #fffef8 0 5px,
+    rgba(21, 21, 21, 0.08) 5px 6px
+  );
+}
+
+.bookpick-item-active .bookpick-bar {
+  border-color: #fffef8;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.bookpick-bar > span {
+  display: block;
+  height: 100%;
+  background: #151515;
+}
+
+.bookpick-item-active .bookpick-bar > span {
+  background: #f2c94c;
+}
+
+.bookpick-percent {
+  min-width: 30px;
+  color: #151515;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.5px;
+  text-align: right;
+}
+
+.bookpick-item-active .bookpick-percent {
+  color: #fffef8;
+}
+
+.bookpick-flag {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  border: 2px solid #151515;
+  background: #f2c94c;
+  color: #151515;
+  padding: 1px 5px;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 1px;
+}
+
 .session-screen .focus-timer-card {
-  min-height: 384px;
+  min-height: 0;
   margin-top: 8px;
   border: 0;
   border-radius: 14px;
@@ -3304,86 +3729,6 @@ button {
 
 .session-screen .focus-ring-wrap {
   margin-top: 10px;
-}
-
-.session-timer-mode-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 3px;
-  margin: 0 auto 10px;
-  width: min(100%, 216px);
-  border: 2px solid var(--session-ink);
-  border-radius: 999px;
-  background: #fffef8;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.72);
-  cursor: pointer;
-  padding: 2px;
-}
-
-.session-timer-mode-grid::before {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc((100% - 7px) / 2);
-  border-radius: 999px;
-  background: var(--session-blue);
-  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.54);
-  transition: transform 180ms ease;
-  content: "";
-}
-
-.session-timer-mode-grid-stopwatch::before {
-  transform: translateX(calc(100% + 3px));
-}
-
-.session-timer-mode-grid-disabled {
-  cursor: not-allowed;
-  opacity: 0.66;
-  filter: grayscale(0.2);
-}
-
-.session-timer-mode-grid-disabled::before {
-  box-shadow: none;
-}
-
-.session-timer-mode-option {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  min-height: 26px;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border-radius: 999px;
-  border: 0;
-  background: transparent;
-  color: rgba(21, 21, 21, 0.72);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  transition:
-    color 160ms ease,
-    opacity 160ms ease;
-}
-
-.session-timer-mode-option-active {
-  color: #ffffff;
-}
-
-.session-timer-mode-option svg {
-  width: 13px;
-  height: 13px;
-}
-
-.session-timer-mode-option:disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.session-timer-mode-option-active:disabled {
-  opacity: 1;
 }
 
 .session-screen .focus-ring {
@@ -3553,23 +3898,6 @@ button {
   box-shadow: 3px 3px 0 var(--session-blue);
 }
 
-.session-screen .focus-controls {
-  margin: 28px auto 0;
-  width: min(100%, 316px);
-}
-
-.session-screen .preset-button {
-  border-color: var(--session-ink);
-  background: #ffffff;
-  color: var(--session-ink);
-  box-shadow: 3px 3px 0 var(--session-ink);
-}
-
-.session-screen .preset-button-active {
-  background: var(--session-blue);
-  color: #ffffff;
-}
-
 .session-screen .primary-button {
   border-color: var(--session-ink);
   background: var(--session-green);
@@ -3589,17 +3917,6 @@ button {
   background: var(--session-red);
   color: #ffffff;
   box-shadow: 4px 4px 0 var(--session-ink);
-}
-
-.session-screen .session-control-button {
-  min-height: 58px;
-  padding: 9px 14px;
-}
-
-.session-screen .session-stop-button {
-  width: 58px;
-  padding-right: 0;
-  padding-left: 0;
 }
 
 .target-stepper {
@@ -3665,110 +3982,6 @@ button {
 
 .session-screen .target-step-value span {
   color: rgba(21, 21, 21, 0.58);
-}
-
-.session-time-controls {
-  width: min(100%, 320px);
-  margin: 0 auto;
-  border: 1px solid rgba(21, 21, 21, 0.24);
-  border-radius: 12px;
-  background: rgba(255, 254, 248, 0.82);
-  box-shadow:
-    2px 2px 0 rgba(21, 21, 21, 0.18),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.62);
-  padding: 8px;
-}
-
-.session-screen .session-target-stepper {
-  grid-template-columns: 34px minmax(0, 1fr) 34px;
-  gap: 4px;
-  width: 100%;
-  margin: 0;
-  align-items: center;
-  border: 0;
-  border-radius: 8px;
-  background: rgba(21, 21, 21, 0.05);
-  padding: 4px;
-  box-shadow: inset 0 0 0 1px rgba(21, 21, 21, 0.08);
-}
-
-.session-screen .session-target-stepper .target-step-button,
-.session-screen .session-target-stepper .target-step-value {
-  min-height: 32px;
-  border: 0;
-  border-radius: 7px;
-  box-shadow: none;
-}
-
-.session-screen .session-target-stepper .target-step-button {
-  background: transparent;
-  color: rgba(21, 21, 21, 0.66);
-}
-
-.session-screen .session-target-stepper .target-step-value {
-  gap: 2px;
-  background: transparent;
-  box-shadow: none;
-}
-
-.session-screen .session-target-stepper .target-step-value span {
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 9px;
-  letter-spacing: 0.06em;
-}
-
-.session-screen .session-target-stepper .target-step-value strong {
-  font-size: 16px;
-}
-
-.session-screen .session-target-stepper .target-step-button:active {
-  transform: scale(0.94);
-  box-shadow: none;
-}
-
-.session-screen .session-target-stepper .target-step-button:disabled {
-  opacity: 0.34;
-}
-
-.session-preset-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0;
-  overflow: hidden;
-  margin-top: 8px;
-  border: 1px solid rgba(21, 21, 21, 0.2);
-  border-radius: 9px;
-  background: rgba(255, 254, 248, 0.72);
-}
-
-.session-screen .session-preset-grid .preset-button {
-  min-height: 32px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: rgba(21, 21, 21, 0.58);
-  box-shadow: none;
-  padding: 0 6px;
-  font-size: 10px;
-}
-
-.session-screen .session-preset-grid .preset-button + .preset-button {
-  border-left: 1px solid rgba(21, 21, 21, 0.12);
-}
-
-.session-screen .session-preset-grid .preset-button-active {
-  background: var(--session-blue);
-  color: #ffffff;
-  box-shadow: none;
-}
-
-.session-screen .session-preset-grid .preset-button:active {
-  transform: scale(0.97);
-  box-shadow: none;
-}
-
-.session-screen .session-preset-grid .preset-button-active:active {
-  box-shadow: none;
 }
 
 .primary-button,

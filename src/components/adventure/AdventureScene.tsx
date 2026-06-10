@@ -1,22 +1,33 @@
 import type { CSSProperties } from "react";
-import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
+import styled from "@emotion/styled";
 import adventureBackground from "../../assets/adventure-background.png";
 import focusSprout from "../../assets/focus-sprout-2.gif";
 import focusSproutStill from "../../assets/focus-sprout-2-still.png";
+import { Icon } from "../Icon";
 
 type AdventureStatus = "idle" | "running" | "paused" | "completed";
+type AdventureMode = "countdown" | "stopwatch";
+
+type AdventurePreset = {
+  label: string;
+  seconds: number;
+};
 
 type AdventureSceneProps = {
   status: AdventureStatus;
+  mode: AdventureMode;
   displayTime: string;
   progress: number;
   goalApproachProgress: number | null;
   showStartBanner: boolean;
-};
-
-type AdventureBackgroundProps = {
-  isMoving: boolean;
+  presets: AdventurePreset[];
+  targetSeconds: number;
+  onChangeMode: (mode: AdventureMode) => void;
+  onSelectPreset: (seconds: number) => void;
+  onStart: () => void;
+  onPause: () => void;
+  onStop: () => void;
 };
 
 const scrollBackground = keyframes`
@@ -41,16 +52,17 @@ const startPanel = keyframes`
   100% { opacity: 0; transform: translate3d(-50%, -5px, 0) scale(0.98); }
 `;
 
-const Scene = styled.section`
+const Scene = styled.section<{ $isPreparing: boolean }>`
   position: relative;
   width: 100%;
-  height: 252px;
+  height: ${({ $isPreparing }) => ($isPreparing ? "300px" : "252px")};
   overflow: hidden;
   border: 2px solid #151515;
-  border-radius: 10px;
+  border-radius: 4px;
   background: #ffffff;
-  box-shadow: 3px 3px 0 #151515;
+  box-shadow: 2px 2px 0 #151515;
   isolation: isolate;
+  transition: height 180ms ease;
 `;
 
 const MovingBackground = styled.div<{ $isMoving: boolean }>`
@@ -69,22 +81,163 @@ const MovingBackground = styled.div<{ $isMoving: boolean }>`
   will-change: background-position;
 `;
 
+const PixelPanel = styled.div`
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.95);
+`;
+
+const PrepOverlay = styled.div`
+  position: absolute;
+  z-index: 18;
+  inset: 8px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  font-family: var(--font-pixel);
+`;
+
+const PrepTitle = styled(PixelPanel)`
+  display: flex;
+  min-height: 35px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+
+  strong {
+    font-size: 11px;
+    font-weight: 950;
+    letter-spacing: 0;
+  }
+
+  span {
+    color: rgba(21, 21, 21, 0.48);
+    font-size: 7px;
+    font-weight: 900;
+  }
+`;
+
+const MissionSelect = styled(PixelPanel)`
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 7px;
+`;
+
+const MenuLabel = styled.p`
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0;
+`;
+
+const MissionList = styled.div`
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  margin-top: 4px;
+`;
+
+const MissionButton = styled.button<{ $active: boolean }>`
+  position: relative;
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr) auto;
+  min-height: 28px;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  background: ${({ $active }) => ($active ? "#151515" : "transparent")};
+  color: ${({ $active }) => ($active ? "#ffffff" : "#151515")};
+  padding: 3px 5px;
+  font-family: var(--font-pixel);
+  text-align: left;
+
+  &:active {
+    opacity: 0.72;
+  }
+
+  svg {
+    width: 10px;
+    height: 10px;
+    opacity: ${({ $active }) => ($active ? 1 : 0)};
+  }
+
+  strong {
+    overflow: hidden;
+    font-size: 8px;
+    font-weight: 950;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    color: ${({ $active }) =>
+      $active ? "rgba(255, 255, 255, 0.68)" : "rgba(21, 21, 21, 0.46)"};
+    font-size: 6px;
+    font-weight: 900;
+  }
+`;
+
+const StartButton = styled.button`
+  min-height: 38px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: #151515;
+  color: #f2c94c;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0;
+
+  &:active {
+    background: #2b2b2b;
+    transform: translateY(1px);
+  }
+`;
+
 const TimerDisplay = styled.time`
   position: absolute;
   z-index: 12;
   top: 10px;
   right: 10px;
-  border: 1px solid rgba(21, 21, 21, 0.2);
-  border-radius: 6px;
-  background: rgba(255, 254, 248, 0.92);
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.62);
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.94);
   color: #151515;
-  padding: 6px 8px;
-  font-family: var(--font-mono);
-  font-size: 14px;
+  padding: 5px 7px;
+  font-family: var(--font-pixel);
+  font-size: 13px;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
+`;
+
+const ActionDock = styled.div`
+  position: absolute;
+  z-index: 14;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 4px;
+`;
+
+const ActionButton = styled.button<{ $danger?: boolean }>`
+  min-height: 29px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: ${({ $danger }) => ($danger ? "#ffffff" : "#151515")};
+  color: ${({ $danger }) => ($danger ? "#151515" : "#f2c94c")};
+  padding: 0 7px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0;
+
+  &:active {
+    opacity: 0.68;
+  }
 `;
 
 const CharacterWrap = styled.div<{ $status: AdventureStatus }>`
@@ -130,18 +283,17 @@ const ProgressDock = styled.div`
 
 const ProgressTrack = styled.div`
   position: relative;
-  height: 10px;
-  overflow: visible;
+  height: 8px;
+  overflow: hidden;
   border: 2px solid #151515;
-  border-radius: 2px;
-  background: #fffef8;
-  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.7);
+  border-radius: 1px;
+  background: #ffffff;
 `;
 
 const ProgressFill = styled.span`
   display: block;
   height: 100%;
-  background: #2563eb;
+  background: #151515;
   transition: width 280ms linear;
 `;
 
@@ -154,10 +306,7 @@ const GoalFlag = styled.span<{ $progress: number }>`
   width: 3px;
   height: 29px;
   background: #151515;
-  opacity: 1;
-  transition:
-    left 280ms linear,
-    opacity 180ms ease;
+  transition: left 280ms linear;
 
   &::before {
     position: absolute;
@@ -172,16 +321,12 @@ const GoalFlag = styled.span<{ $progress: number }>`
 `;
 
 const ProgressLabel = styled.span`
-  min-width: 38px;
-  border: 1px solid rgba(21, 21, 21, 0.24);
-  border-radius: 5px;
-  background: rgba(255, 254, 248, 0.92);
-  padding: 4px 5px;
+  min-width: 34px;
   color: #151515;
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
   font-weight: 950;
-  text-align: center;
+  text-align: right;
   letter-spacing: 0;
 `;
 
@@ -191,20 +336,19 @@ const StartBanner = styled.div`
   top: 50%;
   left: 50%;
   border: 2px solid #151515;
-  border-radius: 6px;
-  background: #fffef8;
-  box-shadow: 3px 3px 0 #151515;
+  border-radius: 2px;
+  background: #ffffff;
   padding: 8px 13px;
   color: #151515;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
   font-weight: 950;
   letter-spacing: 0;
   white-space: nowrap;
   animation: ${startPanel} 1s ease both;
 `;
 
-export const AdventureBackground = ({ isMoving }: AdventureBackgroundProps) => (
+export const AdventureBackground = ({ isMoving }: { isMoving: boolean }) => (
   <MovingBackground $isMoving={isMoving} />
 );
 
@@ -227,28 +371,129 @@ export const ProgressBar = ({ progress }: { progress: number }) => {
   );
 };
 
+export const AdventurePrepare = ({
+  mode,
+  presets,
+  targetSeconds,
+  onChangeMode,
+  onSelectPreset,
+  onStart,
+}: Pick<
+  AdventureSceneProps,
+  | "mode"
+  | "presets"
+  | "targetSeconds"
+  | "onChangeMode"
+  | "onSelectPreset"
+  | "onStart"
+>) => {
+  const stages = presets.filter((preset) => preset.seconds >= 60);
+  const isFreeJourney = mode === "stopwatch";
+
+  return (
+    <PrepOverlay>
+      <PrepTitle>
+        <strong>PREPARE FOR JOURNEY</strong>
+        <span>READING ADVENTURE</span>
+      </PrepTitle>
+
+      <MissionSelect>
+        <MenuLabel>MISSION SELECT</MenuLabel>
+        <MissionList>
+          {stages.map((preset, index) => {
+            const isActive =
+              mode === "countdown" && targetSeconds === preset.seconds;
+
+            return (
+              <MissionButton
+                key={preset.seconds}
+                type="button"
+                $active={isActive}
+                onClick={() => onSelectPreset(preset.seconds)}
+              >
+                <Icon name="chevronRight" />
+                <strong>STAGE {index + 1}</strong>
+                <span>{preset.label}</span>
+              </MissionButton>
+            );
+          })}
+          <MissionButton
+            type="button"
+            $active={isFreeJourney}
+            onClick={() => onChangeMode("stopwatch")}
+          >
+            <Icon name="chevronRight" />
+            <strong>FREE JOURNEY</strong>
+            <span>STOPWATCH</span>
+          </MissionButton>
+        </MissionList>
+      </MissionSelect>
+
+      <StartButton type="button" onClick={onStart}>
+        START ADVENTURE
+      </StartButton>
+    </PrepOverlay>
+  );
+};
+
 export const AdventureScene = ({
   status,
+  mode,
   displayTime,
   progress,
   goalApproachProgress,
   showStartBanner,
+  presets,
+  targetSeconds,
+  onChangeMode,
+  onSelectPreset,
+  onStart,
+  onPause,
+  onStop,
 }: AdventureSceneProps) => {
+  const isPreparing = status === "idle";
   const isMoving = status === "running";
 
   return (
-    <Scene aria-label="독서 모험 화면">
+    <Scene $isPreparing={isPreparing} aria-label="독서 모험 화면">
       <AdventureBackground isMoving={isMoving} />
-      <TimerDisplay>{displayTime}</TimerDisplay>
-      <Character status={status} />
-      {goalApproachProgress !== null && (
-        <GoalFlag
-          $progress={Math.min(Math.max(goalApproachProgress, 0), 1)}
-          aria-hidden="true"
+
+      {isPreparing ? (
+        <AdventurePrepare
+          mode={mode}
+          presets={presets}
+          targetSeconds={targetSeconds}
+          onChangeMode={onChangeMode}
+          onSelectPreset={onSelectPreset}
+          onStart={onStart}
         />
+      ) : (
+        <>
+          <TimerDisplay>{displayTime}</TimerDisplay>
+          {(status === "running" || status === "paused") && (
+            <ActionDock>
+              <ActionButton
+                type="button"
+                onClick={status === "running" ? onPause : onStart}
+              >
+                {status === "running" ? "PAUSE" : "RESUME"}
+              </ActionButton>
+              <ActionButton type="button" $danger onClick={onStop}>
+                STOP
+              </ActionButton>
+            </ActionDock>
+          )}
+          <Character status={status} />
+          {goalApproachProgress !== null && (
+            <GoalFlag
+              $progress={Math.min(Math.max(goalApproachProgress, 0), 1)}
+              aria-hidden="true"
+            />
+          )}
+          <ProgressBar progress={progress} />
+          {showStartBanner && <StartBanner>ADVENTURE START</StartBanner>}
+        </>
       )}
-      <ProgressBar progress={progress} />
-      {showStartBanner && <StartBanner>ADVENTURE START</StartBanner>}
     </Scene>
   );
 };

@@ -1,5 +1,4 @@
 import {
-  type MouseEvent as ReactMouseEvent,
   useEffect,
   useMemo,
   useRef,
@@ -9,7 +8,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
-import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
@@ -28,7 +26,7 @@ import {
   vibrateWarning,
 } from "../utils/haptics";
 import { parsePageInput } from "../utils/pageInput";
-import { formatBookPages, getBookProgress } from "../utils/bookPages";
+import { getBookProgress } from "../utils/bookPages";
 
 type SessionScreenProps = {
   books: Book[];
@@ -199,23 +197,16 @@ export const SessionScreen = ({
       : "";
   const isStopwatchMode = timer.mode === "stopwatch";
   const isReading = timer.status === "running";
-  const readingActionLabel = timer.status === "paused" ? "다시 시작" : "시작";
-  const targetMinutes = Math.round(timer.targetSeconds / 60);
   const displaySeconds = isStopwatchMode
     ? timer.elapsedSeconds
     : timer.remainingSeconds;
   const adventureProgress = isStopwatchMode
     ? Math.min((timer.elapsedSeconds / Math.max(dailyGoalSeconds, 1)) * 100, 100)
     : timer.progress;
-  const minimumTargetSeconds =
-    timer.status === "paused"
-      ? Math.min(Math.max(timer.elapsedSeconds, 5 * 60), 120 * 60)
-      : 5 * 60;
-  const canDecreaseTarget = timer.targetSeconds > minimumTargetSeconds;
-  const canIncreaseTarget = targetMinutes < 120;
   const canDecreaseExtension = extensionSeconds > minimumExtensionSeconds;
   const canIncreaseExtension = extensionSeconds < maximumExtensionSeconds;
-  const canChangeTimerMode = !isReading && timer.elapsedSeconds === 0;
+  const canChangeTimerMode =
+    timer.status === "idle" && timer.elapsedSeconds === 0;
   const todaySeconds = records
     .filter((record) => record.date === todayLabel())
     .reduce((sum, record) => sum + record.durationSeconds, 0);
@@ -319,88 +310,16 @@ export const SessionScreen = ({
     timer.setMode(mode);
   };
 
-  const handleTimerModeSwitchClick = (
-    event: ReactMouseEvent<HTMLDivElement>,
-  ) => {
-    if (!canChangeTimerMode) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const nextMode =
-      event.clientX - rect.left < rect.width / 2 ? "countdown" : "stopwatch";
-
-    changeTimerMode(nextMode);
-  };
-
   return (
     <div className="session-screen space-y-4">
-      <header className="session-reading-header">
-        <div
-          className={`session-timer-mode-grid ${isStopwatchMode ? "session-timer-mode-grid-stopwatch" : ""} ${!canChangeTimerMode ? "session-timer-mode-grid-disabled" : ""}`}
-          role="tablist"
-          aria-label="독서 시간 측정 방식"
-          onClick={handleTimerModeSwitchClick}
-        >
-          <button
-            type="button"
-            className={`session-timer-mode-option ${!isStopwatchMode ? "session-timer-mode-option-active" : ""}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              changeTimerMode("countdown");
-            }}
-            disabled={!canChangeTimerMode}
-            role="tab"
-            aria-selected={!isStopwatchMode}
-          >
-            <Icon name="timer" className="h-4 w-4" />
-            TIMER
-          </button>
-          <button
-            type="button"
-            className={`session-timer-mode-option ${isStopwatchMode ? "session-timer-mode-option-active" : ""}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              changeTimerMode("stopwatch");
-            }}
-            disabled={!canChangeTimerMode}
-            role="tab"
-            aria-selected={isStopwatchMode}
-          >
-            <Icon name="clock" className="h-4 w-4" />
-            STOPWATCH
-          </button>
-        </div>
-      </header>
-
       <section className="session-focus-panel">
-        <div className="session-book-card">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div
-                className="session-book-cover"
-                style={{
-                  backgroundColor: currentBook.coverColor,
-                  borderColor: currentBook.accentColor,
-                }}
-              >
-                {currentBook.thumbnail ? (
-                  <img src={currentBook.thumbnail} alt="" />
-                ) : (
-                  <span style={{ backgroundColor: currentBook.accentColor }} />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center">
-                  <p className="session-book-title truncate text-sm font-black">
-                    {currentBook.title}
-                  </p>
-                </div>
-                <p className="session-book-author mt-1 truncate text-xs font-bold">
-                  {currentBook.author}
-                  {roundLabel && (
-                    <span className="session-book-round"> · {roundLabel}</span>
-                  )}
-                </p>
-              </div>
+        <div className="session-book-card cartridge">
+          <div className="cartridge-inner">
+            <div className="cartridge-header">
+              <span className="cartridge-tag">
+                <i className="cartridge-blink" aria-hidden="true" />
+                CURRENT ADVENTURE
+              </span>
               <button
                 type="button"
                 className="session-book-swap"
@@ -413,18 +332,45 @@ export const SessionScreen = ({
                 <Icon name="swap" className="h-4 w-4" />
               </button>
             </div>
-            <div>
-              {bookProgress !== null && (
-                <div className="session-book-progress">
-                  <span style={{ width: `${bookProgress}%` }} />
-                </div>
-              )}
-              <p className="session-page-count mt-1 text-right text-[11px] font-black">
-                {formatBookPages(
-                  currentBook.currentPage,
-                  currentBook.totalPages,
+
+            <div className="cartridge-body">
+              <div className="session-book-cover cartridge-label">
+                {currentBook.thumbnail ? (
+                  <img src={currentBook.thumbnail} alt="" />
+                ) : (
+                  <span aria-hidden="true" />
                 )}
-              </p>
+              </div>
+
+              <div className="cartridge-info">
+                <p className="cartridge-title truncate">{currentBook.title}</p>
+                <p className="cartridge-author truncate">
+                  {currentBook.author}
+                  {roundLabel && (
+                    <span className="cartridge-round"> · {roundLabel}</span>
+                  )}
+                </p>
+
+                <div className="cartridge-progress">
+                  <div className="cartridge-progress-head">
+                    <span>PROGRESS</span>
+                    <strong>
+                      {bookProgress !== null
+                        ? `${Math.round(bookProgress)}%`
+                        : "—"}
+                    </strong>
+                  </div>
+                  {bookProgress !== null && (
+                    <div className="session-book-progress cartridge-bar">
+                      <span style={{ width: `${bookProgress}%` }} />
+                    </div>
+                  )}
+                  <p className="cartridge-pages">
+                    {currentBook.currentPage} / {currentBook.totalPages ?? "?"}{" "}
+                    PAGES
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -433,6 +379,7 @@ export const SessionScreen = ({
           <div className="relative z-10">
             <AdventureScene
               status={timer.status}
+              mode={timer.mode}
               displayTime={formatFocusTime(displaySeconds)}
               progress={adventureProgress}
               goalApproachProgress={
@@ -443,132 +390,104 @@ export const SessionScreen = ({
                   : null
               }
               showStartBanner={isReading && timer.elapsedSeconds < 1}
+              presets={presets}
+              targetSeconds={timer.targetSeconds}
+              onChangeMode={changeTimerMode}
+              onSelectPreset={(seconds) => {
+                vibrateSelect();
+                timer.setPreset(seconds);
+              }}
+              onStart={() => {
+                vibrateTap();
+                timerCompletionSound.prepare();
+                timer.start();
+              }}
+              onPause={() => {
+                vibrateTap();
+                timer.pause();
+              }}
+              onStop={openCompletion}
             />
-
-            <div className="focus-controls grid grid-cols-[1fr_1fr_auto] gap-2">
-              <button
-                type="button"
-                className="session-control-button primary-button"
-                onClick={() => {
-                  vibrateTap();
-                  timerCompletionSound.prepare();
-                  timer.start();
-                }}
-                disabled={isReading}
-                aria-label={readingActionLabel}
-              >
-                <Icon name="play" className="h-7 w-7" />
-              </button>
-              <button
-                type="button"
-                className="session-control-button secondary-button"
-                onClick={() => {
-                  vibrateTap();
-                  timer.pause();
-                }}
-                disabled={!isReading}
-                aria-label="일시정지"
-              >
-                <Icon name="pause" className="h-7 w-7" />
-              </button>
-              <button
-                type="button"
-                className="session-control-button session-stop-button danger-button"
-                onClick={openCompletion}
-                disabled={timer.elapsedSeconds === 0}
-                aria-label="독서 종료"
-              >
-                <Icon name="stop" className="h-7 w-7" />
-              </button>
-            </div>
           </div>
         </div>
       </section>
 
-      {!isStopwatchMode && (
-        <div className="session-time-controls">
-          <div className="target-stepper session-target-stepper">
-            <button
-              type="button"
-              className="target-step-button"
-              onClick={() => {
-                vibrateTap();
-                timer.adjustTarget(-5 * 60);
-              }}
-              disabled={isReading || !canDecreaseTarget}
-              aria-label="목표 시간 5분 줄이기"
-            >
-              <Icon name="minus" className="h-5 w-5" />
-            </button>
-            <div className="target-step-value" aria-live="polite">
-              <span>TARGET</span>
-              <strong>{targetMinutes}분</strong>
-            </div>
-            <button
-              type="button"
-              className="target-step-button"
-              onClick={() => {
-                vibrateTap();
-                timer.adjustTarget(5 * 60);
-              }}
-              disabled={isReading || !canIncreaseTarget}
-              aria-label="목표 시간 5분 늘리기"
-            >
-              <Icon name="plus" className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="session-preset-grid">
-            {presets.map((preset) => (
-              <button
-                key={preset.seconds}
-                type="button"
-                className={`preset-button ${timer.targetSeconds === preset.seconds ? "preset-button-active" : ""}`}
-                onClick={() => {
-                  vibrateSelect();
-                  timer.setPreset(preset.seconds);
-                }}
-                disabled={isReading}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <BottomSheetModal
         isOpen={isBookModalOpen}
         ariaLabel="책 변경"
+        panelClassName="bookpick-sheet"
         onBackdropClick={() => setIsBookModalOpen(false)}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-black">읽을 책 선택</h2>
+        <div className="bookpick-header">
+          <div className="bookpick-heading">
+            <span className="bookpick-kicker">
+              <i className="cartridge-blink" aria-hidden="true" />
+              SELECT ADVENTURE
+            </span>
+            <h2 className="bookpick-title">읽을 책 선택</h2>
+          </div>
           <button
             type="button"
-            className="icon-button"
+            className="bookpick-close"
             onClick={() => setIsBookModalOpen(false)}
             aria-label="닫기"
           >
             <Icon name="close" className="h-5 w-5" />
           </button>
         </div>
-        <div className="space-y-2">
-          {readingBooks.map((book) => (
-            <button
-              key={book.id}
-              type="button"
-              className="w-full border-2 border-[#2F2A26] bg-[#FCFBF7] p-3 shadow-pixel transition-transform active:translate-x-1 active:translate-y-1 active:shadow-none"
-              onClick={() => {
-                vibrateSelect();
-                onChangeBook(book.id);
-                setIsBookModalOpen(false);
-                timer.reset();
-              }}
-            >
-              <MiniBook book={book} />
-            </button>
-          ))}
+
+        <div className="bookpick-list">
+          {readingBooks.map((book) => {
+            const progress = getBookProgress(book.currentPage, book.totalPages);
+            const isActive = book.id === currentBook.id;
+            const bookRound =
+              book.activeRoundNumber && book.activeRoundNumber > 1
+                ? `${book.activeRoundNumber}회독`
+                : "";
+
+            return (
+              <button
+                key={book.id}
+                type="button"
+                className={`bookpick-item ${isActive ? "bookpick-item-active" : ""}`}
+                onClick={() => {
+                  vibrateSelect();
+                  onChangeBook(book.id);
+                  setIsBookModalOpen(false);
+                  timer.reset();
+                }}
+              >
+                <span className="bookpick-cursor" aria-hidden="true">
+                  <Icon name="chevronRight" />
+                </span>
+                <span className="bookpick-cover">
+                  {book.thumbnail ? (
+                    <img src={book.thumbnail} alt="" />
+                  ) : (
+                    <span className="bookpick-cover-empty" aria-hidden="true" />
+                  )}
+                </span>
+                <span className="bookpick-info">
+                  <span className="bookpick-name">{book.title}</span>
+                  <span className="bookpick-author">
+                    {book.author}
+                    {bookRound && (
+                      <span className="bookpick-round"> · {bookRound}</span>
+                    )}
+                  </span>
+                  <span className="bookpick-progress">
+                    <span className="bookpick-bar">
+                      <span style={{ width: `${progress ?? 0}%` }} />
+                    </span>
+                    <span className="bookpick-percent">
+                      {progress !== null ? `${progress}%` : "NEW"}
+                    </span>
+                  </span>
+                </span>
+                {isActive && <span className="bookpick-flag">PLAYING</span>}
+              </button>
+            );
+          })}
         </div>
       </BottomSheetModal>
 
