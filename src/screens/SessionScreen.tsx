@@ -311,68 +311,6 @@ export const SessionScreen = ({
   return (
     <div className="session-screen space-y-4">
       <section className="session-focus-panel">
-        <div className="session-book-card cartridge">
-          <div className="cartridge-inner">
-            <div className="cartridge-header">
-              <span className="cartridge-tag">
-                <i className="cartridge-blink" aria-hidden="true" />
-                CURRENT ADVENTURE
-              </span>
-              <button
-                type="button"
-                className="session-book-swap"
-                onClick={() => {
-                  vibrateTap();
-                  setIsBookModalOpen(true);
-                }}
-                aria-label="책 변경"
-              >
-                <Icon name="swap" className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="cartridge-body">
-              <div className="session-book-cover cartridge-label">
-                {currentBook.thumbnail ? (
-                  <img src={currentBook.thumbnail} alt="" />
-                ) : (
-                  <span aria-hidden="true" />
-                )}
-              </div>
-
-              <div className="cartridge-info">
-                <p className="cartridge-title truncate">{currentBook.title}</p>
-                <p className="cartridge-author truncate">
-                  {currentBook.author}
-                  {roundLabel && (
-                    <span className="cartridge-round"> · {roundLabel}</span>
-                  )}
-                </p>
-
-                <div className="cartridge-progress">
-                  <div className="cartridge-progress-head">
-                    <span>PROGRESS</span>
-                    <strong>
-                      {bookProgress !== null
-                        ? `${Math.round(bookProgress)}%`
-                        : "—"}
-                    </strong>
-                  </div>
-                  {bookProgress !== null && (
-                    <div className="session-book-progress cartridge-bar">
-                      <span style={{ width: `${bookProgress}%` }} />
-                    </div>
-                  )}
-                  <p className="cartridge-pages">
-                    {currentBook.currentPage} / {currentBook.totalPages ?? "?"}{" "}
-                    PAGES
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="focus-timer-card">
           <div className="relative z-10">
             <AdventureScene
@@ -406,6 +344,77 @@ export const SessionScreen = ({
               }}
               onStop={openCompletion}
             />
+          </div>
+        </div>
+
+        <div className="console-body" aria-hidden="true">
+          <span className="console-led" />
+          <span className="console-brand">ADVENTURE</span>
+          <span className="console-grille" />
+          <span className="console-slot" />
+        </div>
+
+        <div className="cartridge-deck">
+          <div className="session-book-card cartridge">
+            <div className="cartridge-inner">
+              <div className="cartridge-contacts" aria-hidden="true" />
+              <div className="cartridge-header">
+                <span className="cartridge-tag">INSERTED PAK</span>
+                <button
+                  type="button"
+                  className="session-book-swap"
+                  onClick={() => {
+                    vibrateTap();
+                    setIsBookModalOpen(true);
+                  }}
+                  aria-label="책 변경"
+                >
+                  <Icon name="swap" className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="cartridge-body">
+                <div className="session-book-cover cartridge-label">
+                  {currentBook.thumbnail ? (
+                    <img src={currentBook.thumbnail} alt="" />
+                  ) : (
+                    <span aria-hidden="true" />
+                  )}
+                </div>
+
+                <div className="cartridge-info">
+                  <p className="cartridge-title truncate">
+                    {currentBook.title}
+                  </p>
+                  <p className="cartridge-author truncate">
+                    {currentBook.author}
+                    {roundLabel && (
+                      <span className="cartridge-round"> · {roundLabel}</span>
+                    )}
+                  </p>
+
+                  <div className="cartridge-progress">
+                    <div className="cartridge-progress-head">
+                      <span>PROGRESS</span>
+                      <strong>
+                        {bookProgress !== null
+                          ? `${Math.round(bookProgress)}%`
+                          : "—"}
+                      </strong>
+                    </div>
+                    {bookProgress !== null && (
+                      <div className="session-book-progress cartridge-bar">
+                        <span style={{ width: `${bookProgress}%` }} />
+                      </div>
+                    )}
+                    <p className="cartridge-pages">
+                      {currentBook.currentPage} /{" "}
+                      {currentBook.totalPages ?? "?"} PAGES
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -182,23 +182,6 @@ const StartButton = styled.button`
   }
 `;
 
-const TimerDisplay = styled.time`
-  position: absolute;
-  z-index: 12;
-  top: 10px;
-  right: 10px;
-  border: 2px solid #151515;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #151515;
-  padding: 5px 7px;
-  font-family: var(--font-pixel);
-  font-size: 13px;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-`;
-
 const ActionDock = styled.div`
   position: absolute;
   z-index: 14;
@@ -208,13 +191,41 @@ const ActionDock = styled.div`
   gap: 4px;
 `;
 
+const SceneHud = styled.time`
+  position: absolute;
+  z-index: 14;
+  top: 9px;
+  right: 11px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: #151515;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9),
+    0 -1px 0 rgba(255, 255, 255, 0.6),
+    1px 0 0 rgba(255, 255, 255, 0.6),
+    -1px 0 0 rgba(255, 255, 255, 0.6);
+`;
+
+const SceneHudStatus = styled.span`
+  color: rgba(21, 21, 21, 0.5);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0.5px;
+`;
+
 const ActionButton = styled.button<{ $danger?: boolean }>`
-  min-height: 29px;
+  min-height: 22px;
   border: 2px solid #151515;
   border-radius: 2px;
-  background: ${({ $danger }) => ($danger ? "#ffffff" : "#151515")};
+  background: ${({ $danger }) => ($danger ? "rgba(255, 255, 255, 0.9)" : "#151515")};
   color: ${({ $danger }) => ($danger ? "#151515" : "#f2c94c")};
-  padding: 0 7px;
+  padding: 0 6px;
   font-family: var(--font-pixel);
   font-size: 7px;
   font-weight: 950;
@@ -433,6 +444,8 @@ export const AdventureScene = ({
 }: AdventureSceneProps) => {
   const isPreparing = status === "idle";
   const isMoving = status === "running";
+  const hudStatusLabel =
+    status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
 
   return (
     <Scene $isPreparing={isPreparing} aria-label="독서 모험 화면">
@@ -449,7 +462,6 @@ export const AdventureScene = ({
         />
       ) : (
         <>
-          <TimerDisplay>{displayTime}</TimerDisplay>
           {(status === "running" || status === "paused") && (
             <ActionDock>
               <ActionButton
@@ -463,6 +475,12 @@ export const AdventureScene = ({
               </ActionButton>
             </ActionDock>
           )}
+          <SceneHud aria-live="polite">
+            {hudStatusLabel && (
+              <SceneHudStatus>{hudStatusLabel} ·</SceneHudStatus>
+            )}
+            {displayTime}
+          </SceneHud>
           <Character status={status} />
           {goalApproachProgress !== null && (
             <GoalFlag
