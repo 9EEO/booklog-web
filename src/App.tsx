@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type SetStateAction } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type SetStateAction,
+} from "react";
 import type { User } from "@supabase/supabase-js";
 import { BottomTabs } from "./components/BottomTabs";
 import { useAuth } from "./hooks/useAuth";
@@ -62,6 +69,14 @@ import {
   type TierBoard,
 } from "./types/tier";
 import { clampBookPage, isBookCompletedByPage } from "./utils/bookPages";
+
+const DesignSystemScreen = import.meta.env.DEV
+  ? lazy(() =>
+      import("./screens/DesignSystemScreen").then((module) => ({
+        default: module.DesignSystemScreen,
+      })),
+    )
+  : null;
 
 const todayLabel = () =>
   new Intl.DateTimeFormat("ko-KR", {
@@ -1343,7 +1358,7 @@ function AuthenticatedApp({
   );
 }
 
-function App() {
+function BooklogApp() {
   const auth = useAuth();
 
   if (auth.isLoading) {
@@ -1368,6 +1383,22 @@ function App() {
   }
 
   return <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />;
+}
+
+function App() {
+  const isDesignSystemView =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).has("design-system");
+
+  if (isDesignSystemView && DesignSystemScreen) {
+    return (
+      <Suspense fallback={null}>
+        <DesignSystemScreen />
+      </Suspense>
+    );
+  }
+
+  return <BooklogApp />;
 }
 
 export default App;

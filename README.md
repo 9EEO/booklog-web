@@ -1,5 +1,10 @@
 # React + TypeScript + Vite
 
+## Development views
+
+- Design system and component inventory: `http://localhost:5173/?design-system`
+- The design system view is only available while running Vite in development mode.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

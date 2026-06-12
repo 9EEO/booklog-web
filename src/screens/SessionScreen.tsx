@@ -34,6 +34,8 @@ type SessionScreenProps = {
   onGoLibrary: () => void;
 };
 
+type PakMotion = "idle" | "ejecting" | "out" | "inserting";
+
 const presets = [
   { label: "10초", seconds: 10 },
   { label: "5 MIN", seconds: 5 * 60 },
@@ -98,10 +100,12 @@ export const SessionScreen = ({
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSentenceOpen, setIsSentenceOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [pakMotion, setPakMotion] = useState<PakMotion>("idle");
   const [extensionSeconds, setExtensionSeconds] = useState(
     minimumExtensionSeconds,
   );
   const endPageInputRef = useRef<HTMLInputElement | null>(null);
+  const pakMotionTimerRef = useRef<number | null>(null);
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? "",
     endPage: currentBook?.currentPage ?? 1,
@@ -110,9 +114,43 @@ export const SessionScreen = ({
   });
   const timerCompletionSound = useTimerCompletionSound(timer.status);
 
+  const clearPakMotionTimer = () => {
+    if (pakMotionTimerRef.current === null) return;
+
+    window.clearTimeout(pakMotionTimerRef.current);
+    pakMotionTimerRef.current = null;
+  };
+
+  const finishPakInsertion = () => {
+    clearPakMotionTimer();
+    setPakMotion("inserting");
+    pakMotionTimerRef.current = window.setTimeout(() => {
+      setPakMotion("idle");
+      pakMotionTimerRef.current = null;
+    }, 440);
+  };
+
+  const closeBookPicker = () => {
+    setIsBookModalOpen(false);
+    finishPakInsertion();
+  };
+
+  const openBookPicker = () => {
+    if (pakMotion !== "idle") return;
+
+    vibrateTap();
+    clearPakMotionTimer();
+    setPakMotion("ejecting");
+    pakMotionTimerRef.current = window.setTimeout(() => {
+      setPakMotion("out");
+      setIsBookModalOpen(true);
+      pakMotionTimerRef.current = null;
+    }, 300);
+  };
+
   useBackNavigationLayer(
     isBookModalOpen,
-    () => setIsBookModalOpen(false),
+    closeBookPicker,
     "session-book-modal",
   );
   useBackNavigationLayer(
@@ -134,6 +172,10 @@ export const SessionScreen = ({
   const isCompletionVisible =
     isCompletionOpen ||
     (timer.status === "completed" && timer.elapsedSeconds > 0);
+
+  useEffect(() => {
+    return () => clearPakMotionTimer();
+  }, []);
 
   useEffect(() => {
     if (!currentBook || !isCompletionVisible) return;
@@ -347,83 +389,72 @@ export const SessionScreen = ({
           </div>
         </div>
 
-        <div className="console-body" aria-hidden="true">
-          <span className="console-led" />
-          <span className="console-brand">ADVENTURE</span>
-          <span className="console-grille" />
-          <span className="console-slot" />
-        </div>
+      </section>
 
-        <div className="cartridge-deck">
-          <div className="session-book-card cartridge">
-            <div className="cartridge-inner">
-              <div className="cartridge-contacts" aria-hidden="true" />
-              <div className="cartridge-header">
-                <span className="cartridge-tag">INSERTED PAK</span>
+      <div className={`session-book-pak-dock session-book-pak-dock-${pakMotion}`}>
+        <div className="session-book-slot-rear" aria-hidden="true" />
+        <section className="session-book-chip-panel">
+          <header className="session-book-chip-header">
+            <span>INSERTED PAK</span>
+          </header>
+
+          <div className="session-book-chip-body">
+            <div className="session-book-chip-cover">
+              {currentBook.thumbnail ? (
+                <img src={currentBook.thumbnail} alt="" />
+              ) : (
+                <span className="session-book-chip-fallback">
+                  <Icon name="book" className="h-5 w-5" />
+                  <strong>{currentBook.title}</strong>
+                </span>
+              )}
+            </div>
+
+            <div className="session-book-chip-progress">
+              <div className="session-book-chip-copy">
+                <div>
+                  <h2>{currentBook.title}</h2>
+                  <small>
+                    {currentBook.author}
+                    {roundLabel ? ` · ${roundLabel}` : ""}
+                  </small>
+                </div>
                 <button
                   type="button"
-                  className="session-book-swap"
-                  onClick={() => {
-                    vibrateTap();
-                    setIsBookModalOpen(true);
-                  }}
+                  className="session-book-chip-swap"
+                  onClick={openBookPicker}
+                  disabled={pakMotion !== "idle"}
                   aria-label="책 변경"
                 >
-                  <Icon name="swap" className="h-4 w-4" />
+                  <Icon name="swap" className="h-5 w-5" />
                 </button>
               </div>
-
-              <div className="cartridge-body">
-                <div className="session-book-cover cartridge-label">
-                  {currentBook.thumbnail ? (
-                    <img src={currentBook.thumbnail} alt="" />
-                  ) : (
-                    <span aria-hidden="true" />
-                  )}
+              <span>PROGRESS</span>
+              <strong>
+                {bookProgress !== null ? `${Math.round(bookProgress)}%` : "—"}
+              </strong>
+              {bookProgress !== null && (
+                <div className="session-book-chip-track">
+                  <span style={{ width: `${bookProgress}%` }} />
                 </div>
-
-                <div className="cartridge-info">
-                  <p className="cartridge-title truncate">
-                    {currentBook.title}
-                  </p>
-                  <p className="cartridge-author truncate">
-                    {currentBook.author}
-                    {roundLabel && (
-                      <span className="cartridge-round"> · {roundLabel}</span>
-                    )}
-                  </p>
-
-                  <div className="cartridge-progress">
-                    <div className="cartridge-progress-head">
-                      <span>PROGRESS</span>
-                      <strong>
-                        {bookProgress !== null
-                          ? `${Math.round(bookProgress)}%`
-                          : "—"}
-                      </strong>
-                    </div>
-                    {bookProgress !== null && (
-                      <div className="session-book-progress cartridge-bar">
-                        <span style={{ width: `${bookProgress}%` }} />
-                      </div>
-                    )}
-                    <p className="cartridge-pages">
-                      {currentBook.currentPage} /{" "}
-                      {currentBook.totalPages ?? "?"} PAGES
-                    </p>
-                  </div>
-                </div>
-              </div>
+              )}
+              <p>
+                {currentBook.currentPage} / {currentBook.totalPages ?? "?"}{" "}
+                PAGES
+              </p>
             </div>
           </div>
+        </section>
+        <div className="session-book-slot-lip" aria-hidden="true">
+          <span />
         </div>
-      </section>
+      </div>
 
       <BottomSheetModal
         isOpen={isBookModalOpen}
         ariaLabel="책 변경"
         panelClassName="bookpick-sheet"
-        onBackdropClick={() => setIsBookModalOpen(false)}
+        onBackdropClick={closeBookPicker}
       >
         <div className="bookpick-header">
           <div className="bookpick-heading">
@@ -436,7 +467,7 @@ export const SessionScreen = ({
           <button
             type="button"
             className="bookpick-close"
-            onClick={() => setIsBookModalOpen(false)}
+            onClick={closeBookPicker}
             aria-label="닫기"
           >
             <Icon name="close" className="h-5 w-5" />
@@ -461,6 +492,7 @@ export const SessionScreen = ({
                   vibrateSelect();
                   onChangeBook(book.id);
                   setIsBookModalOpen(false);
+                  finishPakInsertion();
                   timer.reset();
                 }}
               >
