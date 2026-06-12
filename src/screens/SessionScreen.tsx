@@ -8,6 +8,7 @@ import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import type { ReadingTimer } from "../hooks/useReadingTimer";
 import { useTimerCompletionSound } from "../hooks/useTimerCompletionSound";
+import { useTimerControlSound } from "../hooks/useTimerControlSound";
 import type {
   Book,
   ReadingCompletionInput,
@@ -113,6 +114,7 @@ export const SessionScreen = ({
     sentencePage: currentBook?.currentPage ?? 1,
   });
   const timerCompletionSound = useTimerCompletionSound(timer.status);
+  const timerControlSound = useTimerControlSound();
 
   const clearPakMotionTimer = () => {
     if (pakMotionTimerRef.current === null) return;
@@ -123,6 +125,7 @@ export const SessionScreen = ({
 
   const finishPakInsertion = () => {
     clearPakMotionTimer();
+    timerControlSound.playInsert();
     setPakMotion("inserting");
     pakMotionTimerRef.current = window.setTimeout(() => {
       setPakMotion("idle");
@@ -139,6 +142,7 @@ export const SessionScreen = ({
     if (pakMotion !== "idle") return;
 
     vibrateTap();
+    timerControlSound.playEject();
     clearPakMotionTimer();
     setPakMotion("ejecting");
     pakMotionTimerRef.current = window.setTimeout(() => {
@@ -268,6 +272,7 @@ export const SessionScreen = ({
   const openCompletion = () => {
     if (timer.elapsedSeconds === 0) return;
     vibrateWarning();
+    timerControlSound.playStop();
     timerCompletionSound.suppressNextCompletionSound();
     timer.complete();
     setIsCompletionOpen(true);
@@ -347,6 +352,7 @@ export const SessionScreen = ({
     if (!canChangeTimerMode || timer.mode === mode) return;
 
     vibrateSelect();
+    timerControlSound.playSelect();
     timer.setMode(mode);
   };
 
@@ -373,15 +379,18 @@ export const SessionScreen = ({
               onChangeMode={changeTimerMode}
               onSelectPreset={(seconds) => {
                 vibrateSelect();
+                timerControlSound.playSelect();
                 timer.setPreset(seconds);
               }}
               onStart={() => {
                 vibrateTap();
+                timerControlSound.playStart();
                 timerCompletionSound.prepare();
                 timer.start();
               }}
               onPause={() => {
                 vibrateTap();
+                timerControlSound.playPause();
                 timer.pause();
               }}
               onStop={openCompletion}
