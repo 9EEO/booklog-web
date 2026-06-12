@@ -4189,7 +4189,7 @@ button {
     inset 0 3px 0 rgba(255, 255, 255, 0.24),
     2px 0 0 rgba(21, 21, 21, 0.32);
   font-family: var(--font-pixel);
-  padding: 0 12px 24px;
+  padding: 0 12px 20px;
   transform-origin: center bottom;
   will-change: transform, filter;
 }
@@ -4197,7 +4197,9 @@ button {
 .session-book-chip-header {
   display: flex;
   align-items: center;
-  min-height: 42px;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
   padding: 0 10px;
 }
 
@@ -4210,44 +4212,52 @@ button {
 }
 
 .session-book-chip-swap {
-  display: grid;
-  width: 32px;
-  height: 32px;
+  display: inline-flex;
+  height: 22px;
   flex: 0 0 auto;
-  place-items: center;
-  border: 2px solid #ef4548;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid #151515;
   border-radius: 2px;
-  background: #fffef8;
-  color: #ef4548;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.18);
+  background: #242424;
+  color: #f2c94c;
+  box-shadow:
+    1px 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.5);
+  padding: 0 6px;
+  font-family: var(--font-pixel);
+  font-size: 5px;
+  font-weight: 950;
+  letter-spacing: 0.4px;
 }
 
 .session-book-chip-swap:active {
-  transform: translate(2px, 2px);
-  box-shadow: none;
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 
 .session-book-chip-swap:disabled {
+  opacity: 0.55;
   pointer-events: none;
 }
 
 .session-book-chip-body {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 66px minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   border: 2px solid rgba(21, 21, 21, 0.16);
   border-radius: 2px;
   background: #fffef8;
   box-shadow:
     inset 0 0 18px rgba(21, 21, 21, 0.05),
     0 3px 0 rgba(129, 18, 24, 0.26);
-  padding: 17px 16px 18px;
+  padding: 12px 14px 13px;
 }
 
 .session-book-chip-cover {
-  width: 70px;
-  height: 100px;
+  width: 60px;
+  height: 86px;
   overflow: hidden;
   border: 1px solid rgba(21, 21, 21, 0.32);
   border-radius: 2px;
@@ -4293,10 +4303,7 @@ button {
 }
 
 .session-book-chip-copy {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  display: block;
 }
 
 .session-book-chip-copy > div {
@@ -4329,7 +4336,7 @@ button {
 
 .session-book-chip-progress > span {
   display: block;
-  margin-top: 18px;
+  margin-top: 12px;
   color: #ef4548;
   font-size: 6px;
   font-weight: 950;
@@ -4338,16 +4345,16 @@ button {
 
 .session-book-chip-progress > strong {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   color: #151515;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 950;
   line-height: 1;
 }
 
 .session-book-chip-track {
-  height: 7px;
-  margin-top: 10px;
+  height: 6px;
+  margin-top: 8px;
   overflow: hidden;
   border: 1px solid rgba(21, 21, 21, 0.28);
   border-radius: 1px;
@@ -4361,7 +4368,7 @@ button {
 }
 
 .session-book-chip-progress p {
-  margin-top: 11px;
+  margin-top: 8px;
   color: rgba(21, 21, 21, 0.55);
   font-family: var(--font-pixel);
   font-size: 6px;
@@ -4519,14 +4526,14 @@ button {
 
 @media (max-width: 360px) {
   .session-book-chip-body {
-    grid-template-columns: 62px minmax(0, 1fr);
-    gap: 12px;
-    padding: 14px 12px 15px;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 11px 11px;
   }
 
   .session-book-chip-cover {
-    width: 58px;
-    height: 83px;
+    width: 52px;
+    height: 74px;
   }
 
   .session-book-chip-panel {

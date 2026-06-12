@@ -52,17 +52,16 @@ const startPanel = keyframes`
   100% { opacity: 0; transform: translate3d(-50%, -5px, 0) scale(0.98); }
 `;
 
-const Scene = styled.section<{ $isPreparing: boolean }>`
+const Scene = styled.section`
   position: relative;
   width: 100%;
-  height: ${({ $isPreparing }) => ($isPreparing ? "320px" : "252px")};
+  height: 320px;
   overflow: hidden;
   border: 2px solid #151515;
   border-radius: 4px;
   background: #ffffff;
   box-shadow: 2px 2px 0 #151515;
   isolation: isolate;
-  transition: height 180ms ease;
 `;
 
 const MovingBackground = styled.div<{ $isMoving: boolean }>`
@@ -239,7 +238,7 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
 const CharacterWrap = styled.div<{ $status: AdventureStatus }>`
   position: absolute;
   z-index: 7;
-  bottom: 40px;
+  bottom: 108px;
   left: 36%;
   width: 50px;
   height: 43px;
@@ -296,7 +295,7 @@ const ProgressFill = styled.span`
 const GoalFlag = styled.span<{ $progress: number }>`
   position: absolute;
   z-index: 6;
-  bottom: 45px;
+  bottom: 113px;
   left: ${({ $progress }) =>
     `calc(${100 - $progress * 64}% + ${-18 + $progress * 72}px)`};
   width: 3px;
@@ -448,7 +447,7 @@ export const AdventureScene = ({
     status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
 
   return (
-    <Scene $isPreparing={isPreparing} aria-label="독서 모험 화면">
+    <Scene aria-label="독서 모험 화면">
       <AdventureBackground isMoving={isMoving} />
 
       {isPreparing ? (

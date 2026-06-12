@@ -16,9 +16,15 @@ import type {
 } from "../types/reading";
 import { formatDuration } from "../utils/formatDuration";
 import {
+  vibratePakEject,
+  vibratePakInsert,
   vibrateSelect,
   vibrateSuccess,
   vibrateTap,
+  vibrateTimerPause,
+  vibrateTimerSelect,
+  vibrateTimerStart,
+  vibrateTimerStop,
   vibrateWarning,
 } from "../utils/haptics";
 import { parsePageInput } from "../utils/pageInput";
@@ -125,6 +131,7 @@ export const SessionScreen = ({
 
   const finishPakInsertion = () => {
     clearPakMotionTimer();
+    vibratePakInsert();
     timerControlSound.playInsert();
     setPakMotion("inserting");
     pakMotionTimerRef.current = window.setTimeout(() => {
@@ -141,7 +148,7 @@ export const SessionScreen = ({
   const openBookPicker = () => {
     if (pakMotion !== "idle") return;
 
-    vibrateTap();
+    vibratePakEject();
     timerControlSound.playEject();
     clearPakMotionTimer();
     setPakMotion("ejecting");
@@ -271,7 +278,7 @@ export const SessionScreen = ({
 
   const openCompletion = () => {
     if (timer.elapsedSeconds === 0) return;
-    vibrateWarning();
+    vibrateTimerStop();
     timerControlSound.playStop();
     timerCompletionSound.suppressNextCompletionSound();
     timer.complete();
@@ -351,7 +358,7 @@ export const SessionScreen = ({
   const changeTimerMode = (mode: ReadingTimer["mode"]) => {
     if (!canChangeTimerMode || timer.mode === mode) return;
 
-    vibrateSelect();
+    vibrateTimerSelect();
     timerControlSound.playSelect();
     timer.setMode(mode);
   };
@@ -378,18 +385,18 @@ export const SessionScreen = ({
               targetSeconds={timer.targetSeconds}
               onChangeMode={changeTimerMode}
               onSelectPreset={(seconds) => {
-                vibrateSelect();
+                vibrateTimerSelect();
                 timerControlSound.playSelect();
                 timer.setPreset(seconds);
               }}
               onStart={() => {
-                vibrateTap();
+                vibrateTimerStart();
                 timerControlSound.playStart();
                 timerCompletionSound.prepare();
                 timer.start();
               }}
               onPause={() => {
-                vibrateTap();
+                vibrateTimerPause();
                 timerControlSound.playPause();
                 timer.pause();
               }}
@@ -405,6 +412,16 @@ export const SessionScreen = ({
         <section className="session-book-chip-panel">
           <header className="session-book-chip-header">
             <span>INSERTED PAK</span>
+            <button
+              type="button"
+              className="session-book-chip-swap"
+              onClick={openBookPicker}
+              disabled={pakMotion !== "idle"}
+              aria-label="책 변경"
+            >
+              <Icon name="swap" className="h-3 w-3" />
+              <span>EJECT</span>
+            </button>
           </header>
 
           <div className="session-book-chip-body">
@@ -428,15 +445,6 @@ export const SessionScreen = ({
                     {roundLabel ? ` · ${roundLabel}` : ""}
                   </small>
                 </div>
-                <button
-                  type="button"
-                  className="session-book-chip-swap"
-                  onClick={openBookPicker}
-                  disabled={pakMotion !== "idle"}
-                  aria-label="책 변경"
-                >
-                  <Icon name="swap" className="h-5 w-5" />
-                </button>
               </div>
               <span>PROGRESS</span>
               <strong>
