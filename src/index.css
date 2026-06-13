@@ -122,6 +122,11 @@
 }
 
 .bulk-icon .icon-bulk-soft {
+  display: none;
+}
+
+.bulk-icon-soft .icon-bulk-soft {
+  display: block;
   opacity: 0.24;
 }
 
