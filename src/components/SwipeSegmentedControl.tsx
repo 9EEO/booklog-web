@@ -32,6 +32,14 @@ type SwipeSegmentedStyle = CSSProperties & {
   "--swipe-segment-drag-offset": string;
 };
 
+type DragStart = {
+  x: number;
+  y: number;
+  pointerId: number;
+  isHorizontal: boolean;
+  isVertical: boolean;
+};
+
 const findEnabledIndex = <T extends string>(
   options: readonly SwipeSegmentedControlOption<T>[],
   startIndex: number,
@@ -57,7 +65,7 @@ export const SwipeSegmentedControl = <T extends string>({
   renderOption,
 }: SwipeSegmentedControlProps<T>) => {
   const rootRef = useRef<HTMLDivElement>(null);
-  const dragStartRef = useRef<{ x: number; pointerId: number } | null>(null);
+  const dragStartRef = useRef<DragStart | null>(null);
   const suppressClickRef = useRef(false);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -84,29 +92,58 @@ export const SwipeSegmentedControl = <T extends string>({
     setIsDragging(false);
   };
 
+  const releasePointerCapture = (event: PointerEvent<HTMLDivElement>) => {
+    const dragStart = dragStartRef.current;
+    if (!dragStart) return;
+
+    if (event.currentTarget.hasPointerCapture(dragStart.pointerId)) {
+      event.currentTarget.releasePointerCapture(dragStart.pointerId);
+    }
+  };
+
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
 
     dragStartRef.current = {
       x: event.clientX,
+      y: event.clientY,
       pointerId: event.pointerId,
+      isHorizontal: false,
+      isVertical: false,
     };
-    setIsDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const dragStart = dragStartRef.current;
     const root = rootRef.current;
-    if (!dragStart || !root) return;
+    if (!dragStart || !root || dragStart.isVertical) return;
+
+    const distanceX = event.clientX - dragStart.x;
+    const distanceY = event.clientY - dragStart.y;
+    const absoluteX = Math.abs(distanceX);
+    const absoluteY = Math.abs(distanceY);
+
+    if (!dragStart.isHorizontal && Math.max(absoluteX, absoluteY) > 8) {
+      if (absoluteY > absoluteX * 1.12) {
+        dragStart.isVertical = true;
+        resetDrag();
+        return;
+      }
+
+      dragStart.isHorizontal = true;
+      setIsDragging(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
+    if (!dragStart.isHorizontal) return;
 
     const segmentWidth = root.getBoundingClientRect().width / options.length;
     const nextOffset = Math.max(
-      Math.min(event.clientX - dragStart.x, segmentWidth),
+      Math.min(distanceX, segmentWidth),
       -segmentWidth,
     );
 
-    if (Math.abs(nextOffset) > 8) suppressClickRef.current = true;
+    suppressClickRef.current = true;
     setDragOffset(nextOffset);
   };
 
@@ -118,16 +155,16 @@ export const SwipeSegmentedControl = <T extends string>({
       return;
     }
 
-    if (event.currentTarget.hasPointerCapture(dragStart.pointerId)) {
-      event.currentTarget.releasePointerCapture(dragStart.pointerId);
+    releasePointerCapture(event);
+
+    if (dragStart.isHorizontal) {
+      const segmentWidth = root.getBoundingClientRect().width / options.length;
+      const threshold = Math.min(80, Math.max(32, segmentWidth * 0.32));
+      const distance = event.clientX - dragStart.x;
+
+      if (distance <= -threshold) moveBy(1);
+      if (distance >= threshold) moveBy(-1);
     }
-
-    const segmentWidth = root.getBoundingClientRect().width / options.length;
-    const threshold = Math.min(80, Math.max(32, segmentWidth * 0.32));
-    const distance = event.clientX - dragStart.x;
-
-    if (distance <= -threshold) moveBy(1);
-    if (distance >= threshold) moveBy(-1);
     resetDrag();
   };
 
@@ -175,7 +212,10 @@ export const SwipeSegmentedControl = <T extends string>({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
-      onPointerCancel={resetDrag}
+      onPointerCancel={(event) => {
+        releasePointerCapture(event);
+        resetDrag();
+      }}
       onClickCapture={handleClickCapture}
       onKeyDown={handleKeyDown}
     >
