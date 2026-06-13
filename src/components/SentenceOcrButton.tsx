@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { Fragment, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { BottomSheetModal } from "./BottomSheetModal";
 import { Icon } from "./Icon";
@@ -9,6 +9,11 @@ type SentenceOcrButtonProps = {
   disabled?: boolean;
 };
 
+type RecognizedLine = {
+  text: string;
+  pageNumber: number;
+};
+
 export const SentenceOcrButton = ({
   onRecognized,
   disabled = false,
@@ -16,16 +21,19 @@ export const SentenceOcrButton = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [error, setError] = useState("");
-  const [recognizedLines, setRecognizedLines] = useState<string[]>([]);
+  const [recognizedLines, setRecognizedLines] = useState<RecognizedLine[]>([]);
   const [selectedLineIndexes, setSelectedLineIndexes] = useState<Set<number>>(
     new Set(),
   );
   const [selectedText, setSelectedText] = useState("");
+  const [recognizedPageCount, setRecognizedPageCount] = useState(0);
 
   const closeSelector = () => {
     setRecognizedLines([]);
     setSelectedLineIndexes(new Set());
     setSelectedText("");
+    setRecognizedPageCount(0);
+    setError("");
   };
 
   const updateSelection = (nextIndexes: Set<number>) => {
@@ -33,6 +41,7 @@ export const SentenceOcrButton = ({
     setSelectedText(
       recognizedLines
         .filter((_, index) => nextIndexes.has(index))
+        .map((line) => line.text)
         .join("\n"),
     );
   };
@@ -78,9 +87,16 @@ export const SentenceOcrButton = ({
         .map((line) => line.trim())
         .filter(Boolean);
 
-      setRecognizedLines(lines);
-      setSelectedLineIndexes(new Set());
-      setSelectedText("");
+      setRecognizedLines((currentLines) => {
+        const nextPageNumber =
+          (currentLines.at(-1)?.pageNumber ?? recognizedPageCount) + 1;
+
+        return [
+          ...currentLines,
+          ...lines.map((line) => ({ text: line, pageNumber: nextPageNumber })),
+        ];
+      });
+      setRecognizedPageCount((currentCount) => currentCount + 1);
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -125,7 +141,7 @@ export const SentenceOcrButton = ({
             <div className="sentence-ocr-selector-header">
               <div>
                 <h2>문장 고르기</h2>
-                <p>담고 싶은 문장을 눌러 선택해 주세요.</p>
+                <p>페이지가 이어지면 다음 장도 촬영할 수 있어요.</p>
               </div>
               <button
                 type="button"
@@ -139,7 +155,8 @@ export const SentenceOcrButton = ({
 
             <div className="sentence-ocr-selector-toolbar">
               <span>
-                {selectedLineIndexes.size}/{recognizedLines.length}개 선택
+                사진 {recognizedPageCount}장 · {selectedLineIndexes.size}/
+                {recognizedLines.length}개 선택
               </span>
               <button type="button" onClick={toggleAllLines}>
                 {selectedLineIndexes.size === recognizedLines.length
@@ -148,23 +165,50 @@ export const SentenceOcrButton = ({
               </button>
             </div>
 
+            <button
+              type="button"
+              className="sentence-ocr-add-page"
+              onClick={() => inputRef.current?.click()}
+              disabled={isRecognizing}
+            >
+              <Icon name="camera" className="h-4 w-4" />
+              {isRecognizing ? "다음 페이지 인식 중" : "다음 페이지 이어 담기"}
+            </button>
+
+            {error && <p className="sentence-ocr-selector-error">{error}</p>}
+
             <div className="sentence-ocr-line-list">
               {recognizedLines.map((line, index) => {
                 const isSelected = selectedLineIndexes.has(index);
+                const startsPage =
+                  index === 0 ||
+                  recognizedLines[index - 1]?.pageNumber !== line.pageNumber;
 
                 return (
-                  <button
-                    key={`${index}-${line}`}
-                    type="button"
-                    className={`sentence-ocr-line ${isSelected ? "is-selected" : ""}`}
-                    onClick={() => toggleLine(index)}
-                    aria-pressed={isSelected}
-                  >
-                    <span className="sentence-ocr-line-check">
-                      {isSelected && <Icon name="check" className="h-4 w-4" />}
-                    </span>
-                    <span>{line}</span>
-                  </button>
+                  <Fragment key={`${line.pageNumber}-${index}-${line.text}`}>
+                    {startsPage && (
+                      <div className="sentence-ocr-page-divider">
+                        <span>
+                          {line.pageNumber === 1
+                            ? "첫 페이지"
+                            : `${line.pageNumber}번째 페이지`}
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className={`sentence-ocr-line ${isSelected ? "is-selected" : ""}`}
+                      onClick={() => toggleLine(index)}
+                      aria-pressed={isSelected}
+                    >
+                      <span className="sentence-ocr-line-check">
+                        {isSelected && (
+                          <Icon name="check" className="h-4 w-4" />
+                        )}
+                      </span>
+                      <span>{line.text}</span>
+                    </button>
+                  </Fragment>
                 );
               })}
             </div>

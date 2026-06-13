@@ -10,6 +10,7 @@ import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
+import { ReadingJourneyChart } from "../components/ReadingJourneyChart";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
 import { SwipeableView } from "../components/SwipeableView";
@@ -291,6 +292,16 @@ export const LibraryScreen = ({
         (left, right) => left.roundNumber - right.roundNumber,
       )
     : [];
+  const selectedBookActiveRound = selectedBook
+    ? (selectedBookRounds.find(
+        (round) => round.id === selectedBook.activeRoundId,
+      ) ??
+      selectedBookRounds.find((round) => round.status === "reading") ??
+      selectedBookRounds.at(-1))
+    : undefined;
+  const selectedBookJourneyRecords = selectedBookActiveRound
+    ? getRoundRecords(selectedBookRecords, selectedBookActiveRound)
+    : selectedBookRecords;
   const selectedRoundRecords = selectedRound
     ? getRoundRecords(selectedBookRecords, selectedRound).sort(
         (left, right) =>
@@ -1208,6 +1219,22 @@ export const LibraryScreen = ({
                   </div>
                 </section>
 
+                <section className="book-detail-journey-section">
+                  <div className="book-detail-section-title">
+                    <h2>독서 여정</h2>
+                    <strong>
+                      {selectedBookActiveRound
+                        ? `${selectedBookActiveRound.roundNumber}회독`
+                        : `${selectedBookJourneyRecords.length}회 기록`}
+                    </strong>
+                  </div>
+                  <ReadingJourneyChart
+                    key={selectedBook.id}
+                    records={selectedBookJourneyRecords}
+                    totalPages={selectedBook.totalPages}
+                  />
+                </section>
+
                 <section className="book-detail-records-section">
                   <div className="book-detail-section-title">
                     <h2>최근 독서 기록</h2>
@@ -1391,25 +1418,21 @@ export const LibraryScreen = ({
                 {hasCompletedRound(selectedBook) &&
                   selectedBook.status === "completed" && (
                     <div className="book-detail-reread">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black">재독</p>
-                          <p className="mt-1 text-xs font-black text-stone-600">
-                            새 회차를 1페이지부터 시작합니다.
-                          </p>
-                        </div>
-                        <span className="book-detail-reread-badge">
-                          {getNextRoundNumber(selectedBook)}회독
+                      <div className="book-detail-reread-copy">
+                        <p>다시 읽기</p>
+                        <span>
+                          {getNextRoundNumber(selectedBook)}회독을 1페이지부터
+                          시작합니다.
                         </span>
                       </div>
                       <button
                         type="button"
-                        className="primary-button min-h-10 w-full"
+                        className="book-detail-reread-button"
                         onClick={startReread}
                         disabled={isMutating}
                       >
-                        <Icon name="play" className="h-5 w-5" />
-                        재독 시작
+                        시작
+                        <Icon name="chevronRight" className="h-4 w-4" />
                       </button>
                     </div>
                   )}
