@@ -5,7 +5,6 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
@@ -51,8 +50,9 @@ type SessionScreenProps = {
 type PakMotion = "idle" | "ejecting" | "out" | "inserting";
 
 const presets = [
-  { label: "10초", seconds: 10 },
-  { label: "5 MIN", seconds: 5 * 60 },
+  import.meta.env.DEV
+    ? { label: "10 SEC", seconds: 10 }
+    : { label: "5 MIN", seconds: 5 * 60 },
   { label: "15 MIN", seconds: 15 * 60 },
   { label: "30 MIN", seconds: 30 * 60 },
   { label: "60 MIN", seconds: 60 * 60 },
@@ -76,20 +76,6 @@ const formatFocusTime = (seconds: number) => {
   }
 
   return `${minutes.toString().padStart(2, "0")}:${remain.toString().padStart(2, "0")}`;
-};
-
-const formatReadableDuration = (seconds: number) => {
-  if (seconds < 60) return `${seconds}초`;
-
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}분`;
-
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-
-  return remainingMinutes > 0
-    ? `${hours}시간 ${remainingMinutes}분`
-    : `${hours}시간`;
 };
 
 const todayLabel = () =>
@@ -236,7 +222,6 @@ export const SessionScreen = ({
   const [extensionSeconds, setExtensionSeconds] = useState(
     minimumExtensionSeconds,
   );
-  const endPageInputRef = useRef<HTMLInputElement | null>(null);
   const pakMotionTimerRef = useRef<number | null>(null);
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? "",
@@ -307,6 +292,13 @@ export const SessionScreen = ({
     },
     "session-completion",
   );
+  useBackNavigationLayer(
+    isSentenceOpen &&
+      (isCompletionOpen ||
+        (timer.status === "completed" && timer.elapsedSeconds > 0)),
+    () => setIsSentenceOpen(false),
+    "session-completion-sentence",
+  );
 
   const readingBooks = useMemo(
     () => books.filter((book) => book.status !== "completed"),
@@ -374,17 +366,6 @@ export const SessionScreen = ({
     vibrateSuccess();
   }, [currentBook, isCompletionVisible]);
 
-  useEffect(() => {
-    if (!isCompletionVisible) return;
-
-    const focusTimer = window.setTimeout(() => {
-      endPageInputRef.current?.focus();
-      endPageInputRef.current?.select();
-    }, 220);
-
-    return () => window.clearTimeout(focusTimer);
-  }, [isCompletionVisible]);
-
   if (!currentBook) {
     return (
       <div className="session-screen space-y-4">
@@ -434,13 +415,6 @@ export const SessionScreen = ({
   const canIncreaseExtension = extensionSeconds < maximumExtensionSeconds;
   const canChangeTimerMode =
     timer.status === "idle" && timer.elapsedSeconds === 0;
-  const todaySeconds = records
-    .filter((record) => record.date === todayLabel())
-    .reduce((sum, record) => sum + record.durationSeconds, 0);
-  const completionTotalSeconds = todaySeconds + timer.elapsedSeconds;
-  const willMeetDailyGoal = completionTotalSeconds >= dailyGoalSeconds;
-  const pagesRead = Math.max(endPage - currentBook.currentPage, 0);
-
   const updateForm = (patch: Partial<typeof form>) => {
     setForm((current) => ({
       ...current,
@@ -488,6 +462,7 @@ export const SessionScreen = ({
         sentence: "",
         sentencePage: endPage,
       });
+      setIsSentenceOpen(false);
       setIsCompletionOpen(false);
     } finally {
       setIsSaving(false);
@@ -495,6 +470,7 @@ export const SessionScreen = ({
   };
 
   const closeCompletion = () => {
+    setIsSentenceOpen(false);
     setIsCompletionOpen(false);
     if (timer.status === "completed") {
       timer.cancelCompletion();
@@ -504,6 +480,7 @@ export const SessionScreen = ({
   const continueReading = () => {
     vibrateTap();
     timerCompletionSound.prepare();
+    setIsSentenceOpen(false);
     setIsCompletionOpen(false);
     timer.extendAndResume(extensionSeconds);
   };
@@ -563,6 +540,115 @@ export const SessionScreen = ({
               targetSeconds={timer.targetSeconds}
               memoryLogs={memoryLogs}
               memorySeed={`${todayLabel()}-${currentBook.id}`}
+              completionContent={
+                isCompletionVisible ? (
+                  <div className="session-completion-hud">
+                    <div className="session-completion-time">
+                      <span>SESSION CLEAR</span>
+                      <strong>{formatDuration(timer.elapsedSeconds)}</strong>
+                    </div>
+                  <button
+                    type="button"
+                    className="session-completion-close"
+                    onClick={closeCompletion}
+                    aria-label="닫기"
+                  >
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+
+                  <label
+                    className="session-completion-page-field"
+                    htmlFor="end-page"
+                  >
+                    <span>현재 페이지</span>
+                    <span className="session-completion-page-input">
+                      <input
+                        id="end-page"
+                        type="text"
+                        inputMode="numeric"
+                        min={currentBook.currentPage}
+                        max={currentBook.totalPages ?? undefined}
+                        value={endPage}
+                        onChange={(event) =>
+                          updateForm({
+                            endPage: parsePageInput(event.target.value),
+                          })
+                        }
+                      />
+                      <span>PAGE</span>
+                    </span>
+                  </label>
+
+                  <div className="session-completion-tools">
+                    <button
+                      type="button"
+                    className="session-completion-sentence-button"
+                    onClick={() => setIsSentenceOpen(true)}
+                  >
+                      {sentence.trim() ? "문장 수정" : "문장 남기기"}
+                    </button>
+
+                    {!isStopwatchMode && (
+                      <div className="session-completion-extension">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            adjustExtension(-extensionStepSeconds)
+                          }
+                          disabled={!canDecreaseExtension}
+                          aria-label="추가 독서 5분 줄이기"
+                        >
+                          -
+                        </button>
+                        <strong aria-live="polite">
+                          +{Math.round(extensionSeconds / 60)}분
+                        </strong>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            adjustExtension(extensionStepSeconds)
+                          }
+                          disabled={!canIncreaseExtension}
+                          aria-label="추가 독서 5분 늘리기"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="session-completion-actions">
+                    <button
+                      type="button"
+                      className="completion-secondary-action"
+                      onClick={continueReading}
+                    >
+                      {isStopwatchMode ? "이어서 측정" : "이어서 독서"}
+                    </button>
+                    <button
+                      type="button"
+                      className="completion-save-action"
+                      onClick={() => {
+                        vibrateSelect();
+                        void saveCompletion();
+                      }}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? "저장 중" : "기록 저장"}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="session-completion-reset"
+                    onClick={resetCompletion}
+                    disabled={isSaving}
+                  >
+                    기록하지 않고 닫기
+                  </button>
+                  </div>
+                ) : undefined
+              }
               onChangeMode={changeTimerMode}
               onSelectPreset={(seconds) => {
                 vibrateTimerSelect();
@@ -698,204 +784,81 @@ export const SessionScreen = ({
       </BottomSheetModal>
 
       <BottomSheetModal
-        isOpen={isCompletionVisible}
-        ariaLabel="독서 완료"
-        panelClassName="completion-sheet"
+        isOpen={isSentenceOpen && isCompletionVisible}
+        ariaLabel="기억에 남는 문장"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="completion-sentence-sheet"
+        onBackdropClick={() => setIsSentenceOpen(false)}
       >
         <div className="completion-sheet-header">
           <div>
-            <h2>{isStopwatchMode ? "독서 기록" : "독서 완료"}</h2>
+            <h2>기억에 남는 문장</h2>
             <p>{currentBook.title}</p>
           </div>
           <button
             type="button"
             className="completion-close-button"
-            onClick={closeCompletion}
+            onClick={() => setIsSentenceOpen(false)}
             aria-label="닫기"
           >
             <Icon name="close" className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="completion-sheet-body">
-          <div className="completion-summary-list">
-            <div className="completion-summary-card">
-              <span>독서 시간</span>
-              <strong>{formatDuration(timer.elapsedSeconds)}</strong>
-            </div>
-            <div className="completion-summary-card">
-              <span>읽은 페이지</span>
-              <strong>{pagesRead}p</strong>
-            </div>
-          </div>
-
-          <div
-            className={`completion-goal-card ${willMeetDailyGoal ? "completion-goal-card-complete" : ""}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-black text-stone-600">오늘 목표</p>
-                <p className="mt-1 text-sm font-black">
-                  {formatReadableDuration(completionTotalSeconds)} /{" "}
-                  {formatReadableDuration(dailyGoalSeconds)}
-                </p>
-              </div>
-              <span>{willMeetDailyGoal ? "달성" : "진행중"}</span>
-            </div>
-          </div>
-
-          <label className="completion-page-field" htmlFor="end-page">
-            <span>현재 페이지</span>
-            <input
-              ref={endPageInputRef}
-              id="end-page"
-              type="text"
-              inputMode="numeric"
-              min={currentBook.currentPage}
-              max={currentBook.totalPages ?? undefined}
-              value={endPage}
-              onChange={(event) =>
-                updateForm({ endPage: parsePageInput(event.target.value) })
-              }
-            />
-          </label>
-
-          <button
-            type="button"
-            className={`optional-sentence-toggle ${isSentenceOpen ? "optional-sentence-toggle-active" : ""}`}
-            onClick={() => setIsSentenceOpen((current) => !current)}
-          >
-            {isSentenceOpen ? "문장 기록 닫기" : "기억에 남는 문장 남기기"}
-          </button>
-
-          <AnimatePresence initial={false}>
-            {isSentenceOpen && (
-              <motion.div
-                className="completion-sentence-panel"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-              >
-                <div className="completion-sentence-panel-header">
-                  <label
-                    className="completion-sentence-label"
-                    htmlFor="sentence"
-                  >
-                    선택 기록
-                  </label>
-                  <label
-                    className="completion-sentence-page-field"
-                    htmlFor="sentence-page"
-                  >
-                    <span>페이지</span>
-                    <input
-                      id="sentence-page"
-                      type="text"
-                      inputMode="numeric"
-                      min={1}
-                      max={currentBook.totalPages ?? undefined}
-                      value={sentencePage}
-                      onChange={(event) =>
-                        updateForm({
-                          sentencePage: parsePageInput(event.target.value),
-                        })
-                      }
-                    />
-                    <span>p</span>
-                  </label>
-                </div>
-                <SentenceOcrButton
-                  onRecognized={(text) =>
-                    updateForm({
-                      sentence: sentence.trim()
-                        ? `${sentence.trim()}\n${text}`
-                        : text,
-                    })
-                  }
-                  disabled={isSaving}
-                />
-                <textarea
-                  id="sentence"
-                  className="completion-sentence-textarea"
-                  placeholder="기억하고 싶은 문장을 남겨보세요."
-                  value={sentence}
-                  onChange={(event) =>
-                    updateForm({ sentence: event.target.value })
-                  }
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {!isStopwatchMode && (
-            <div className="completion-extension-panel">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-xs font-black text-stone-600">추가 독서</p>
-                <p className="text-sm font-black text-[#5F6D57]">
-                  +{Math.round(extensionSeconds / 60)}분
-                </p>
-              </div>
-              <div className="target-stepper">
-                <button
-                  type="button"
-                  className="target-step-button"
-                  onClick={() => adjustExtension(-extensionStepSeconds)}
-                  disabled={!canDecreaseExtension}
-                  aria-label="추가 독서 5분 줄이기"
-                >
-                  <Icon name="minus" className="h-5 w-5" />
-                </button>
-                <div className="target-step-value" aria-live="polite">
-                  <span>연장</span>
-                  <strong>{Math.round(extensionSeconds / 60)}분</strong>
-                </div>
-                <button
-                  type="button"
-                  className="target-step-button"
-                  onClick={() => adjustExtension(extensionStepSeconds)}
-                  disabled={!canIncreaseExtension}
-                  aria-label="추가 독서 5분 늘리기"
-                >
-                  <Icon name="plus" className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="completion-secondary-action secondary-button"
-              onClick={continueReading}
+        <div className="completion-sentence-panel">
+          <div className="completion-sentence-panel-header">
+            <label className="completion-sentence-label" htmlFor="sentence">
+              문장 기록
+            </label>
+            <label
+              className="completion-sentence-page-field"
+              htmlFor="sentence-page"
             >
-              <Icon name="play" className="h-5 w-5" />
-              {isStopwatchMode ? "이어서 측정" : "이어서 독서"}
-            </button>
-            <button
-              type="button"
-              className="completion-save-action primary-button"
-              onClick={() => {
-                vibrateSelect();
-                void saveCompletion();
-              }}
-              disabled={isSaving}
-            >
-              <Icon name="save" className="h-5 w-5" />
-              {isSaving ? "저장 중" : "저장"}
-            </button>
+              <span>페이지</span>
+              <input
+                id="sentence-page"
+                type="text"
+                inputMode="numeric"
+                min={1}
+                max={currentBook.totalPages ?? undefined}
+                value={sentencePage}
+                onChange={(event) =>
+                  updateForm({
+                    sentencePage: parsePageInput(event.target.value),
+                  })
+                }
+              />
+              <span>p</span>
+            </label>
           </div>
-
-          <button
-            type="button"
-            className="completion-reset-link"
-            onClick={resetCompletion}
+          <SentenceOcrButton
+            onRecognized={(text) =>
+              updateForm({
+                sentence: sentence.trim()
+                  ? `${sentence.trim()}\n${text}`
+                  : text,
+              })
+            }
             disabled={isSaving}
-          >
-            기록하지 않고 닫기
-          </button>
+          />
+          <textarea
+            id="sentence"
+            className="completion-sentence-textarea"
+            placeholder="기억하고 싶은 문장을 남겨보세요."
+            value={sentence}
+            onChange={(event) => updateForm({ sentence: event.target.value })}
+          />
         </div>
+
+        <button
+          type="button"
+          className="completion-sentence-sheet-done"
+          onClick={() => setIsSentenceOpen(false)}
+        >
+          문장 기록 완료
+        </button>
       </BottomSheetModal>
+
     </div>
   );
 };

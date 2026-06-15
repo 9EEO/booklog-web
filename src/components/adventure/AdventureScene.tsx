@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import adventureBackground from "../../assets/adventure-background.png";
@@ -32,6 +38,7 @@ type AdventureSceneProps = {
   targetSeconds: number;
   memoryLogs: MemoryLog[];
   memorySeed: string;
+  completionContent?: ReactNode;
   onChangeMode: (mode: AdventureMode) => void;
   onSelectPreset: (seconds: number) => void;
   onStart: () => void;
@@ -73,6 +80,7 @@ const scrollMemoryQuote = keyframes`
 `;
 
 const Scene = styled.section`
+  --completion-scene-shift: 84px;
   position: relative;
   width: 100%;
   height: 320px;
@@ -84,7 +92,10 @@ const Scene = styled.section`
   isolation: isolate;
 `;
 
-const MovingBackground = styled.div<{ $isMoving: boolean }>`
+const MovingBackground = styled.div<{
+  $isMoving: boolean;
+  $isCompleted: boolean;
+}>`
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -96,8 +107,13 @@ const MovingBackground = styled.div<{ $isMoving: boolean }>`
   animation: ${scrollBackground} 24s linear infinite;
   animation-play-state: ${({ $isMoving }) =>
     $isMoving ? "running" : "paused"};
+  transform: ${({ $isCompleted }) =>
+    $isCompleted
+      ? "translate3d(0, var(--completion-scene-shift), 0)"
+      : "translate3d(0, 0, 0)"};
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
   image-rendering: pixelated;
-  will-change: background-position;
+  will-change: background-position, transform;
 `;
 
 const PixelPanel = styled.div`
@@ -360,7 +376,10 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
 const CharacterWrap = styled.div<{ $status: AdventureStatus }>`
   position: absolute;
   z-index: 7;
-  bottom: 108px;
+  bottom: ${({ $status }) =>
+    $status === "completed"
+      ? "calc(108px - var(--completion-scene-shift))"
+      : "108px"};
   left: 36%;
   width: 50px;
   height: 43px;
@@ -375,7 +394,8 @@ const CharacterWrap = styled.div<{ $status: AdventureStatus }>`
   animation-play-state: ${({ $status }) =>
     $status === "paused" ? "paused" : "running"};
   transform-origin: center bottom;
-  will-change: transform;
+  transition: bottom 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, bottom;
 
   img {
     width: 100%;
@@ -414,16 +434,21 @@ const ProgressFill = styled.span`
   transition: width 280ms linear;
 `;
 
-const GoalFlag = styled.span<{ $progress: number }>`
+const GoalFlag = styled.span<{ $progress: number; $isCompleted: boolean }>`
   position: absolute;
   z-index: 6;
-  bottom: 113px;
+  bottom: ${({ $isCompleted }) =>
+    $isCompleted
+      ? "calc(113px - var(--completion-scene-shift))"
+      : "113px"};
   left: ${({ $progress }) =>
     `calc(${100 - $progress * 64}% + ${-18 + $progress * 72}px)`};
   width: 3px;
   height: 29px;
   background: #151515;
-  transition: left 280ms linear;
+  transition:
+    left 280ms linear,
+    bottom 520ms cubic-bezier(0.22, 1, 0.36, 1);
 
   &::before {
     position: absolute;
@@ -485,8 +510,23 @@ const CountdownOverlay = styled.div`
   }
 `;
 
-export const AdventureBackground = ({ isMoving }: { isMoving: boolean }) => (
-  <MovingBackground $isMoving={isMoving} />
+const CompletionLayer = styled.div`
+  position: absolute;
+  z-index: 16;
+  inset: 8px 12px 68px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+`;
+
+export const AdventureBackground = ({
+  isMoving,
+  isCompleted = false,
+}: {
+  isMoving: boolean;
+  isCompleted?: boolean;
+}) => (
+  <MovingBackground $isMoving={isMoving} $isCompleted={isCompleted} />
 );
 
 export const Character = ({ status }: { status: AdventureStatus }) => (
@@ -529,7 +569,7 @@ export const AdventurePrepare = ({
   showBack: boolean;
   onBack: () => void;
 }) => {
-  const stages = presets.filter((preset) => preset.seconds >= 60);
+  const stages = presets;
   const isFreeJourney = mode === "stopwatch";
 
   return (
@@ -596,6 +636,7 @@ export const AdventureScene = ({
   targetSeconds,
   memoryLogs,
   memorySeed,
+  completionContent,
   onChangeMode,
   onSelectPreset,
   onStart,
@@ -648,7 +689,10 @@ export const AdventureScene = ({
 
   return (
     <Scene aria-label="독서 모험 화면">
-      <AdventureBackground isMoving={isMoving} />
+      <AdventureBackground
+        isMoving={isMoving}
+        isCompleted={status === "completed"}
+      />
 
       {isCountdownActive ? (
         <>
@@ -720,16 +764,21 @@ export const AdventureScene = ({
               </ActionButton>
             </ActionDock>
           )}
-          <SceneHud aria-live="polite">
-            {hudStatusLabel && (
-              <SceneHudStatus>{hudStatusLabel} ·</SceneHudStatus>
-            )}
-            {displayTime}
-          </SceneHud>
+          {status === "completed" && completionContent ? (
+            <CompletionLayer>{completionContent}</CompletionLayer>
+          ) : (
+            <SceneHud aria-live="polite">
+              {hudStatusLabel && (
+                <SceneHudStatus>{hudStatusLabel} ·</SceneHudStatus>
+              )}
+              {displayTime}
+            </SceneHud>
+          )}
           <Character status={status} />
           {goalApproachProgress !== null && (
             <GoalFlag
               $progress={Math.min(Math.max(goalApproachProgress, 0), 1)}
+              $isCompleted={status === "completed"}
               aria-hidden="true"
             />
           )}

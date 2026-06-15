@@ -27,7 +27,12 @@ export type ReadingTimer = {
 const getInitialTimer = (initialTargetSeconds: number): StoredReadingTimer => {
   const storedTimer = getStoredReadingTimer(initialTargetSeconds)
   const mode = storedTimer.mode ?? 'countdown'
-  const targetSeconds = Math.max(Math.floor(storedTimer.targetSeconds) || initialTargetSeconds, 1)
+  const targetSeconds = Math.max(
+    import.meta.env.DEV && storedTimer.status === 'idle'
+      ? initialTargetSeconds
+      : Math.floor(storedTimer.targetSeconds) || initialTargetSeconds,
+    1,
+  )
   const baseElapsedSeconds = Math.max(Math.floor(storedTimer.baseElapsedSeconds ?? storedTimer.elapsedSeconds) || 0, 0)
 
   if (storedTimer.status === 'running' && storedTimer.startedAt) {

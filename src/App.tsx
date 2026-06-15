@@ -233,7 +233,7 @@ function AuthenticatedApp({
   const [isLibraryDetailMode, setIsLibraryDetailMode] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const readingTimer = useReadingTimer(15 * 60);
+  const readingTimer = useReadingTimer(import.meta.env.DEV ? 10 : 15 * 60);
   const resetReadingTimer = readingTimer.reset;
 
   const currentBook = useMemo(
@@ -522,7 +522,7 @@ function AuthenticatedApp({
         }),
       );
 
-      setActiveTab("records");
+      setActiveTab("session");
     } catch (error) {
       handleSyncFailure(error, "독서 기록을 저장하지 못했습니다.");
     }
