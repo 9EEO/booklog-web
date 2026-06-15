@@ -96,16 +96,21 @@ const normalizeStoredRecord = (record: ReadingRecord): ReadingRecord => ({
 })
 
 export const getInitialActiveTab = (): TabKey => {
-  if (typeof window === 'undefined') return 'home'
+  if (typeof window === 'undefined') return 'session'
 
   const storedTab = window.sessionStorage.getItem(readingStorageKeys.activeTab)
 
-  return tabKeys.includes(storedTab as TabKey) ? (storedTab as TabKey) : 'home'
+  if (storedTab === 'home') return 'session'
+
+  return tabKeys.includes(storedTab as TabKey) ? (storedTab as TabKey) : 'session'
 }
 
 export const saveActiveTab = (tab: TabKey) => {
   try {
-    window.sessionStorage.setItem(readingStorageKeys.activeTab, tab)
+    window.sessionStorage.setItem(
+      readingStorageKeys.activeTab,
+      tab === 'home' ? 'session' : tab,
+    )
   } catch {
     // Storage can fail in private browsing or quota-limited environments.
   }

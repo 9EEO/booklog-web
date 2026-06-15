@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { BottomSheetModal } from "../components/BottomSheetModal";
@@ -6,6 +12,7 @@ import { Icon } from "../components/Icon";
 import { PixelCard } from "../components/PixelCard";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
+import { useBookCoverPalette } from "../hooks/useBookCoverPalette";
 import type { ReadingTimer } from "../hooks/useReadingTimer";
 import { useTimerCompletionSound } from "../hooks/useTimerCompletionSound";
 import { useTimerControlSound } from "../hooks/useTimerControlSound";
@@ -121,6 +128,12 @@ export const SessionScreen = ({
   });
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
+  const packPalette = useBookCoverPalette(
+    currentBook?.id ?? "",
+    currentBook?.thumbnail,
+    currentBook?.coverColor ?? "#ef4548",
+    currentBook?.accentColor ?? "#f2c94c",
+  );
 
   const clearPakMotionTimer = () => {
     if (pakMotionTimerRef.current === null) return;
@@ -453,7 +466,15 @@ export const SessionScreen = ({
 
       <div className={`session-book-pak-dock session-book-pak-dock-${pakMotion}`}>
         <div className="session-book-slot-rear" aria-hidden="true" />
-        <section className="session-book-chip-panel">
+        <section
+          className="session-book-chip-panel"
+          style={
+            {
+              "--pak-top": packPalette.top,
+              "--pak-bottom": packPalette.bottom,
+            } as CSSProperties
+          }
+        >
           <header className="session-book-chip-header">
             <span>INSERTED PAK</span>
             <button
@@ -482,23 +503,20 @@ export const SessionScreen = ({
 
             <div className="session-book-chip-progress">
               <div className="session-book-chip-copy">
-                <div>
-                  <h2>{currentBook.title}</h2>
-                  <small>
-                    {currentBook.author}
-                    {roundLabel ? ` · ${roundLabel}` : ""}
-                  </small>
+                <h2>{currentBook.title}</h2>
+                <div className="session-book-chip-byline">
+                  <small>{currentBook.author}</small>
+                  {roundLabel && <span>{roundLabel}</span>}
                 </div>
               </div>
-              <span>PROGRESS</span>
-              <strong>
-                {bookProgress !== null ? `${Math.round(bookProgress)}%` : "—"}
-              </strong>
-              {bookProgress !== null && (
+              <div className="session-book-chip-progress-row">
+                <strong>
+                  {bookProgress !== null ? `${Math.round(bookProgress)}%` : "—"}
+                </strong>
                 <div className="session-book-chip-track">
-                  <span style={{ width: `${bookProgress}%` }} />
+                  <span style={{ width: `${bookProgress ?? 0}%` }} />
                 </div>
-              )}
+              </div>
               <p>
                 {currentBook.currentPage} / {currentBook.totalPages ?? "?"}{" "}
                 PAGES

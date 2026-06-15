@@ -11,7 +11,6 @@ import { BottomTabs } from "./components/BottomTabs";
 import { useAuth } from "./hooks/useAuth";
 import { useReadingTimer } from "./hooks/useReadingTimer";
 import { AuthScreen } from "./screens/AuthScreen";
-import { HomeScreen } from "./screens/HomeScreen";
 import { LibraryScreen } from "./screens/LibraryScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { RecordScreen } from "./screens/RecordScreen";
@@ -218,7 +217,7 @@ function AuthenticatedApp({
   user: User;
   onSignOut: () => Promise<void>;
 }) {
-  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [activeTab, setActiveTab] = useState<TabKey>("session");
   const [books, setBooks] = useState<Book[]>(getInitialBooks);
   const [records, setRecords] = useState<ReadingRecord[]>(getInitialRecords);
   const [currentBookId, setCurrentBookId] = useState(() =>
@@ -231,7 +230,6 @@ function AuthenticatedApp({
     getInitialWeeklyGoalDays,
   );
   const [tierBoard, setTierBoard] = useState<TierBoard>(getInitialTierBoard);
-  const [bookFormOpenRequest, setBookFormOpenRequest] = useState(0);
   const [isLibraryDetailMode, setIsLibraryDetailMode] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -404,11 +402,6 @@ function AuthenticatedApp({
     setWeeklyGoalDays((current) =>
       Math.min(Math.max(current + deltaDays, 1), 7),
     );
-  };
-
-  const openBookFormFromHome = () => {
-    setActiveTab("library");
-    setBookFormOpenRequest((current) => current + 1);
   };
 
   const handleChangeTierBoard = (nextTierBoard: SetStateAction<TierBoard>) => {
@@ -1259,18 +1252,6 @@ function AuthenticatedApp({
 
   const activeScreen = (
     <>
-      {activeTab === "home" && (
-        <HomeScreen
-          books={books}
-          records={records}
-          currentBook={currentBook}
-          dailyGoalSeconds={dailyGoalSeconds}
-          weeklyGoalDays={weeklyGoalDays}
-          onStart={() => setActiveTab("session")}
-          onSelectBook={setCurrentBookId}
-          onAddFirstBook={openBookFormFromHome}
-        />
-      )}
       {activeTab === "session" && (
         <SessionScreen
           books={books}
@@ -1293,7 +1274,6 @@ function AuthenticatedApp({
       )}
       {activeTab === "library" && (
         <LibraryScreen
-          key={bookFormOpenRequest}
           books={books}
           records={records}
           tierBoard={tierBoard}
@@ -1307,7 +1287,7 @@ function AuthenticatedApp({
           onUpdateBookTotalPages={handleUpdateBookTotalPages}
           onStartReread={handleStartReread}
           onDeleteRound={handleDeleteRound}
-          shouldOpenBookForm={bookFormOpenRequest > 0 && books.length === 0}
+          shouldOpenBookForm={false}
           onDetailModeChange={setIsLibraryDetailMode}
         />
       )}
