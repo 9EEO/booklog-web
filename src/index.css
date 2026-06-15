@@ -1060,23 +1060,15 @@ button {
 
 .library-page-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
 
 .library-page-header h1 {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 950;
   line-height: 1.15;
-}
-
-.library-page-header p {
-  margin-top: 6px;
-  color: rgba(21, 21, 21, 0.48);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.45;
 }
 
 .library-page-actions {
@@ -1361,17 +1353,9 @@ button {
 }
 
 .record-page-header h1 {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 950;
   line-height: 1.15;
-}
-
-.record-page-header p {
-  margin-top: 6px;
-  color: rgba(21, 21, 21, 0.48);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.45;
 }
 
 .record-view-tabs {
@@ -2979,20 +2963,6 @@ button {
   color: #151515;
 }
 
-.profile-page-header h1 {
-  font-size: 24px;
-  font-weight: 950;
-  line-height: 1.15;
-}
-
-.profile-page-header p {
-  margin-top: 6px;
-  color: rgba(21, 21, 21, 0.48);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.45;
-}
-
 .profile-hero-card,
 .profile-goal-card,
 .profile-stat-card,
@@ -4491,6 +4461,20 @@ button {
   display: block;
   height: 100%;
   background: var(--pak-bottom);
+  transform-origin: left center;
+  animation: pak-progress-fill 720ms cubic-bezier(0.22, 1, 0.36, 1) 300ms both;
+}
+
+@keyframes pak-progress-fill {
+  from {
+    transform: scaleX(0);
+    filter: brightness(1.35);
+  }
+
+  to {
+    transform: scaleX(1);
+    filter: brightness(1);
+  }
 }
 
 .session-book-chip-progress p {
@@ -4645,8 +4629,10 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .session-book-pak-dock-ejecting .session-book-chip-panel,
   .session-book-pak-dock-inserting .session-book-chip-panel,
-  .session-book-pak-dock-inserting .session-book-slot-lip {
+  .session-book-pak-dock-inserting .session-book-slot-lip,
+  .session-book-chip-track span {
     animation-duration: 1ms;
+    animation-delay: 0ms;
   }
 }
 
@@ -4669,51 +4655,32 @@ button {
 
 /* === Book select (Quest select) modal === */
 .modal-panel.bookpick-sheet {
+  border: 1px solid rgba(21, 21, 21, 0.18);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background:
+    linear-gradient(rgba(21, 21, 21, 0.018) 1px, transparent 1px),
+    #fffdf7;
+  background-size: 100% 7px;
+  box-shadow:
+    0 -10px 32px rgba(21, 21, 21, 0.14),
+    inset 0 3px 0 rgba(255, 255, 255, 0.82);
   font-family: var(--font-pixel);
+  padding: 14px 12px max(14px, env(safe-area-inset-bottom));
 }
 
 .bookpick-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 14px;
-}
-
-.bookpick-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #b69000;
-  font-size: 9px;
-  font-weight: 950;
-  letter-spacing: 1.5px;
-}
-
-.bookpick-kicker .cartridge-blink {
-  width: 5px;
-  height: 5px;
-  flex: 0 0 auto;
-  background: #b69000;
-  animation: cartridge-blink 1s steps(1) infinite;
-}
-
-@keyframes cartridge-blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-
-  50.01%,
-  100% {
-    opacity: 0;
-  }
+  margin-bottom: 12px;
+  padding: 2px 2px 0 4px;
 }
 
 .bookpick-title {
-  margin-top: 4px;
   color: #151515;
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 950;
   letter-spacing: 0;
 }
@@ -4724,45 +4691,61 @@ button {
   height: 32px;
   flex: 0 0 auto;
   place-items: center;
-  border: 2px solid #151515;
-  border-radius: 0;
-  background: #fffef8;
-  color: #151515;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.85);
+  border: 1px solid rgba(21, 21, 21, 0.14);
+  border-radius: 999px;
+  background: #ffffff;
+  color: rgba(21, 21, 21, 0.62);
+  box-shadow: 1px 2px 0 rgba(21, 21, 21, 0.1);
 }
 
 .bookpick-close:active {
-  transform: translate(2px, 2px);
+  transform: translateY(1px);
   box-shadow: none;
 }
 
 .bookpick-list {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 8px;
   max-height: 60vh;
   overflow-y: auto;
-  padding: 3px 4px 4px;
-  margin: -3px -4px -4px;
+  border: 1px solid rgba(21, 21, 21, 0.12);
+  border-radius: 12px;
+  background: #f0f0eb;
+  box-shadow:
+    inset 0 2px 5px rgba(21, 21, 21, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.82);
+  padding: 10px;
 }
 
 .bookpick-item {
+  --bookpick-top: #ef4548;
+  --bookpick-bottom: #f2c94c;
   position: relative;
-  display: grid;
-  grid-template-columns: 12px 40px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
+  display: block;
   width: 100%;
-  border: 2px solid #151515;
-  border-radius: 0;
-  background: #fffef8;
-  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.85);
-  padding: 9px 12px 9px 8px;
+  border: 2px solid rgba(21, 21, 21, 0.72);
+  border-radius: 9px 9px 4px 4px;
+  background:
+    linear-gradient(
+      180deg,
+      var(--bookpick-top) 0 72%,
+      var(--bookpick-bottom) 72% 100%
+    );
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--bookpick-top), #ffffff 20%),
+    inset -3px 0 0 color-mix(in srgb, var(--bookpick-top), #151515 18%),
+    inset 0 -3px 0 color-mix(in srgb, var(--bookpick-bottom), #151515 20%),
+    0 3px 0 color-mix(in srgb, var(--bookpick-bottom), #151515 28%),
+    1px 5px 8px rgba(21, 21, 21, 0.18);
+  padding: 24px 10px 12px;
   font-family: var(--font-pixel);
   text-align: left;
   transition:
     transform 80ms ease,
-    box-shadow 80ms ease;
+    box-shadow 80ms ease,
+    filter 120ms ease,
+    opacity 120ms ease;
 }
 
 .bookpick-item:active {
@@ -4770,39 +4753,54 @@ button {
   box-shadow: none;
 }
 
+.bookpick-item:not(.bookpick-item-active) {
+  filter: saturate(0.88) brightness(0.98);
+  opacity: 0.9;
+}
+
 .bookpick-item-active {
-  background: #151515;
-  box-shadow: 3px 3px 0 rgba(182, 144, 0, 0.55);
+  z-index: 1;
+  transform: translateY(-4px);
+  border-color: rgba(21, 21, 21, 0.76);
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--bookpick-top), #ffffff 20%),
+    inset -3px 0 0 color-mix(in srgb, var(--bookpick-top), #151515 18%),
+    inset 0 -3px 0 color-mix(in srgb, var(--bookpick-bottom), #151515 20%),
+    0 0 0 3px #ffffff,
+    0 4px 0 color-mix(in srgb, var(--bookpick-bottom), #151515 30%),
+    1px 10px 16px rgba(21, 21, 21, 0.28);
 }
 
-.bookpick-cursor {
-  display: inline-grid;
-  place-items: center;
-  color: rgba(21, 21, 21, 0.32);
-}
-
-.bookpick-cursor svg {
-  width: 10px;
-  height: 10px;
-}
-
-.bookpick-item-active .bookpick-cursor {
-  color: #f2c94c;
+.bookpick-body {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  border: 2px solid rgba(21, 21, 21, 0.18);
+  border-radius: 2px;
+  background:
+    linear-gradient(rgba(21, 21, 21, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(21, 21, 21, 0.025) 1px, transparent 1px),
+    color-mix(in srgb, var(--bookpick-top) 8%, #fffef8);
+  background-size:
+    6px 6px,
+    6px 6px,
+    auto;
+  box-shadow:
+    inset 0 0 12px color-mix(in srgb, var(--bookpick-top) 8%, transparent),
+    0 3px 0 color-mix(in srgb, var(--bookpick-bottom), transparent 74%);
+  padding: 9px 10px;
 }
 
 .bookpick-cover {
   position: relative;
-  width: 40px;
-  height: 52px;
+  width: 48px;
+  height: 68px;
   overflow: hidden;
-  border: 2px solid #151515;
-  border-radius: 0;
+  border-radius: 2px;
   background: #fffef8;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.22);
   image-rendering: pixelated;
-}
-
-.bookpick-item-active .bookpick-cover {
-  border-color: #fffef8;
 }
 
 .bookpick-cover img {
@@ -4840,10 +4838,6 @@ button {
   white-space: nowrap;
 }
 
-.bookpick-item-active .bookpick-name {
-  color: #fffef8;
-}
-
 .bookpick-author {
   overflow: hidden;
   color: rgba(21, 21, 21, 0.5);
@@ -4855,18 +4849,16 @@ button {
   white-space: nowrap;
 }
 
-.bookpick-item-active .bookpick-author {
-  color: rgba(255, 255, 255, 0.62);
-}
-
 .bookpick-round {
   opacity: 0.78;
 }
 
 .bookpick-progress {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .bookpick-bar {
@@ -4875,7 +4867,7 @@ button {
   height: 7px;
   overflow: hidden;
   border: 2px solid #151515;
-  border-radius: 0;
+  border-radius: 1px;
   background: repeating-linear-gradient(
     90deg,
     #fffef8 0 5px,
@@ -4883,45 +4875,39 @@ button {
   );
 }
 
-.bookpick-item-active .bookpick-bar {
-  border-color: #fffef8;
-  background: rgba(255, 255, 255, 0.18);
-}
-
 .bookpick-bar > span {
   display: block;
   height: 100%;
-  background: #151515;
-}
-
-.bookpick-item-active .bookpick-bar > span {
-  background: #f2c94c;
+  background: var(--bookpick-bottom);
 }
 
 .bookpick-percent {
-  min-width: 30px;
+  min-width: 26px;
   color: #151515;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 950;
-  letter-spacing: 0.5px;
-  text-align: right;
+  letter-spacing: 0;
 }
 
-.bookpick-item-active .bookpick-percent {
-  color: #fffef8;
+.bookpick-pages {
+  margin-top: 3px;
+  color: rgba(21, 21, 21, 0.5);
+  font-size: 5px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
 }
 
 .bookpick-flag {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  border: 2px solid #151515;
-  background: #f2c94c;
-  color: #151515;
-  padding: 1px 5px;
-  font-size: 7px;
+  top: 6px;
+  right: 10px;
+  border-radius: 999px;
+  background: rgba(21, 21, 21, 0.78);
+  color: #ffffff;
+  padding: 3px 5px;
+  font-size: 5px;
   font-weight: 950;
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
 
 .session-screen .focus-timer-card {
@@ -5349,17 +5335,9 @@ button {
   gap: 12px;
 }
 
-.book-form-eyebrow {
-  color: var(--book-form-blue);
-  font-size: 9px;
-  font-weight: 950;
-  letter-spacing: 0.12em;
-}
-
 .book-form-header h2 {
-  margin-top: 2px;
   overflow: hidden;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 950;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -7466,14 +7444,8 @@ button {
   text-align: center;
 }
 
-.book-round-detail-title .pixel-label {
-  color: var(--detail-blue);
-  font-size: 8px;
-}
-
 .book-round-detail-title h2 {
   overflow: hidden;
-  margin-top: 4px;
   font-size: 15px;
   font-weight: 950;
   text-overflow: ellipsis;

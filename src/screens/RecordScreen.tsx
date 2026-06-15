@@ -589,7 +589,6 @@ export const RecordScreen = ({
     <div className="record-page">
       <header className="record-page-header">
         <h1>기록</h1>
-        <p>날짜별 독서 흐름과 남겨둔 문장을 확인해요.</p>
       </header>
 
       <SwipeSegmentedControl

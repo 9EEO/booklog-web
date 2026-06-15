@@ -697,11 +697,6 @@ export const LibraryScreen = ({
           <header className="library-page-header">
             <div>
               <h1>{libraryView === "tier" ? "완독 책 티어" : "서재"}</h1>
-              <p>
-                {libraryView === "tier"
-                  ? "완독한 책을 나만의 기준으로 정리해요."
-                  : "읽는 책과 완독한 책을 한곳에서 관리해요."}
-              </p>
             </div>
             <div className="library-page-actions">
               {libraryView === "tier" ? (
@@ -828,7 +823,6 @@ export const LibraryScreen = ({
             <>
               <div className="book-detail-header book-round-detail-header">
                 <div className="book-round-detail-title">
-                  <p className="pixel-label">ROUND DETAIL</p>
                   <h2>
                     {selectedBook.title} · {selectedRound.roundNumber}회독
                   </h2>
@@ -1720,9 +1714,6 @@ export const LibraryScreen = ({
               </button>
             )}
             <div className="min-w-0">
-              <p className="book-form-eyebrow">
-                {bookFormStep === "search" ? "BOOK SEARCH" : "BOOK DETAIL"}
-              </p>
               <h2>{bookFormStep === "search" ? "책 검색" : "상세정보 입력"}</h2>
             </div>
           </div>

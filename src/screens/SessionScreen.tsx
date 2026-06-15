@@ -61,6 +61,8 @@ const presets = [
 const extensionStepSeconds = 5 * 60;
 const minimumExtensionSeconds = 5 * 60;
 const maximumExtensionSeconds = 60 * 60;
+const pakProgressDelayMs = 300;
+const pakProgressDurationMs = 720;
 
 const formatFocusTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
@@ -100,6 +102,121 @@ const todayLabel = () =>
     .replace(/\.\s?/g, ".")
     .replace(/\.$/, "");
 
+const useAnimatedPakProgress = (
+  bookId: string,
+  progress: number | null,
+  insertionSequence: number,
+) => {
+  const target = progress !== null && progress > 0 ? Math.round(progress) : null;
+  const [animatedProgress, setAnimatedProgress] = useState<{
+    animationKey: string;
+    value: number;
+  } | null>(null);
+  const animationKey = `${bookId}-${insertionSequence}`;
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  useEffect(() => {
+    if (target === null || prefersReducedMotion) return;
+
+    let animationFrame = 0;
+    const startTimer = window.setTimeout(() => {
+      const startedAt = performance.now();
+      const animate = (now: number) => {
+        const elapsed = Math.min((now - startedAt) / pakProgressDurationMs, 1);
+        const eased = 1 - Math.pow(1 - elapsed, 3);
+
+        setAnimatedProgress({
+          animationKey,
+          value: Math.round(target * eased),
+        });
+        if (elapsed < 1) animationFrame = window.requestAnimationFrame(animate);
+      };
+
+      animationFrame = window.requestAnimationFrame(animate);
+    }, pakProgressDelayMs);
+
+    return () => {
+      window.clearTimeout(startTimer);
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [animationKey, prefersReducedMotion, target]);
+
+  if (target === null) return null;
+  if (prefersReducedMotion) return target;
+  return animatedProgress?.animationKey === animationKey
+    ? animatedProgress.value
+    : 0;
+};
+
+type BookPickerItemProps = {
+  book: Book;
+  isActive: boolean;
+  onSelect: () => void;
+};
+
+const BookPickerItem = ({
+  book,
+  isActive,
+  onSelect,
+}: BookPickerItemProps) => {
+  const progress = getBookProgress(book.currentPage, book.totalPages);
+  const palette = useBookCoverPalette(
+    book.id,
+    book.thumbnail,
+    book.coverColor,
+    book.accentColor,
+  );
+  const bookRound =
+    book.activeRoundNumber && book.activeRoundNumber > 1
+      ? `${book.activeRoundNumber}회독`
+      : "";
+
+  return (
+    <button
+      type="button"
+      className={`bookpick-item ${isActive ? "bookpick-item-active" : ""}`}
+      style={
+        {
+          "--bookpick-top": palette.top,
+          "--bookpick-bottom": palette.bottom,
+        } as CSSProperties
+      }
+      onClick={onSelect}
+    >
+      {isActive && <span className="bookpick-flag">현재 읽는 책</span>}
+      <span className="bookpick-body">
+        <span className="bookpick-cover">
+          {book.thumbnail ? (
+            <img src={book.thumbnail} alt="" />
+          ) : (
+            <span className="bookpick-cover-empty" aria-hidden="true" />
+          )}
+        </span>
+        <span className="bookpick-info">
+          <span className="bookpick-name">{book.title}</span>
+          <span className="bookpick-author">
+            {book.author}
+            {bookRound && <span className="bookpick-round"> · {bookRound}</span>}
+          </span>
+          <span className="bookpick-progress">
+            <span className="bookpick-percent">
+              {progress !== null ? `${progress}%` : "NEW"}
+            </span>
+            <span className="bookpick-bar">
+              <span style={{ width: `${progress ?? 0}%` }} />
+            </span>
+          </span>
+          <span className="bookpick-pages">
+            {book.currentPage} / {book.totalPages ?? "?"} PAGES
+          </span>
+        </span>
+      </span>
+    </button>
+  );
+};
+
 export const SessionScreen = ({
   books,
   records,
@@ -115,6 +232,7 @@ export const SessionScreen = ({
   const [isSentenceOpen, setIsSentenceOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pakMotion, setPakMotion] = useState<PakMotion>("idle");
+  const [pakInsertionSequence, setPakInsertionSequence] = useState(0);
   const [extensionSeconds, setExtensionSeconds] = useState(
     minimumExtensionSeconds,
   );
@@ -147,6 +265,7 @@ export const SessionScreen = ({
     vibratePakInsert();
     timerControlSound.playInsert();
     setPakMotion("inserting");
+    setPakInsertionSequence((current) => current + 1);
     pakMotionTimerRef.current = window.setTimeout(() => {
       setPakMotion("idle");
       pakMotionTimerRef.current = null;
@@ -236,6 +355,14 @@ export const SessionScreen = ({
   const isCompletionVisible =
     isCompletionOpen ||
     (timer.status === "completed" && timer.elapsedSeconds > 0);
+  const bookProgress = currentBook
+    ? getBookProgress(currentBook.currentPage, currentBook.totalPages)
+    : null;
+  const animatedBookProgress = useAnimatedPakProgress(
+    currentBook?.id ?? "",
+    bookProgress,
+    pakInsertionSequence,
+  );
 
   useEffect(() => {
     return () => clearPakMotionTimer();
@@ -288,10 +415,6 @@ export const SessionScreen = ({
   const sentencePage = isFormForCurrentBook
     ? form.sentencePage
     : currentBook.currentPage;
-  const bookProgress = getBookProgress(
-    currentBook.currentPage,
-    currentBook.totalPages,
-  );
   const roundLabel =
     currentBook.activeRoundNumber && currentBook.activeRoundNumber > 1
       ? `${currentBook.activeRoundNumber}회독`
@@ -511,10 +634,15 @@ export const SessionScreen = ({
               </div>
               <div className="session-book-chip-progress-row">
                 <strong>
-                  {bookProgress !== null ? `${Math.round(bookProgress)}%` : "—"}
+                  {animatedBookProgress !== null
+                    ? `${animatedBookProgress}%`
+                    : "NEW"}
                 </strong>
                 <div className="session-book-chip-track">
-                  <span style={{ width: `${bookProgress ?? 0}%` }} />
+                  <span
+                    key={`${currentBook.id}-${pakInsertionSequence}`}
+                    style={{ width: `${bookProgress ?? 0}%` }}
+                  />
                 </div>
               </div>
               <p>
@@ -536,13 +664,7 @@ export const SessionScreen = ({
         onBackdropClick={closeBookPicker}
       >
         <div className="bookpick-header">
-          <div className="bookpick-heading">
-            <span className="bookpick-kicker">
-              <i className="cartridge-blink" aria-hidden="true" />
-              SELECT ADVENTURE
-            </span>
-            <h2 className="bookpick-title">읽을 책 선택</h2>
-          </div>
+          <h2 className="bookpick-title">읽을 책 선택</h2>
           <button
             type="button"
             className="bookpick-close"
@@ -555,55 +677,21 @@ export const SessionScreen = ({
 
         <div className="bookpick-list">
           {readingBooks.map((book) => {
-            const progress = getBookProgress(book.currentPage, book.totalPages);
             const isActive = book.id === currentBook.id;
-            const bookRound =
-              book.activeRoundNumber && book.activeRoundNumber > 1
-                ? `${book.activeRoundNumber}회독`
-                : "";
 
             return (
-              <button
+              <BookPickerItem
                 key={book.id}
-                type="button"
-                className={`bookpick-item ${isActive ? "bookpick-item-active" : ""}`}
-                onClick={() => {
+                book={book}
+                isActive={isActive}
+                onSelect={() => {
                   vibrateSelect();
                   onChangeBook(book.id);
                   setIsBookModalOpen(false);
                   finishPakInsertion();
                   timer.reset();
                 }}
-              >
-                <span className="bookpick-cursor" aria-hidden="true">
-                  <Icon name="chevronRight" />
-                </span>
-                <span className="bookpick-cover">
-                  {book.thumbnail ? (
-                    <img src={book.thumbnail} alt="" />
-                  ) : (
-                    <span className="bookpick-cover-empty" aria-hidden="true" />
-                  )}
-                </span>
-                <span className="bookpick-info">
-                  <span className="bookpick-name">{book.title}</span>
-                  <span className="bookpick-author">
-                    {book.author}
-                    {bookRound && (
-                      <span className="bookpick-round"> · {bookRound}</span>
-                    )}
-                  </span>
-                  <span className="bookpick-progress">
-                    <span className="bookpick-bar">
-                      <span style={{ width: `${progress ?? 0}%` }} />
-                    </span>
-                    <span className="bookpick-percent">
-                      {progress !== null ? `${progress}%` : "NEW"}
-                    </span>
-                  </span>
-                </span>
-                {isActive && <span className="bookpick-flag">PLAYING</span>}
-              </button>
+              />
             );
           })}
         </div>

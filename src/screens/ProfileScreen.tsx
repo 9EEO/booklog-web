@@ -43,11 +43,6 @@ export const ProfileScreen = ({ userEmail, books, records, dailyGoalSeconds, wee
 
   return (
     <div className="profile-page">
-      <header className="profile-page-header">
-        <h1>프로필</h1>
-        <p>독서 목표와 누적 기록을 한눈에 확인해요.</p>
-      </header>
-
       <section className="profile-hero-card">
         <div className="profile-avatar">
           <Icon name="profile" className="h-7 w-7" />
