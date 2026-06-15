@@ -140,6 +140,11 @@ const hasCompletedRound = (book: Book) =>
   book.status === "completed" ||
   Boolean(book.rounds?.some((round) => round.status === "completed"));
 
+const getReadingStatusLabel = (status: Book["status"], startedAt: string) => {
+  if (status === "completed") return "완독";
+  return startedAt ? "읽는 중" : "미완독";
+};
+
 const getActiveRoundLabel = (book: Book) =>
   book.activeRoundNumber && book.activeRoundNumber > 1
     ? `${book.activeRoundNumber}회독`
@@ -838,9 +843,10 @@ export const LibraryScreen = ({
                   <div className="book-round-stat book-round-stat-status">
                     <span>상태</span>
                     <strong>
-                      {selectedRound.status === "completed"
-                        ? "완독"
-                        : "읽는 중"}
+                      {getReadingStatusLabel(
+                        selectedRound.status,
+                        selectedRound.startedAt,
+                      )}
                     </strong>
                   </div>
                   <div className="book-round-stat">
@@ -959,9 +965,10 @@ export const LibraryScreen = ({
                   <div className="book-detail-hero-copy">
                     <div className="book-detail-hero-meta">
                       <span className="book-detail-status-badge">
-                        {selectedBook.status === "completed"
-                          ? "완독"
-                          : "읽는 중"}
+                        {getReadingStatusLabel(
+                          selectedBook.status,
+                          selectedBook.startedAt,
+                        )}
                       </span>
                       {(selectedBook.activeRoundNumber ?? 1) > 1 && (
                         <span className="book-detail-round-label">
@@ -978,10 +985,16 @@ export const LibraryScreen = ({
                   >
                     <div className="book-detail-hero-progress-label">
                       <span>진행률</span>
-                      <strong>
+                      <strong
+                        className={
+                          selectedBookStats.progress === null
+                            ? "book-detail-progress-unset"
+                            : undefined
+                        }
+                      >
                         {selectedBookStats.progress !== null
                           ? `${selectedBookStats.progress}%`
-                          : "페이지 미설정"}
+                          : "미설정"}
                       </strong>
                     </div>
                     <div className="book-detail-progress-track">
@@ -1056,9 +1069,10 @@ export const LibraryScreen = ({
                                   </span>
                                 )}
                                 <span className="book-detail-round-badge">
-                                  {round.status === "completed"
-                                    ? "완독"
-                                    : "읽는 중"}
+                                  {getReadingStatusLabel(
+                                    round.status,
+                                    round.startedAt,
+                                  )}
                                 </span>
                               </div>
                               <p className="mt-1 truncate text-[11px] font-black text-stone-500">
@@ -1206,7 +1220,7 @@ export const LibraryScreen = ({
                   <div className="book-detail-meta-list">
                     <div className="book-detail-meta-item">
                       <span>시작일</span>
-                      <strong>{selectedBook.startedAt}</strong>
+                      <strong>{selectedBook.startedAt || "기록 전"}</strong>
                     </div>
                     <div className="book-detail-meta-item">
                       <span>완독일</span>
@@ -1906,10 +1920,15 @@ export const LibraryScreen = ({
                         setBookDateError("");
                       }}
                     >
-                      {status === "reading" ? "읽는 중" : "완독함"}
+                      {status === "reading" ? "미완독" : "완독"}
                     </button>
                   ))}
                 </div>
+                {newBook.status === "reading" && (
+                  <p className="book-total-pages-hint">
+                    첫 타이머 기록일이 시작일로 등록돼요.
+                  </p>
+                )}
               </div>
 
               <div className="book-form-pages-fields">

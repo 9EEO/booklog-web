@@ -180,6 +180,46 @@ export const SessionScreen = ({
     () => books.filter((book) => book.status !== "completed"),
     [books],
   );
+  const memoryLogs = useMemo(() => {
+    const bookHighlights = books.flatMap((book) =>
+      book.sentences.map((sentence) => ({
+        id: sentence.id,
+        text: sentence.text,
+        bookTitle: book.title,
+        page: sentence.page,
+        isCurrentBook: book.id === currentBook?.id,
+      })),
+    );
+    const recordLogs = records.flatMap((record) => {
+      const text = record.sentence?.trim();
+      if (!text) return [];
+
+      return [
+        {
+          id: `record-${record.id}`,
+          text,
+          bookTitle: record.bookTitle,
+          page: record.sentencePage ?? record.endPage,
+          isCurrentBook: record.bookId === currentBook?.id,
+        },
+      ];
+    });
+    const orderedLogs = [
+      ...bookHighlights.filter((log) => log.isCurrentBook),
+      ...recordLogs.filter((log) => log.isCurrentBook),
+      ...bookHighlights.filter((log) => !log.isCurrentBook),
+      ...recordLogs.filter((log) => !log.isCurrentBook),
+    ];
+    const seen = new Set<string>();
+
+    return orderedLogs.filter((log) => {
+      const key = `${log.bookTitle}-${log.page}-${log.text}`;
+      if (seen.has(key)) return false;
+
+      seen.add(key);
+      return true;
+    });
+  }, [books, currentBook?.id, records]);
   const isCompletionVisible =
     isCompletionOpen ||
     (timer.status === "completed" && timer.elapsedSeconds > 0);
@@ -365,7 +405,9 @@ export const SessionScreen = ({
 
   return (
     <div className="session-screen space-y-4">
-      <section className="session-focus-panel">
+      <section
+        className={`session-focus-panel session-focus-panel-${pakMotion}`}
+      >
         <div className="focus-timer-card">
           <div className="relative z-10">
             <AdventureScene
@@ -383,6 +425,8 @@ export const SessionScreen = ({
               showStartBanner={isReading && timer.elapsedSeconds < 1}
               presets={presets}
               targetSeconds={timer.targetSeconds}
+              memoryLogs={memoryLogs}
+              memorySeed={`${todayLabel()}-${currentBook.id}`}
               onChangeMode={changeTimerMode}
               onSelectPreset={(seconds) => {
                 vibrateTimerSelect();

@@ -1672,12 +1672,22 @@ button {
   margin-top: 5px;
 }
 
-.record-card-total-duration {
+.record-card-summary-badges {
+  display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.record-card-total-duration {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
   border-radius: 999px;
   background: rgba(111, 182, 75, 0.14);
   color: #4e9a2b;
-  padding: 6px 9px;
+  padding: 0 9px;
   font-size: 11px;
   font-weight: 950;
   line-height: 1;
@@ -2355,12 +2365,22 @@ button {
   font-weight: 850;
 }
 
-.record-date-book-header > strong {
+.record-date-book-badges {
+  display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.record-date-book-badges > strong {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
   border-radius: 999px;
   background: rgba(111, 182, 75, 0.14);
   color: #4e9a2b;
-  padding: 6px 9px;
+  padding: 0 9px;
   font-size: 11px;
   font-weight: 950;
   line-height: 1;
@@ -2398,29 +2418,15 @@ button {
   font-weight: 900;
 }
 
-.record-date-record-meta span,
-.record-date-record-meta time {
+.record-date-record-meta > span {
   display: block;
 }
 
-.record-date-record-meta span {
+.record-date-record-meta > span {
   margin-top: 4px;
   color: rgba(21, 21, 21, 0.42);
   font-size: 11px;
   font-weight: 850;
-}
-
-.record-date-record-meta time {
-  width: fit-content;
-  margin-top: 8px;
-  border-radius: 999px;
-  background: rgba(111, 182, 75, 0.14);
-  color: #4e9a2b;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: 950;
-  line-height: 1;
-  white-space: nowrap;
 }
 
 .record-date-record-actions {
@@ -4152,10 +4158,49 @@ button {
 
 .session-screen .session-focus-panel::before {
   position: absolute;
+  z-index: 5;
   inset: 5px;
   border: 1px solid rgba(21, 21, 21, 0.2);
   content: "";
   pointer-events: none;
+}
+
+.session-screen .session-focus-panel::after {
+  position: absolute;
+  z-index: 20;
+  inset: 10px;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 3px,
+      rgba(255, 255, 255, 0.025) 3px 4px
+    ),
+    #11120f;
+  box-shadow:
+    inset 0 0 26px rgba(0, 0, 0, 0.92),
+    0 0 0 1px rgba(21, 21, 21, 0.72);
+  opacity: 0;
+  transform: scaleY(0.015);
+  transition:
+    opacity 120ms ease,
+    transform 180ms cubic-bezier(0.76, 0, 0.24, 1);
+  content: "";
+  pointer-events: none;
+}
+
+.session-screen .session-focus-panel-ejecting::after,
+.session-screen .session-focus-panel-out::after {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.session-screen .session-focus-panel-inserting::after {
+  opacity: 0;
+  transform: scaleY(0.015);
+  transition:
+    opacity 210ms ease 80ms,
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
 }
 
 .session-screen .session-book-card {
@@ -6463,6 +6508,12 @@ button {
   font-size: 16px;
   font-weight: 950;
   line-height: 1;
+}
+
+.book-detail-hero-progress-label strong.book-detail-progress-unset {
+  color: rgba(21, 21, 21, 0.38);
+  font-size: 10px;
+  font-weight: 850;
 }
 
 .book-detail-progress-track {

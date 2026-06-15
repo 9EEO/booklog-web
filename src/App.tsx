@@ -458,10 +458,13 @@ function AuthenticatedApp({
         endPage,
         currentBook.totalPages,
       );
+      const isFirstRecord = !currentBook.startedAt;
+      const isFirstRoundRecord = !activeRound?.startedAt;
       const nextRoundStatus: BookStatus = isCompleted ? "completed" : "reading";
       const nextRound = activeRound
         ? {
             ...activeRound,
+            startedAt: activeRound.startedAt || date,
             currentPage: endPage,
             accumulatedSeconds:
               activeRound.accumulatedSeconds + input.durationSeconds,
@@ -475,6 +478,7 @@ function AuthenticatedApp({
           currentPage: nextRound.currentPage,
           accumulatedSeconds: nextRound.accumulatedSeconds,
           status: nextRound.status,
+          startedAt: isFirstRoundRecord ? date : undefined,
           completedAt:
             nextRound.status === "completed"
               ? (nextRound.completedAt ?? date)
@@ -488,6 +492,7 @@ function AuthenticatedApp({
           nextRound?.accumulatedSeconds ??
           currentBook.accumulatedSeconds + input.durationSeconds,
         status: isCompleted ? "completed" : "reading",
+        startedAt: isFirstRecord ? date : undefined,
         completedAt: isCompleted ? date : (currentBook.completedAt ?? null),
       });
 
@@ -515,6 +520,7 @@ function AuthenticatedApp({
               nextRound?.accumulatedSeconds ??
               book.accumulatedSeconds + input.durationSeconds,
             status: isCompleted ? "completed" : "reading",
+            startedAt: book.startedAt || date,
             completedAt: isCompleted ? date : nextBook.completedAt,
             sentences: newHighlight
               ? [newHighlight, ...book.sentences]

@@ -660,7 +660,6 @@ export const RecordScreen = ({
                   <section key={group.date} className="record-group">
                     <div className="record-group-header">
                       <h2>{group.date}</h2>
-                      <p>총 {formatCompactDuration(group.durationSeconds)}</p>
                     </div>
                     <div className="record-list">
                       {getRecordBookGroups(group.records).map((bookGroup) => {
@@ -696,16 +695,24 @@ export const RecordScreen = ({
                                     {bookGroup.bookTitle}
                                   </p>
                                   <p className="record-card-meta">
-                                    세션 {bookGroup.records.length}개 ·{" "}
-                                    {bookGroup.pages}p
+                                    {bookGroup.records.length > 1
+                                      ? `세션 ${bookGroup.records.length}개`
+                                      : `세션 1개 · ${bookGroup.pages}p`}
                                   </p>
                                 </div>
                               </div>
-                              <strong className="record-card-total-duration">
-                                {formatCompactDuration(
-                                  bookGroup.durationSeconds,
-                                )}
-                              </strong>
+                              {bookGroup.records.length > 1 && (
+                                <div className="record-card-summary-badges">
+                                  <strong className="record-card-total-duration">
+                                    {formatCompactDuration(
+                                      bookGroup.durationSeconds,
+                                    )}
+                                  </strong>
+                                  <span className="record-page-delta">
+                                    +{bookGroup.pages}p
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             <div className="record-session-list">
@@ -1144,64 +1151,85 @@ export const RecordScreen = ({
                       <div>
                         <h3>{group.bookTitle}</h3>
                         <p>
-                          {group.pages}p · 세션 {group.records.length}개
+                          {group.records.length > 1
+                            ? `세션 ${group.records.length}개`
+                            : `${group.pages}p · 세션 1개`}
                         </p>
                       </div>
                     </div>
-                    <strong>
-                      {formatCompactDuration(group.durationSeconds)}
-                    </strong>
+                    <div className="record-date-book-badges">
+                      <strong>
+                        {formatCompactDuration(group.durationSeconds)}
+                      </strong>
+                      {group.records.length > 1 && (
+                        <span className="record-page-delta">
+                          +{group.pages}p
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="record-date-record-list">
-                    {group.records.map((record) => (
-                      <div key={record.id} className="record-date-record-item">
-                        <div className="record-date-record-row">
-                          <div className="record-date-record-meta">
-                            <p>
-                              {formatRoundLabel(record) && (
-                                <>{formatRoundLabel(record)} · </>
+                    {group.records.map((record) => {
+                      const pagesRead = Math.max(
+                        record.endPage - record.startPage,
+                        0,
+                      );
+
+                      return (
+                        <div key={record.id} className="record-date-record-item">
+                          <div className="record-date-record-row">
+                            <div className="record-date-record-meta">
+                              <p>
+                                {formatRoundLabel(record) && (
+                                  <>{formatRoundLabel(record)} · </>
+                                )}
+                                {record.startPage}p → {record.endPage}p
+                              </p>
+                              {formatSessionTimeRange(record) && (
+                                <span>{formatSessionTimeRange(record)}</span>
                               )}
-                              {record.startPage}p → {record.endPage}p
+                              <div className="record-session-badges">
+                                <time className="record-duration-badge">
+                                  {formatCompactDuration(record.durationSeconds)}
+                                </time>
+                                <span className="record-page-delta">
+                                  +{pagesRead}p
+                                </span>
+                              </div>
+                            </div>
+                            <div className="record-date-record-actions">
+                              <button
+                                type="button"
+                                onClick={() => openRecordEditor(record)}
+                                aria-label="기록 수정"
+                              >
+                                <Icon name="edit" className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                className="record-date-delete-button"
+                                onClick={() => {
+                                  setRecordEditError(null);
+                                  setDeleteRecordId(record.id);
+                                }}
+                                aria-label="기록 삭제"
+                              >
+                                <Icon name="trash" className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                          {record.sentence && (
+                            <p className="record-date-record-sentence">
+                              {record.sentence}
+                              {record.sentencePage && (
+                                <span>{record.sentencePage}p</span>
+                              )}
                             </p>
-                            {formatSessionTimeRange(record) && (
-                              <span>{formatSessionTimeRange(record)}</span>
-                            )}
-                            <time>
-                              {formatCompactDuration(record.durationSeconds)}
-                            </time>
-                          </div>
-                          <div className="record-date-record-actions">
-                            <button
-                              type="button"
-                              onClick={() => openRecordEditor(record)}
-                              aria-label="기록 수정"
-                            >
-                              <Icon name="edit" className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              className="record-date-delete-button"
-                              onClick={() => {
-                                setRecordEditError(null);
-                                setDeleteRecordId(record.id);
-                              }}
-                              aria-label="기록 삭제"
-                            >
-                              <Icon name="trash" className="h-4 w-4" />
-                            </button>
-                          </div>
+                          )}
                         </div>
-                        {record.sentence && (
-                          <p className="record-date-record-sentence">
-                            {record.sentence}
-                            {record.sentencePage && (
-                              <span>{record.sentencePage}p</span>
-                            )}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {group.sentenceCount > 0 && (

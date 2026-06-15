@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { keyframes } from "@emotion/react";
 import styled from "@emotion/styled";
 import adventureBackground from "../../assets/adventure-background.png";
@@ -14,6 +14,13 @@ type AdventurePreset = {
   seconds: number;
 };
 
+type MemoryLog = {
+  id: string;
+  text: string;
+  bookTitle: string;
+  page: number;
+};
+
 type AdventureSceneProps = {
   status: AdventureStatus;
   mode: AdventureMode;
@@ -23,6 +30,8 @@ type AdventureSceneProps = {
   showStartBanner: boolean;
   presets: AdventurePreset[];
   targetSeconds: number;
+  memoryLogs: MemoryLog[];
+  memorySeed: string;
   onChangeMode: (mode: AdventureMode) => void;
   onSelectPreset: (seconds: number) => void;
   onStart: () => void;
@@ -50,6 +59,17 @@ const startPanel = keyframes`
   0% { opacity: 0; transform: translate3d(-50%, 8px, 0) scale(0.96); }
   18%, 72% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1); }
   100% { opacity: 0; transform: translate3d(-50%, -5px, 0) scale(0.98); }
+`;
+
+const countdownPulse = keyframes`
+  0% { opacity: 0; transform: scale(1.45); }
+  20%, 72% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.82); }
+`;
+
+const scrollMemoryQuote = keyframes`
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
 `;
 
 const Scene = styled.section`
@@ -181,6 +201,107 @@ const StartButton = styled.button`
   }
 `;
 
+const MemoryOverlay = styled.div`
+  position: absolute;
+  z-index: 18;
+  inset: 8px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  font-family: var(--font-pixel);
+`;
+
+const MemoryPanel = styled(PixelPanel)`
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  padding: 15px;
+`;
+
+const MemoryQuote = styled.blockquote<{ $isLong: boolean; $duration: number }>`
+  display: grid;
+  min-height: 0;
+  align-items: ${({ $isLong }) => ($isLong ? "start" : "center")};
+  overflow: hidden;
+  padding: 10px 5px;
+  color: #151515;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: -0.2px;
+  line-height: 2;
+  text-align: center;
+
+  > div {
+    display: grid;
+    gap: 28px;
+    animation: ${({ $isLong }) => ($isLong ? scrollMemoryQuote : "none")}
+      ${({ $duration }) => $duration}s linear infinite;
+    will-change: transform;
+  }
+
+  blockquote {
+    padding: 8px 0;
+  }
+
+  blockquote[aria-hidden="true"] {
+    display: ${({ $isLong }) => ($isLong ? "block" : "none")};
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    overflow-y: auto;
+
+    > div {
+      animation: none;
+    }
+
+    blockquote[aria-hidden="true"] {
+      display: none;
+    }
+  }
+`;
+
+const MemorySource = styled.p`
+  margin-top: 14px;
+  color: rgba(21, 21, 21, 0.5);
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.3px;
+  text-align: center;
+`;
+
+const MemoryActions = styled.div`
+  display: block;
+`;
+
+const MemoryButton = styled.button<{ $primary?: boolean }>`
+  width: 100%;
+  min-height: 38px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: ${({ $primary }) => ($primary ? "#151515" : "#ffffff")};
+  color: ${({ $primary }) => ($primary ? "#f2c94c" : "#151515")};
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 950;
+
+  &:active {
+    transform: translateY(1px);
+  }
+`;
+
+const SetupBackButton = styled.button`
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.5);
+  padding: 0;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  font-weight: 950;
+`;
+
 const ActionDock = styled.div`
   position: absolute;
   z-index: 14;
@@ -222,7 +343,8 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
   min-height: 22px;
   border: 2px solid #151515;
   border-radius: 2px;
-  background: ${({ $danger }) => ($danger ? "rgba(255, 255, 255, 0.9)" : "#151515")};
+  background: ${({ $danger }) =>
+    $danger ? "rgba(255, 255, 255, 0.9)" : "#151515"};
   color: ${({ $danger }) => ($danger ? "#151515" : "#f2c94c")};
   padding: 0 6px;
   font-family: var(--font-pixel);
@@ -343,6 +465,26 @@ const StartBanner = styled.div`
   animation: ${startPanel} 1s ease both;
 `;
 
+const CountdownOverlay = styled.div`
+  position: absolute;
+  z-index: 30;
+  inset: 8px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #151515;
+  font-family: var(--font-pixel);
+
+  strong {
+    font-size: 48px;
+    font-weight: 950;
+    text-shadow: 3px 3px 0 #f2c94c;
+    animation: ${countdownPulse} 1s steps(4, end) both;
+  }
+`;
+
 export const AdventureBackground = ({ isMoving }: { isMoving: boolean }) => (
   <MovingBackground $isMoving={isMoving} />
 );
@@ -367,11 +509,13 @@ export const ProgressBar = ({ progress }: { progress: number }) => {
 };
 
 export const AdventurePrepare = ({
+  showBack,
   mode,
   presets,
   targetSeconds,
   onChangeMode,
   onSelectPreset,
+  onBack,
   onStart,
 }: Pick<
   AdventureSceneProps,
@@ -381,14 +525,23 @@ export const AdventurePrepare = ({
   | "onChangeMode"
   | "onSelectPreset"
   | "onStart"
->) => {
+> & {
+  showBack: boolean;
+  onBack: () => void;
+}) => {
   const stages = presets.filter((preset) => preset.seconds >= 60);
   const isFreeJourney = mode === "stopwatch";
 
   return (
     <PrepOverlay>
       <MissionSelect>
-        <MenuLabel>MISSION SELECT</MenuLabel>
+        {showBack ? (
+          <SetupBackButton type="button" onClick={onBack}>
+            ← MEMORY LOG
+          </SetupBackButton>
+        ) : (
+          <MenuLabel>MISSION SELECT</MenuLabel>
+        )}
         <MissionList>
           {stages.map((preset, index) => {
             const isActive =
@@ -426,6 +579,12 @@ export const AdventurePrepare = ({
   );
 };
 
+const getMemorySeed = (value: string) =>
+  Array.from(value).reduce(
+    (seed, character) => (seed * 31 + character.charCodeAt(0)) >>> 0,
+    0,
+  );
+
 export const AdventureScene = ({
   status,
   mode,
@@ -435,29 +594,116 @@ export const AdventureScene = ({
   showStartBanner,
   presets,
   targetSeconds,
+  memoryLogs,
+  memorySeed,
   onChangeMode,
   onSelectPreset,
   onStart,
   onPause,
   onStop,
 }: AdventureSceneProps) => {
+  const [isTimeSettingOpen, setIsTimeSettingOpen] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownTimersRef = useRef<number[]>([]);
   const isPreparing = status === "idle";
+  const isCountdownActive = countdown !== null;
   const isMoving = status === "running";
+  const memoryLog =
+    memoryLogs[getMemorySeed(memorySeed) % Math.max(memoryLogs.length, 1)];
+  const isLongMemory = Boolean(memoryLog && memoryLog.text.length > 105);
+  const memoryScrollDuration = memoryLog
+    ? Math.min(Math.max(Math.round(memoryLog.text.length / 8), 14), 42)
+    : 14;
+  const showMemoryLog =
+    isPreparing && memoryLogs.length > 0 && !isTimeSettingOpen;
   const hudStatusLabel =
     status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
+
+  useEffect(
+    () => () => {
+      countdownTimersRef.current.forEach((timerId) =>
+        window.clearTimeout(timerId),
+      );
+    },
+    [],
+  );
+
+  const startCountdown = () => {
+    if (countdown !== null) return;
+
+    countdownTimersRef.current.forEach((timerId) =>
+      window.clearTimeout(timerId),
+    );
+    setCountdown(3);
+    countdownTimersRef.current = [
+      window.setTimeout(() => setCountdown(2), 1000),
+      window.setTimeout(() => setCountdown(1), 2000),
+      window.setTimeout(() => {
+        setCountdown(null);
+        setIsTimeSettingOpen(false);
+        onStart();
+      }, 3000),
+    ];
+  };
 
   return (
     <Scene aria-label="독서 모험 화면">
       <AdventureBackground isMoving={isMoving} />
 
-      {isPreparing ? (
+      {isCountdownActive ? (
+        <>
+          <SceneHud aria-live="polite">{displayTime}</SceneHud>
+          <Character status="idle" />
+          <ProgressBar progress={progress} />
+        </>
+      ) : showMemoryLog && memoryLog ? (
+        <MemoryOverlay>
+          <MemoryPanel>
+            <MemoryQuote
+              key={memoryLog.id}
+              $isLong={isLongMemory}
+              $duration={memoryScrollDuration}
+            >
+              <div>
+                <blockquote>
+                  <p>“{memoryLog.text}”</p>
+                  <MemorySource>
+                    {memoryLog.bookTitle} · {memoryLog.page}p
+                  </MemorySource>
+                </blockquote>
+                <blockquote aria-hidden="true">
+                  <p>“{memoryLog.text}”</p>
+                  <MemorySource>
+                    {memoryLog.bookTitle} · {memoryLog.page}p
+                  </MemorySource>
+                </blockquote>
+              </div>
+            </MemoryQuote>
+          </MemoryPanel>
+          <MemoryActions>
+            <MemoryButton
+              type="button"
+              $primary
+              onClick={() => {
+                setIsTimeSettingOpen(true);
+              }}
+            >
+              시간 설정
+            </MemoryButton>
+          </MemoryActions>
+        </MemoryOverlay>
+      ) : isPreparing ? (
         <AdventurePrepare
+          showBack={memoryLogs.length > 0}
           mode={mode}
           presets={presets}
           targetSeconds={targetSeconds}
           onChangeMode={onChangeMode}
           onSelectPreset={onSelectPreset}
-          onStart={onStart}
+          onBack={() => {
+            setIsTimeSettingOpen(false);
+          }}
+          onStart={startCountdown}
         />
       ) : (
         <>
@@ -490,6 +736,11 @@ export const AdventureScene = ({
           <ProgressBar progress={progress} />
           {showStartBanner && <StartBanner>ADVENTURE START</StartBanner>}
         </>
+      )}
+      {isCountdownActive && (
+        <CountdownOverlay aria-live="assertive">
+          <strong key={countdown}>{countdown}</strong>
+        </CountdownOverlay>
       )}
     </Scene>
   );

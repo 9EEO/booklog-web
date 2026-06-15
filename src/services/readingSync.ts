@@ -10,7 +10,7 @@ type BookRow = {
   author: string
   total_pages: number | null
   current_page: number
-  started_at: string
+  started_at: string | null
   completed_at: string | null
   accumulated_seconds: number
   status: BookStatus
@@ -35,7 +35,7 @@ type ReadingRoundRow = {
   round_number: number
   status: BookStatus
   current_page: number
-  started_at: string
+  started_at: string | null
   completed_at: string | null
   accumulated_seconds: number
 }
@@ -89,7 +89,7 @@ const mapRoundRow = (row: ReadingRoundRow): ReadingRound => ({
   roundNumber: row.round_number,
   status: row.status,
   currentPage: row.current_page,
-  startedAt: normalizeDate(row.started_at),
+  startedAt: row.started_at ? normalizeDate(row.started_at) : '',
   completedAt: row.completed_at ? normalizeDate(row.completed_at) : undefined,
   accumulatedSeconds: row.accumulated_seconds,
 })
@@ -100,7 +100,7 @@ const createFallbackRound = (row: BookRow): ReadingRound => ({
   roundNumber: 1,
   status: row.status,
   currentPage: row.current_page,
-  startedAt: normalizeDate(row.started_at),
+  startedAt: row.started_at ? normalizeDate(row.started_at) : '',
   completedAt: row.completed_at ? normalizeDate(row.completed_at) : undefined,
   accumulatedSeconds: row.accumulated_seconds,
 })
@@ -252,7 +252,7 @@ export const createRemoteBook = async (
     author: input.author.trim() || '작가 미상',
     total_pages: totalPages,
     current_page: currentPage,
-    started_at: toDbDate(input.startedAt?.trim() || fallbackDate),
+    started_at: input.startedAt?.trim() ? toDbDate(input.startedAt) : null,
     completed_at: isCompletedInput || isCompletedByPage ? toDbDate(input.completedAt?.trim() || fallbackDate) : null,
     accumulated_seconds: 0,
     status: (isCompletedInput || isCompletedByPage ? 'completed' : 'reading') as BookStatus,
@@ -321,6 +321,7 @@ export const updateRemoteReadingRound = async (
     currentPage: number
     accumulatedSeconds: number
     status: BookStatus
+    startedAt: string | null
     completedAt: string | null
   }>,
 ) => {
@@ -330,6 +331,7 @@ export const updateRemoteReadingRound = async (
   if (input.currentPage !== undefined) payload.current_page = input.currentPage
   if (input.accumulatedSeconds !== undefined) payload.accumulated_seconds = input.accumulatedSeconds
   if (input.status !== undefined) payload.status = input.status
+  if (input.startedAt !== undefined) payload.started_at = input.startedAt ? toDbDate(input.startedAt) : null
   if (input.completedAt !== undefined) payload.completed_at = input.completedAt ? toDbDate(input.completedAt) : null
 
   const { error } = await supabase.from('reading_rounds').update(payload).eq('id', roundId)
@@ -484,6 +486,7 @@ export const updateRemoteBook = async (
     currentPage: number
     accumulatedSeconds: number
     status: BookStatus
+    startedAt: string | null
     completedAt: string | null
   }>,
 ) => {
@@ -494,6 +497,7 @@ export const updateRemoteBook = async (
   if (input.currentPage !== undefined) payload.current_page = input.currentPage
   if (input.accumulatedSeconds !== undefined) payload.accumulated_seconds = input.accumulatedSeconds
   if (input.status !== undefined) payload.status = input.status
+  if (input.startedAt !== undefined) payload.started_at = input.startedAt ? toDbDate(input.startedAt) : null
   if (input.completedAt !== undefined) payload.completed_at = input.completedAt ? toDbDate(input.completedAt) : null
 
   const { error } = await supabase.from('books').update(payload).eq('id', bookId)
