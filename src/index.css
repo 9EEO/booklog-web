@@ -1055,7 +1055,9 @@ button {
 
 .library-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+  min-width: 0;
 }
 
 .library-page-header {
@@ -7033,9 +7035,438 @@ button {
   padding: 16px;
 }
 
+.book-complete-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  background: #f4f6fb;
+  padding: 26px 20px 24px;
+}
+
+.book-complete-hero-copy {
+  min-width: 0;
+  width: 100%;
+}
+
+.book-complete-hero-copy h2 {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 28px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+}
+
+.book-complete-hero-copy p {
+  margin-top: 12px;
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.54);
+  font-size: 13px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-complete-hero-copy strong {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 7px;
+  color: rgba(21, 21, 21, 0.64);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.book-complete-report {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  background: #f4f6fb;
+  padding: 6px 16px max(22px, env(safe-area-inset-bottom));
+}
+
+.book-complete-card,
+.book-complete-summary-card {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid rgba(21, 21, 21, 0.05);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.05);
+  padding: 20px;
+}
+
+.book-complete-section-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.book-complete-section-title h2 {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.book-complete-section-title > strong {
+  color: rgba(21, 21, 21, 0.36);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.book-complete-sentence-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.book-complete-sentence-actions strong {
+  color: rgba(21, 21, 21, 0.36);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.book-complete-add-sentence {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--sage);
+}
+
+.book-complete-summary-card {
+  border-color: transparent;
+  background: var(--sage);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.24);
+}
+
+.book-complete-summary-card > span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.book-complete-summary-card > strong {
+  display: block;
+  margin-top: 6px;
+  color: #ffffff;
+  font-size: 52px;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.book-complete-summary-card > p {
+  overflow-wrap: anywhere;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.book-complete-summary-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.book-complete-summary-pills span {
+  border-radius: 999px;
+  background: rgba(21, 21, 21, 0.06);
+  color: rgba(21, 21, 21, 0.62);
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.book-complete-summary-pills span {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.book-complete-mini-insights {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.book-complete-mini-insights article {
+  min-width: 0;
+  border: 1px solid rgba(21, 21, 21, 0.05);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.04);
+  padding: 16px;
+}
+
+.book-complete-mini-insights span {
+  color: var(--sage);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.03em;
+}
+
+.book-complete-mini-insights p,
+.book-complete-muted,
+.book-complete-empty {
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+  color: rgba(21, 21, 21, 0.68);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.55;
+}
+
+.book-complete-card .book-journey-chart {
+  gap: 0;
+}
+
+.book-complete-card .book-journey-plot {
+  border: 0;
+  border-radius: 16px;
+  background: #f1f4fb;
+}
+
+.book-complete-card .book-journey-line {
+  stroke: var(--sage);
+  stroke-width: 2;
+}
+
+.book-complete-card .book-journey-area {
+  fill: rgba(37, 99, 235, 0.08);
+}
+
+.book-complete-card .book-journey-grid-line {
+  stroke: rgba(21, 21, 21, 0.05);
+}
+
+.book-complete-card .book-journey-detail {
+  display: none;
+}
+
+.book-complete-card .book-journey-axis-label {
+  bottom: 8px;
+  color: rgba(21, 21, 21, 0.3);
+  font-size: 9px;
+}
+
+.book-complete-card .book-journey-point::before {
+  border-color: #f1f4fb;
+  background: rgba(37, 99, 235, 0.3);
+  box-shadow: none;
+}
+
+.book-complete-card .book-journey-point-active::before {
+  border-color: #ffffff;
+  background: var(--sage);
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.16);
+}
+
+.book-complete-card .book-journey-chart-complete .book-journey-plot {
+  aspect-ratio: 320 / 176;
+}
+
+.book-complete-card .book-journey-svg-label {
+  pointer-events: none;
+}
+
+.book-complete-card .book-journey-svg-label rect {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: rgba(21, 21, 21, 0.06);
+  stroke-width: 1;
+}
+
+.book-complete-card .book-journey-svg-label-selected rect {
+  fill: rgba(250, 248, 242, 0.96);
+}
+
+.book-complete-card .book-journey-svg-label-title,
+.book-complete-card .book-journey-svg-label-subtitle,
+.book-complete-card .book-journey-svg-label-meta {
+  font-family:
+    Pretendard,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.book-complete-card .book-journey-svg-label-title {
+  fill: var(--ink);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.book-complete-card .book-journey-svg-label-subtitle {
+  fill: rgba(21, 21, 21, 0.52);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.book-complete-card .book-journey-svg-label-meta {
+  fill: rgba(21, 21, 21, 0.42);
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.book-complete-muted {
+  margin-top: 14px;
+}
+
+.book-complete-pattern-grid {
+  display: flex;
+  gap: 9px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.book-complete-pattern-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.book-complete-pattern {
+  display: grid;
+  min-width: 0;
+  flex: 0 0 min(210px, 78vw);
+  gap: 8px;
+  border: 1px solid rgba(21, 21, 21, 0.05);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.04);
+  padding: 15px;
+}
+
+.book-complete-pattern svg {
+  color: var(--sage);
+  opacity: 0.9;
+}
+
+.book-complete-pattern strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.book-complete-pattern p {
+  overflow-wrap: anywhere;
+  color: rgba(21, 21, 21, 0.52);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.book-complete-quote-list {
+  display: grid;
+  gap: 10px;
+}
+
+.book-complete-quote {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  min-width: 0;
+  width: 100%;
+  gap: 8px;
+  margin: 0;
+  border: 0;
+  border-radius: 22px 6px 22px 6px;
+  border: 1px solid rgba(21, 21, 21, 0.06);
+  background: #f7f8fb;
+  padding: 16px 12px 16px 16px;
+  text-align: left;
+}
+
+.book-complete-quote span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--sage);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.book-complete-quote p {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  margin-top: 10px;
+  border-left: 2px solid var(--sage);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: rgba(21, 21, 21, 0.82);
+  padding-left: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+.book-complete-quote-expanded p {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.book-complete-quote-expanded:not(:has(svg)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.book-complete-quote-expanded svg {
+  transform: rotate(90deg);
+}
+
+.book-complete-quote svg {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  color: rgba(21, 21, 21, 0.25);
+}
+
+.book-complete-cta {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 2px -2px 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.book-complete-cta button {
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--sage);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 950;
+}
+
 .book-detail-progress-section,
 .book-detail-journey-section,
 .book-detail-records-section,
+.book-detail-pattern-section,
 .book-detail-sentence-section,
 .book-detail-rounds {
   min-width: 0;
@@ -7056,6 +7487,10 @@ button {
 
 .book-detail-records-section {
   background: #ffffff;
+}
+
+.book-detail-pattern-section {
+  background: #fffdf5;
 }
 
 .book-detail-sentence-section {
@@ -7481,6 +7916,80 @@ button {
   color: #568f3b;
   font-size: 11px;
   font-weight: 950;
+}
+
+.book-detail-pattern {
+  display: grid;
+  gap: 12px;
+}
+
+.book-detail-pattern-line {
+  border-left: 4px solid var(--detail-yellow);
+  color: rgba(21, 21, 21, 0.86);
+  padding-left: 10px;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.55;
+}
+
+.book-detail-pattern-summary {
+  color: rgba(21, 21, 21, 0.68);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.book-detail-pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(21, 21, 21, 0.16);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.book-detail-pattern-grid div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 10px;
+}
+
+.book-detail-pattern-grid div:nth-child(even) {
+  border-left: 1px dashed rgba(21, 21, 21, 0.14);
+}
+
+.book-detail-pattern-grid div:nth-child(n + 3) {
+  border-top: 1px dashed rgba(21, 21, 21, 0.14);
+}
+
+.book-detail-pattern-grid span,
+.book-detail-pattern-sentence span {
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.book-detail-pattern-grid strong {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.82);
+  font-size: 12px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-detail-pattern-sentence {
+  border-top: 1px dashed rgba(21, 21, 21, 0.18);
+  padding-top: 10px;
+}
+
+.book-detail-pattern-sentence p {
+  margin-top: 5px;
+  color: rgba(21, 21, 21, 0.76);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.55;
 }
 
 .book-detail-add-sentence {

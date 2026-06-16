@@ -23,8 +23,10 @@ import type {
   ReadingRecord,
   ReadingRound,
 } from "../types/reading";
+import { buildCompletedReadingReport } from "../utils/completedReadingReport";
 import { formatDuration } from "../utils/formatDuration";
 import { parsePageInput } from "../utils/pageInput";
+import { buildReadingPattern } from "../utils/readingPattern";
 import {
   clampBookPage,
   formatBookPages,
@@ -213,6 +215,9 @@ export const LibraryScreen = ({
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
   const [deleteRoundId, setDeleteRoundId] = useState<string | null>(null);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
+  const [expandedCompleteSentenceId, setExpandedCompleteSentenceId] = useState<
+    string | null
+  >(null);
   const [sentenceSort, setSentenceSort] = useState<"created" | "page">(
     "created",
   );
@@ -336,6 +341,13 @@ export const LibraryScreen = ({
           )
           .map(({ sentence }) => sentence)
       : (selectedBook?.sentences ?? []);
+  const selectedBookPattern = selectedBook
+    ? buildReadingPattern(selectedBook, selectedBookRecords)
+    : null;
+  const selectedBookReport =
+    selectedBook && selectedBook.status === "completed"
+      ? buildCompletedReadingReport(selectedBook, selectedBookRecords)
+      : null;
 
   useEffect(() => {
     onDetailModeChange?.(Boolean(selectedBook));
@@ -363,6 +375,7 @@ export const LibraryScreen = ({
     setDeleteBookId(null);
     setDeleteRoundId(null);
     setSelectedRoundId(null);
+    setExpandedCompleteSentenceId(null);
   };
 
   const startEdit = (sentenceId: string, text: string, page: number) => {
@@ -471,6 +484,32 @@ export const LibraryScreen = ({
     } finally {
       setIsMutating(false);
     }
+  };
+
+  const shareBook = async () => {
+    if (!selectedBook) return;
+
+    const text =
+      selectedBook.status === "completed"
+        ? `${selectedBook.title} 완독 기록`
+        : `${selectedBook.title} 독서 기록`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: selectedBook.title, text });
+        return;
+      }
+
+      await navigator.clipboard?.writeText(text);
+    } catch {
+      // Sharing can be cancelled by the user.
+    }
+  };
+
+  const startNewBookFromReport = () => {
+    closeDetail();
+    openBookSearchStep();
+    setIsBookFormOpen(true);
   };
 
   const confirmDeleteRound = async () => {
@@ -817,6 +856,14 @@ export const LibraryScreen = ({
             <h1 className="truncate text-xl font-black">
               {selectedBook.title}
             </h1>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => void shareBook()}
+              aria-label="책 기록 공유"
+            >
+              <Icon name="share" className="h-5 w-5" />
+            </button>
           </header>
 
           {selectedBook && selectedRound ? (
@@ -935,6 +982,141 @@ export const LibraryScreen = ({
                     </div>
                   </section>
                 )}
+              </div>
+            </>
+          ) : selectedBookReport ? (
+            <>
+              <div className="book-complete-hero">
+                <div className="book-complete-hero-copy">
+                  <h2>{selectedBookReport.leadTitle}</h2>
+                  <p>
+                    {selectedBook.title} · {selectedBook.author}
+                  </p>
+                </div>
+              </div>
+
+              <div className="book-complete-report">
+                <section className="book-complete-summary-card">
+                  <span>{selectedBookReport.primaryMetric.label}</span>
+                  <strong>{selectedBookReport.primaryMetric.value}</strong>
+                  <p>{selectedBookReport.leadDescription}</p>
+                  <div className="book-complete-summary-pills">
+                    {selectedBookReport.summaryItems.map((item) => (
+                      <span key={item.label}>
+                        {item.value} {item.label}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+
+                <div className="book-complete-mini-insights">
+                  <article>
+                    <span>몰입 피크</span>
+                    <p>{selectedBookReport.focusInsight}</p>
+                  </article>
+                  <article>
+                    <span>집중 길이</span>
+                    <p>{selectedBookReport.rhythmInsight}</p>
+                  </article>
+                </div>
+
+                <section className="book-complete-card">
+                  <div className="book-complete-section-title">
+                    <h2>이 책은 이렇게 읽었어요</h2>
+                  </div>
+                  <ReadingJourneyChart
+                    key={`${selectedBook.id}-complete`}
+                    records={selectedBookRecords}
+                    totalPages={selectedBook.totalPages}
+                    variant="completeReport"
+                  />
+                  <p className="book-complete-muted">
+                    {selectedBookReport.graphInsight}
+                  </p>
+                </section>
+
+                <section className="book-complete-pattern-section">
+                  <div className="book-complete-section-title">
+                    <h2>패턴으로 보면</h2>
+                  </div>
+                  {selectedBookReport.patterns.length === 0 ? (
+                    <p className="book-complete-empty">
+                      독서 기록이 더 쌓이면 패턴을 분석할 수 있어요.
+                    </p>
+                  ) : (
+                    <div className="book-complete-pattern-grid">
+                      {selectedBookReport.patterns.map((pattern) => (
+                        <div key={pattern.title} className="book-complete-pattern">
+                          <Icon name={pattern.icon} className="h-4 w-4" />
+                          <strong>{pattern.title}</strong>
+                          <p>{pattern.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section className="book-complete-card">
+                  <div className="book-complete-section-title">
+                    <h2>기록한 문장</h2>
+                    <div className="book-complete-sentence-actions">
+                      <strong>{selectedBook.sentences.length}개</strong>
+                      <button
+                        type="button"
+                        className="book-complete-add-sentence"
+                        onClick={startAdd}
+                        aria-label="문장 추가"
+                      >
+                        <Icon name="plus" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {selectedBookReport.featuredSentences.length === 0 ? (
+                    <p className="book-complete-empty">
+                      아직 기록한 문장이 없어요.
+                    </p>
+                  ) : (
+                    <div className="book-complete-quote-list">
+                      {selectedBookReport.featuredSentences.map((sentence) => {
+                        const canExpand = sentence.text.length > 90;
+                        const isExpanded =
+                          expandedCompleteSentenceId === sentence.id;
+
+                        return (
+                          <button
+                            type="button"
+                            key={sentence.id}
+                            className={`book-complete-quote ${
+                              isExpanded || !canExpand
+                                ? "book-complete-quote-expanded"
+                                : ""
+                            }`}
+                            onClick={() => {
+                              if (!canExpand) return;
+
+                              setExpandedCompleteSentenceId((current) =>
+                                current === sentence.id ? null : sentence.id,
+                              );
+                            }}
+                            aria-expanded={canExpand ? isExpanded : undefined}
+                          >
+                            <span>{sentence.page}p</span>
+                            <p>{sentence.text}</p>
+                            {canExpand && (
+                              <Icon name="chevronRight" className="h-4 w-4" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                <div className="book-complete-cta">
+                  <button type="button" onClick={startNewBookFromReport}>
+                    새 책 시작하기
+                  </button>
+                </div>
               </div>
             </>
           ) : selectedBook ? (
@@ -1273,6 +1455,63 @@ export const LibraryScreen = ({
                         </div>
                       ))}
                     </div>
+                  )}
+                </section>
+
+                <section className="book-detail-pattern-section">
+                  <div className="book-detail-section-title">
+                    <h2>독서 패턴</h2>
+                    <strong>{selectedBookRecords.length}회</strong>
+                  </div>
+                  {selectedBookPattern ? (
+                    <div className="book-detail-pattern">
+                      <p className="book-detail-pattern-line">
+                        {selectedBookPattern.typeLabel}
+                      </p>
+                      <p className="book-detail-pattern-summary">
+                        {selectedBookPattern.summary}
+                      </p>
+                      <div className="book-detail-pattern-grid">
+                        <div>
+                          <span>평균 세션</span>
+                          <strong>
+                            {formatDuration(
+                              selectedBookPattern.averageSessionSeconds,
+                            )}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>평균 속도</span>
+                          <strong>
+                            {selectedBookPattern.pagesPerHour > 0
+                              ? `${selectedBookPattern.pagesPerHour}p/h`
+                              : "-"}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>많이 읽은 요일</span>
+                          <strong>{selectedBookPattern.topWeekday}</strong>
+                        </div>
+                        <div>
+                          <span>많이 읽은 시간</span>
+                          <strong>{selectedBookPattern.topTimeBand}</strong>
+                        </div>
+                      </div>
+                      <div className="book-detail-pattern-sentence">
+                        <span>문장 기록</span>
+                        <p>
+                          {selectedBook.sentences.length}개 ·{" "}
+                          {selectedBookPattern.sentencePeak}에 많이 남김
+                          {selectedBookPattern.sentenceDensity > 0
+                            ? ` · 10p당 ${selectedBookPattern.sentenceDensity}개`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="book-detail-empty-state">
+                      독서 기록을 남기면 패턴이 계산됩니다.
+                    </p>
                   )}
                 </section>
 
