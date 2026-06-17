@@ -2,7 +2,9 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useRef,
   useState,
+  type CSSProperties,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -81,6 +83,142 @@ const shelfTabOptions: Array<{ value: ShelfTab; label: string }> = [
   { value: "completed", label: "완독" },
 ];
 
+const parseAnimatedMetric = (value: string) => {
+  const match = value.match(/^(\d+)(.*)$/);
+  if (!match) return null;
+
+  return {
+    amount: Number(match[1]),
+    suffix: match[2] ?? "",
+  };
+};
+
+const completeMetricAnimation = {
+  durationMs: 700,
+  delayMs: 0,
+  dummyCharacterCount: 5,
+  rootMargin: "0px 0px 0px 0px",
+};
+
+const formatAnimatedMetricNumber = (amount: number) =>
+  amount.toLocaleString("ko-KR");
+
+const getSlotCounterCharacters = (character: string) => {
+  if (!/^\d$/.test(character)) return [character];
+
+  const digit = Number(character);
+  return [
+    character,
+    ...Array.from(
+      { length: completeMetricAnimation.dummyCharacterCount },
+      (_, index) => String((digit - index - 1 + 10) % 10),
+    ),
+  ];
+};
+
+type SlotCounterStyle = CSSProperties & {
+  "--slot-offset": number;
+};
+
+const AnimatedCompleteMetric = ({ value }: { value: string }) => {
+  const metric = parseAnimatedMetric(value);
+  const amount = metric ? metric.amount : null;
+  const numberRef = useRef<HTMLSpanElement>(null);
+  const [isAnimated, setIsAnimated] = useState(false);
+
+  useEffect(() => {
+    if (amount === null) return;
+
+    let animationFrame = 0;
+    let observer: IntersectionObserver | null = null;
+
+    const runAnimation = () => {
+      setIsAnimated(true);
+    };
+
+    const numberElement = numberRef.current;
+    if (!numberElement || !("IntersectionObserver" in window)) {
+      animationFrame = requestAnimationFrame(runAnimation);
+    } else {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (!entry?.isIntersecting) return;
+
+          observer?.disconnect();
+          animationFrame = requestAnimationFrame(runAnimation);
+        },
+        { rootMargin: completeMetricAnimation.rootMargin },
+      );
+      observer.observe(numberElement);
+    }
+
+    return () => {
+      observer?.disconnect();
+      cancelAnimationFrame(animationFrame);
+    };
+  }, [amount]);
+
+  if (!metric || amount === null) {
+    return <strong>{value}</strong>;
+  }
+
+  return (
+    <strong aria-label={`${formatAnimatedMetricNumber(amount)}${metric.suffix}`}>
+      <span
+        ref={numberRef}
+        className={`book-complete-slot-number ${
+          isAnimated ? "book-complete-slot-number-active" : ""
+        }`}
+        aria-hidden="true"
+      >
+        {formatAnimatedMetricNumber(amount)
+          .split("")
+          .map((character, index) => {
+            const characters = getSlotCounterCharacters(character);
+            const isDigit = /^\d$/.test(character);
+
+            if (!isDigit) {
+              return (
+                <span
+                  key={`${character}-${index}`}
+                  className="book-complete-slot-separator"
+                >
+                  {character}
+                </span>
+              );
+            }
+
+            return (
+              <span
+                key={`${character}-${index}`}
+                className="book-complete-slot-digit"
+              >
+                <span
+                  className="book-complete-slot-track"
+                  style={
+                    {
+                      "--slot-offset": characters.length - 1,
+                    } as SlotCounterStyle
+                  }
+                >
+                  {characters.map((slotCharacter, slotIndex) => (
+                    <span
+                      key={`${slotCharacter}-${slotIndex}`}
+                      className="book-complete-slot-character"
+                    >
+                      {slotCharacter}
+                    </span>
+                  ))}
+                </span>
+              </span>
+            );
+          })}
+      </span>
+      {metric.suffix}
+    </strong>
+  );
+};
+
 const todayLabel = () =>
   new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
@@ -136,6 +274,90 @@ const formatDateWithWeekday = (dateLabel: string) => {
   }
 
   return `${dateLabel}(${["일", "월", "화", "수", "목", "금", "토"][date.getDay()]})`;
+};
+
+const formatCompactDate = (dateLabel: string) => {
+  const [, month, day] = dateLabel.split(".").map(Number);
+
+  return month && day ? `${month}.${day}` : dateLabel;
+};
+
+const formatCompactMinutes = (seconds: number) => {
+  const minutes = Math.max(Math.round(seconds / 60), 1);
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+
+  if (hours > 0) {
+    return restMinutes > 0 ? `${hours}시간 ${restMinutes}분` : `${hours}시간`;
+  }
+
+  return `${minutes}분`;
+};
+
+type FocusDurationBarStyle = CSSProperties & {
+  "--focus-height": string;
+};
+
+const FocusDurationChart = ({ records }: { records: ReadingRecord[] }) => {
+  if (records.length === 0) {
+    return (
+      <p className="book-complete-focus-empty">
+        시간 기록이 쌓이면 집중 흐름을 보여드려요.
+      </p>
+    );
+  }
+
+  const chartRecords = [...records]
+    .sort(
+      (left, right) =>
+        left.date.localeCompare(right.date) ||
+        (left.startedAt ?? "").localeCompare(right.startedAt ?? "") ||
+        left.id.localeCompare(right.id),
+    )
+    .slice(-6);
+  const maxDuration = Math.max(
+    ...chartRecords.map((record) => record.durationSeconds),
+    1,
+  );
+  const longestRecordId = [...chartRecords].sort(
+    (left, right) => right.durationSeconds - left.durationSeconds,
+  )[0]?.id;
+
+  return (
+    <div
+      className="book-complete-focus-chart"
+      role="img"
+      aria-label="독서 시간 기록 차트"
+    >
+      {chartRecords.map((record) => {
+        const heightPercent = Math.max(
+          (record.durationSeconds / maxDuration) * 100,
+          14,
+        );
+        const style: FocusDurationBarStyle = {
+          "--focus-height": `${heightPercent}%`,
+        };
+
+        return (
+          <div
+            key={record.id}
+            className={`book-complete-focus-bar-item ${
+              record.id === longestRecordId
+                ? "book-complete-focus-bar-item-peak"
+                : ""
+            }`}
+            style={style}
+          >
+            <strong>{formatCompactMinutes(record.durationSeconds)}</strong>
+            <div className="book-complete-focus-bar" aria-hidden="true">
+              <span />
+            </div>
+            <em>{formatCompactDate(record.date)}</em>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 const hasCompletedRound = (book: Book) =>
@@ -483,26 +705,6 @@ export const LibraryScreen = ({
       setSelectedBookId(null);
     } finally {
       setIsMutating(false);
-    }
-  };
-
-  const shareBook = async () => {
-    if (!selectedBook) return;
-
-    const text =
-      selectedBook.status === "completed"
-        ? `${selectedBook.title} 완독 기록`
-        : `${selectedBook.title} 독서 기록`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: selectedBook.title, text });
-        return;
-      }
-
-      await navigator.clipboard?.writeText(text);
-    } catch {
-      // Sharing can be cancelled by the user.
     }
   };
 
@@ -856,14 +1058,6 @@ export const LibraryScreen = ({
             <h1 className="truncate text-xl font-black">
               {selectedBook.title}
             </h1>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => void shareBook()}
-              aria-label="책 기록 공유"
-            >
-              <Icon name="share" className="h-5 w-5" />
-            </button>
           </header>
 
           {selectedBook && selectedRound ? (
@@ -998,12 +1192,14 @@ export const LibraryScreen = ({
               <div className="book-complete-report">
                 <section className="book-complete-summary-card">
                   <span>{selectedBookReport.primaryMetric.label}</span>
-                  <strong>{selectedBookReport.primaryMetric.value}</strong>
+                  <AnimatedCompleteMetric
+                    value={selectedBookReport.primaryMetric.value}
+                  />
                   <p>{selectedBookReport.leadDescription}</p>
                   <div className="book-complete-summary-pills">
                     {selectedBookReport.summaryItems.map((item) => (
                       <span key={item.label}>
-                        {item.value} {item.label}
+                        {item.text ?? `${item.value} ${item.label}`}
                       </span>
                     ))}
                   </div>
@@ -1015,8 +1211,10 @@ export const LibraryScreen = ({
                     <p>{selectedBookReport.focusInsight}</p>
                   </article>
                   <article>
-                    <span>집중 길이</span>
-                    <p>{selectedBookReport.rhythmInsight}</p>
+                    <p className="book-complete-focus-title">
+                      {selectedBookReport.rhythmInsight}
+                    </p>
+                    <FocusDurationChart records={selectedBookRecords} />
                   </article>
                 </div>
 

@@ -5,6 +5,7 @@ export type CompletedReportItem = {
   icon: IconName;
   label: string;
   value: string;
+  text?: string;
 };
 
 export type CompletedReportPattern = {
@@ -86,6 +87,11 @@ const formatShortDate = (value: string) => {
   return month && day ? `${month}.${day}` : value;
 };
 
+const formatKoreanMonthDay = (value: string) => {
+  const [, month, day] = value.split(".").map(Number);
+  return month && day ? `${month}월 ${day}일` : value;
+};
+
 const formatSecondsAsClock = (seconds: number) => {
   const safeSeconds = Math.max(Math.round(seconds), 0);
   const hours = Math.floor(safeSeconds / 3600);
@@ -95,6 +101,19 @@ const formatSecondsAsClock = (seconds: number) => {
   return [hours, minutes, restSeconds]
     .map((value) => String(value).padStart(2, "0"))
     .join(":");
+};
+
+const formatSecondsAsReadableTime = (seconds: number) => {
+  const safeSeconds = Math.max(Math.round(seconds), 0);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}시간 ${minutes}분` : `${hours}시간`;
+  }
+
+  if (minutes > 0) return `${minutes}분`;
+  return "1분 미만";
 };
 
 const getDaysBetween = (start: string | undefined, end: string | undefined) => {
@@ -446,14 +465,24 @@ export const buildCompletedReadingReport = (
       value: completedDays ? `${completedDays}일` : `${records.length || 1}회`,
     },
     summaryItems: [
-      { icon: "book", label: "페이지", value: totalPages ? `${totalPages}p` : "-" },
-      { icon: "clock", label: "총 독서 시간", value: formatSecondsAsClock(totalSeconds) },
+      {
+        icon: "book",
+        label: "페이지",
+        value: totalPages ? `${totalPages}p` : "-",
+        text: totalPages ? `${totalPages}p` : "페이지 미기록",
+      },
+      {
+        icon: "clock",
+        label: "총 독서 시간",
+        value: formatSecondsAsClock(totalSeconds),
+        text: formatSecondsAsReadableTime(totalSeconds),
+      },
       { icon: "records", label: "기록", value: `${records.length}회` },
       { icon: "quote", label: "문장", value: `${book.sentences.length}개` },
     ],
     insights,
     focusInsight: mostPagesDay
-      ? `${formatShortDate(mostPagesDay.date)}에 가장 깊게 몰입했어요. 이날 ${mostPagesDay.pages}p를 넘겼습니다.`
+      ? `${formatKoreanMonthDay(mostPagesDay.date)}에 가장 깊게 몰입했어요. 이날 ${mostPagesDay.pages}p를 넘겼습니다.`
       : "독서 기록이 더 쌓이면 가장 몰입한 날을 보여드려요.",
     rhythmInsight: getRhythmInsight(
       records,

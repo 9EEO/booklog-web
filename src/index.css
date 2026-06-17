@@ -7169,6 +7169,41 @@ button {
   line-height: 1;
 }
 
+.book-complete-slot-number {
+  display: inline-flex;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+
+.book-complete-slot-digit {
+  display: inline-block;
+  overflow: hidden;
+  height: 1em;
+  vertical-align: top;
+}
+
+.book-complete-slot-track {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(var(--slot-offset) * -1em));
+}
+
+.book-complete-slot-number-active .book-complete-slot-track {
+  animation: book-complete-slot-top-down 700ms cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.book-complete-slot-character,
+.book-complete-slot-separator {
+  display: inline-block;
+  height: 1em;
+  line-height: 1;
+}
+
+.book-complete-slot-separator {
+  min-width: 0.35ch;
+}
+
 .book-complete-summary-card > p {
   overflow-wrap: anywhere;
   margin-top: 12px;
@@ -7186,17 +7221,14 @@ button {
 }
 
 .book-complete-summary-pills span {
+  border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 999px;
-  background: rgba(21, 21, 21, 0.06);
-  color: rgba(21, 21, 21, 0.62);
+  background: #ffffff;
+  color: var(--sage);
+  box-shadow: 0 6px 14px rgba(21, 21, 21, 0.08);
   padding: 8px 11px;
   font-size: 12px;
-  font-weight: 900;
-}
-
-.book-complete-summary-pills span {
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+  font-weight: 950;
 }
 
 .book-complete-mini-insights {
@@ -7232,6 +7264,107 @@ button {
   font-size: 14px;
   font-weight: 850;
   line-height: 1.55;
+}
+
+.book-complete-mini-insights .book-complete-focus-title {
+  margin-top: 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.book-complete-focus-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+  height: 168px;
+  margin-top: 16px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.95), transparent 36%),
+    linear-gradient(180deg, #f8f9fc 0%, #eef2f8 100%);
+  padding: 16px 12px 10px;
+}
+
+.book-complete-focus-bar-item {
+  display: grid;
+  min-width: 0;
+  height: 100%;
+  grid-template-rows: 18px minmax(0, 1fr) 16px;
+  align-items: end;
+  gap: 7px;
+  color: rgba(21, 21, 21, 0.42);
+  text-align: center;
+}
+
+.book-complete-focus-bar-item strong {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-complete-focus-bar {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  align-items: end;
+  justify-content: center;
+}
+
+.book-complete-focus-bar span {
+  display: block;
+  width: min(100%, 30px);
+  height: var(--focus-height);
+  border-radius: 999px 999px 8px 8px;
+  background: linear-gradient(
+    180deg,
+    rgba(116, 154, 237, 0.38) 0%,
+    rgba(37, 99, 235, 0.16) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.book-complete-focus-bar-item-peak strong {
+  color: var(--sage);
+}
+
+.book-complete-focus-bar-item-peak .book-complete-focus-bar span {
+  background: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.95) 0%,
+    var(--sage) 58%,
+    #1d4ed8 100%
+  );
+  box-shadow:
+    0 10px 22px rgba(37, 99, 235, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.book-complete-focus-bar-item em {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.36);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-complete-focus-empty {
+  margin-top: 10px;
+  color: rgba(21, 21, 21, 0.52);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.5;
 }
 
 .book-complete-card .book-journey-chart {
@@ -7281,6 +7414,19 @@ button {
 
 .book-complete-card .book-journey-chart-complete .book-journey-plot {
   aspect-ratio: 320 / 176;
+}
+
+.book-complete-card .book-journey-chart-complete .book-journey-area {
+  opacity: 1;
+}
+
+.book-complete-card .book-journey-chart-complete .book-journey-line {
+  stroke-dashoffset: 0;
+}
+
+.book-complete-card .book-journey-chart-complete .book-journey-point::before {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .book-complete-card .book-journey-svg-label {
@@ -7840,11 +7986,28 @@ button {
   }
 }
 
+@keyframes book-complete-slot-top-down {
+  from {
+    opacity: 0.42;
+    transform: translateY(calc(var(--slot-offset) * -1em));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .book-complete-slot-number-active .book-complete-slot-track,
   .book-journey-area,
   .book-journey-line,
   .book-journey-point::before {
     animation: none;
+  }
+
+  .book-complete-slot-track {
+    transform: translateY(0);
   }
 
   .book-journey-area {
