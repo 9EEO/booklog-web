@@ -1238,15 +1238,13 @@ export const LibraryScreen = ({
                 </section>
 
                 <div className="book-complete-mini-insights">
-                  <article>
-                    <span>몰입 피크</span>
+                  <article className="book-complete-focus-card">
+                    <h2>몰입 리듬</h2>
                     <p>{selectedBookReport.focusInsight}</p>
-                  </article>
-                  <article>
+                    <FocusDurationChart records={selectedBookRecords} />
                     <p className="book-complete-focus-title">
                       {selectedBookReport.rhythmInsight}
                     </p>
-                    <FocusDurationChart records={selectedBookRecords} />
                   </article>
                 </div>
 

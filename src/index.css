@@ -7052,12 +7052,14 @@ button {
 }
 
 .book-complete-hero-copy h2 {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   color: var(--ink);
-  font-size: 28px;
-  font-weight: 950;
-  letter-spacing: -0.02em;
-  line-height: 1.22;
+  font-size: clamp(24px, 7vw, 28px);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.24;
+  text-wrap: balance;
+  word-break: keep-all;
 }
 
 .book-complete-hero-copy p {
@@ -7065,19 +7067,20 @@ button {
   overflow: hidden;
   color: rgba(21, 21, 21, 0.54);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .book-complete-hero-copy strong {
   display: block;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   margin-top: 7px;
   color: rgba(21, 21, 21, 0.64);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.5;
+  word-break: keep-all;
 }
 
 .book-complete-report {
@@ -7114,13 +7117,16 @@ button {
 .book-complete-section-title h2 {
   color: var(--ink);
   font-size: 18px;
-  font-weight: 950;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.35;
+  word-break: keep-all;
 }
 
 .book-complete-section-title > strong {
   color: rgba(21, 21, 21, 0.36);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 750;
 }
 
 .book-complete-sentence-actions {
@@ -7132,7 +7138,7 @@ button {
 .book-complete-sentence-actions strong {
   color: rgba(21, 21, 21, 0.36);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 750;
 }
 
 .book-complete-add-sentence {
@@ -7153,10 +7159,10 @@ button {
 }
 
 .book-complete-summary-card > span {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255);
   font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.04em;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .book-complete-summary-card > strong {
@@ -7164,8 +7170,8 @@ button {
   margin-top: 6px;
   color: #ffffff;
   font-size: 52px;
-  font-weight: 950;
-  letter-spacing: -0.01em;
+  font-weight: 900;
+  letter-spacing: 0;
   line-height: 1;
 }
 
@@ -7205,12 +7211,15 @@ button {
 }
 
 .book-complete-summary-card > p {
-  overflow-wrap: anywhere;
+  overflow: hidden;
   margin-top: 12px;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .book-complete-summary-pills {
@@ -7228,7 +7237,7 @@ button {
   box-shadow: 0 6px 14px rgba(21, 21, 21, 0.08);
   padding: 8px 11px;
   font-size: 12px;
-  font-weight: 950;
+  font-weight: 800;
 }
 
 .book-complete-mini-insights {
@@ -7248,38 +7257,48 @@ button {
   padding: 16px;
 }
 
-.book-complete-mini-insights span {
-  color: var(--sage);
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.03em;
+.book-complete-focus-card h2 {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.35;
+  word-break: keep-all;
 }
 
 .book-complete-mini-insights p,
 .book-complete-muted,
 .book-complete-empty {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   margin-top: 8px;
   color: rgba(21, 21, 21, 0.68);
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 650;
   line-height: 1.55;
+  word-break: keep-all;
 }
 
 .book-complete-mini-insights .book-complete-focus-title {
-  margin-top: 0;
+  margin-top: 14px;
   color: var(--ink);
-  font-size: 18px;
-  font-weight: 950;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.45;
+  overflow-wrap: normal;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.book-complete-focus-card > p:not(.book-complete-focus-title) {
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .book-complete-focus-chart {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+  display: flex;
   align-items: end;
-  gap: 10px;
+  gap: clamp(4px, 2.5vw, 10px);
   min-width: 0;
   height: 168px;
   margin-top: 16px;
@@ -7287,11 +7306,13 @@ button {
   background:
     radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.95), transparent 36%),
     linear-gradient(180deg, #f8f9fc 0%, #eef2f8 100%);
-  padding: 16px 12px 10px;
+  overflow: hidden;
+  padding: 16px clamp(8px, 3vw, 12px) 10px;
 }
 
 .book-complete-focus-bar-item {
   display: grid;
+  flex: 1 1 0;
   min-width: 0;
   height: 100%;
   grid-template-rows: 18px minmax(0, 1fr) 16px;
@@ -7305,7 +7326,7 @@ button {
   overflow: hidden;
   color: rgba(21, 21, 21, 0.48);
   font-size: 10px;
-  font-weight: 950;
+  font-weight: 800;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7321,7 +7342,7 @@ button {
 
 .book-complete-focus-bar span {
   display: block;
-  width: min(100%, 30px);
+  width: min(100%, clamp(16px, 8vw, 30px));
   height: var(--focus-height);
   border-radius: 999px 999px 8px 8px;
   background: linear-gradient(
@@ -7361,7 +7382,7 @@ button {
   color: rgba(21, 21, 21, 0.36);
   font-size: 10px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 750;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7371,7 +7392,7 @@ button {
   margin-top: 10px;
   color: rgba(21, 21, 21, 0.52);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 650;
   line-height: 1.5;
 }
 
@@ -7466,19 +7487,19 @@ button {
 .book-complete-card .book-journey-svg-label-title {
   fill: var(--ink);
   font-size: 11px;
-  font-weight: 950;
+  font-weight: 800;
 }
 
 .book-complete-card .book-journey-svg-label-subtitle {
   fill: rgba(21, 21, 21, 0.52);
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 750;
 }
 
 .book-complete-card .book-journey-svg-label-meta {
   fill: rgba(21, 21, 21, 0.42);
   font-size: 8px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .book-complete-muted {
@@ -7520,15 +7541,18 @@ button {
 .book-complete-pattern strong {
   color: var(--ink);
   font-size: 15px;
-  font-weight: 950;
+  font-weight: 850;
+  line-height: 1.35;
+  word-break: keep-all;
 }
 
 .book-complete-pattern p {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   color: rgba(21, 21, 21, 0.52);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   line-height: 1.5;
+  word-break: keep-all;
 }
 
 .book-complete-quote-list {
@@ -7558,13 +7582,13 @@ button {
   color: var(--sage);
   padding: 4px 8px;
   font-size: 11px;
-  font-weight: 950;
+  font-weight: 800;
 }
 
 .book-complete-quote p {
   display: -webkit-box;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   margin-top: 10px;
   border-left: 2px solid var(--sage);
   -webkit-box-orient: vertical;
@@ -7572,8 +7596,9 @@ button {
   color: rgba(21, 21, 21, 0.82);
   padding-left: 12px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.7;
+  word-break: keep-all;
 }
 
 .book-complete-quote-expanded p {
@@ -7614,7 +7639,7 @@ button {
   box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
   color: #ffffff;
   font-size: 15px;
-  font-weight: 950;
+  font-weight: 850;
 }
 
 .book-detail-progress-section,

@@ -291,7 +291,7 @@ const getLeadTitle = (
   if (records.length <= 1) return "한 번의 흐름으로 끝까지 읽은 책";
   if (completedDays && completedDays <= 7) return "짧은 기간에 집중해서 읽은 책";
   if (averageSessionSeconds >= 30 * 60) return "한 번 앉으면 깊게 들어간 책";
-  if (records.length >= 5) return "여러 번의 작은 리듬으로 완성한 책";
+  if (records.length >= 5) return "작은 리듬으로 완독한 책";
   return "천천히 완독까지 이어진 책";
 };
 
@@ -383,10 +383,10 @@ export const buildCompletedReadingReport = (
     records,
     averageSessionSeconds,
   );
-  const leadDescription =
-    records.length <= 1
-      ? "긴 관리표보다, 이 책은 하나의 집중된 독서 경험으로 남아 있습니다."
-      : `${records.length}번의 독서 기록이 모여 한 권의 완독 리듬을 만들었어요.`;
+  const readingCount = records.length || 1;
+  const leadDescription = totalPages
+    ? `${readingCount}번의 독서로 ${totalPages}쪽을 모두 읽었어요.`
+    : `${readingCount}번의 독서로 완독했어요.`;
   const insights: CompletedReportInsight[] = [
     {
       icon: "calendar",
@@ -399,14 +399,14 @@ export const buildCompletedReadingReport = (
     },
     {
       icon: "book",
-      label: "몰입 피크",
-      value: mostPagesDay
-        ? `${formatShortDate(mostPagesDay.date)}`
+      label: "가장 몰입한 날",
+      value: longestDay
+        ? `${formatShortDate(longestDay.date)}`
         : totalPages
           ? `${totalPages}p`
           : "-",
-      description: mostPagesDay
-        ? `이날 ${mostPagesDay.pages}p를 읽으며 가장 많이 앞으로 나아갔어요.`
+      description: longestDay
+        ? `${formatKoreanMonthDay(longestDay.date)}에 가장 오래 읽었어요. 이날만 ${longestDay.pages}쪽을 읽었습니다.`
         : "페이지 기록이 더 쌓이면 가장 몰입한 날을 보여드려요.",
     },
     {
@@ -481,8 +481,8 @@ export const buildCompletedReadingReport = (
       { icon: "quote", label: "문장", value: `${book.sentences.length}개` },
     ],
     insights,
-    focusInsight: mostPagesDay
-      ? `${formatKoreanMonthDay(mostPagesDay.date)}에 가장 깊게 몰입했어요. 이날 ${mostPagesDay.pages}p를 넘겼습니다.`
+    focusInsight: longestDay
+      ? `${formatKoreanMonthDay(longestDay.date)}에 가장 오래 읽었어요. 이날만 ${longestDay.pages}쪽을 읽었습니다.`
       : "독서 기록이 더 쌓이면 가장 몰입한 날을 보여드려요.",
     rhythmInsight: getRhythmInsight(
       records,
