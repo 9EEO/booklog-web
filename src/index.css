@@ -7189,7 +7189,7 @@ button {
 }
 
 .book-complete-slot-number-active .book-complete-slot-track {
-  animation: book-complete-slot-top-down 700ms cubic-bezier(0.22, 1, 0.36, 1)
+  animation: book-complete-slot-top-down 2100ms cubic-bezier(0.22, 1, 0.36, 1)
     both;
 }
 
@@ -7330,6 +7330,14 @@ button {
     rgba(37, 99, 235, 0.16) 100%
   );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
+  opacity: 0;
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.book-complete-focus-chart-active .book-complete-focus-bar span {
+  animation: book-complete-focus-bar-enter 920ms cubic-bezier(0.22, 1, 0.36, 1)
+    var(--focus-delay) forwards;
 }
 
 .book-complete-focus-bar-item-peak strong {
@@ -7998,7 +8006,15 @@ button {
   }
 }
 
+@keyframes book-complete-focus-bar-enter {
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .book-complete-focus-chart-active .book-complete-focus-bar span,
   .book-complete-slot-number-active .book-complete-slot-track,
   .book-journey-area,
   .book-journey-line,
@@ -8008,6 +8024,11 @@ button {
 
   .book-complete-slot-track {
     transform: translateY(0);
+  }
+
+  .book-complete-focus-bar span {
+    opacity: 1;
+    transform: scaleY(1);
   }
 
   .book-journey-area {

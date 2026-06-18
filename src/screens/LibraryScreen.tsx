@@ -295,10 +295,38 @@ const formatCompactMinutes = (seconds: number) => {
 };
 
 type FocusDurationBarStyle = CSSProperties & {
+  "--focus-delay": string;
   "--focus-height": string;
 };
 
 const FocusDurationChart = ({ records }: { records: ReadingRecord[] }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [isAnimated, setIsAnimated] = useState(false);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart || isAnimated) return;
+
+    if (!("IntersectionObserver" in window)) {
+      const animationFrame = requestAnimationFrame(() => setIsAnimated(true));
+      return () => cancelAnimationFrame(animationFrame);
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+
+        setIsAnimated(true);
+        observer.disconnect();
+      },
+      { threshold: 0.3 },
+    );
+
+    observer.observe(chart);
+
+    return () => observer.disconnect();
+  }, [isAnimated]);
+
   if (records.length === 0) {
     return (
       <p className="book-complete-focus-empty">
@@ -325,16 +353,20 @@ const FocusDurationChart = ({ records }: { records: ReadingRecord[] }) => {
 
   return (
     <div
-      className="book-complete-focus-chart"
+      ref={chartRef}
+      className={`book-complete-focus-chart ${
+        isAnimated ? "book-complete-focus-chart-active" : ""
+      }`}
       role="img"
       aria-label="독서 시간 기록 차트"
     >
-      {chartRecords.map((record) => {
+      {chartRecords.map((record, index) => {
         const heightPercent = Math.max(
           (record.durationSeconds / maxDuration) * 100,
           14,
         );
         const style: FocusDurationBarStyle = {
+          "--focus-delay": `${index * 90}ms`,
           "--focus-height": `${heightPercent}%`,
         };
 
