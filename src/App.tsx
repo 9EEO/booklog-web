@@ -1,8 +1,10 @@
 import {
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type SetStateAction,
 } from "react";
@@ -10,6 +12,7 @@ import type { User } from "@supabase/supabase-js";
 import { BottomTabs } from "./components/BottomTabs";
 import { useAuth } from "./hooks/useAuth";
 import { useReadingTimer } from "./hooks/useReadingTimer";
+import { AdminScreen } from "./screens/AdminScreen";
 import { AuthScreen } from "./screens/AuthScreen";
 import { LibraryScreen } from "./screens/LibraryScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
@@ -42,6 +45,8 @@ import {
   getInitialRecords,
   getInitialTierBoard,
   getInitialWeeklyGoalDays,
+  getPendingReadingRecordSyncs,
+  type PendingReadingRecordSync,
   getStoredDataOwnerUserId,
   saveActiveTab,
   saveDataOwnerUserId,
@@ -49,6 +54,7 @@ import {
   saveCurrentBookId,
   saveDailyGoalSeconds,
   saveRecords,
+  savePendingReadingRecordSyncs,
   saveTierBoard,
   saveWeeklyGoalDays,
 } from "./storage/readingStorage";
@@ -126,6 +132,15 @@ const addSecondsToIsoDate = (isoDate: string | undefined, seconds: number) => {
 
   return new Date(startedAt.getTime() + seconds * 1000).toISOString();
 };
+
+const createClientId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === "x" ? random : (random & 0x3) | 0x8;
+
+    return value.toString(16);
+  });
 
 const findHighlightForRecord = (book: Book, record: ReadingRecord) => {
   if (!record.sentence) return undefined;
@@ -210,6 +225,32 @@ const removeBookRound = (
   };
 };
 
+const syncPendingReadingRecord = async (pending: PendingReadingRecordSync) => {
+  await createRemoteRecord(pending.userId, pending.record);
+
+  if (pending.round) {
+    await updateRemoteReadingRound(pending.round.id, {
+      currentPage: pending.round.currentPage,
+      accumulatedSeconds: pending.round.accumulatedSeconds,
+      status: pending.round.status,
+      startedAt: pending.round.startedAt,
+      completedAt: pending.round.completedAt,
+    });
+  }
+
+  await updateRemoteBook(pending.book.id, {
+    currentPage: pending.book.currentPage,
+    accumulatedSeconds: pending.book.accumulatedSeconds,
+    status: pending.book.status,
+    startedAt: pending.book.startedAt,
+    completedAt: pending.book.completedAt,
+  });
+
+  if (pending.highlight) {
+    await createRemoteHighlight(pending.userId, pending.highlight);
+  }
+};
+
 function AuthenticatedApp({
   user,
   onSignOut,
@@ -233,6 +274,7 @@ function AuthenticatedApp({
   const [isLibraryDetailMode, setIsLibraryDetailMode] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const pendingFlushRef = useRef(false);
   const readingTimer = useReadingTimer(import.meta.env.DEV ? 10 : 15 * 60);
   const resetReadingTimer = readingTimer.reset;
 
@@ -246,6 +288,47 @@ function AuthenticatedApp({
     setSyncError(message);
     throw new Error(message);
   };
+
+  const flushPendingReadingRecords = useCallback(async () => {
+    if (pendingFlushRef.current) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+
+    const pendingForUser = getPendingReadingRecordSyncs().filter(
+      (pending) => pending.userId === user.id,
+    );
+    if (pendingForUser.length === 0) return;
+
+    pendingFlushRef.current = true;
+    let didFlush = false;
+
+    try {
+      for (const pending of pendingForUser) {
+        await syncPendingReadingRecord(pending);
+        didFlush = true;
+        savePendingReadingRecordSyncs(
+          getPendingReadingRecordSyncs().filter((item) => item.id !== pending.id),
+        );
+      }
+
+      if (didFlush) {
+        const snapshot = await fetchReadingSnapshot(user.id);
+
+        setBooks(snapshot.books);
+        setRecords(snapshot.records);
+        setCurrentBookId(snapshot.currentBookId || getInitialCurrentBookId(snapshot.books));
+        setDailyGoalSeconds(snapshot.dailyGoalSeconds);
+        setWeeklyGoalDays(snapshot.weeklyGoalDays);
+        setTierBoard(snapshot.tierBoard);
+        setSyncError(null);
+      }
+    } catch (error) {
+      setSyncError(
+        getErrorMessage(error, "보류 중인 독서 기록을 동기화하지 못했습니다."),
+      );
+    } finally {
+      pendingFlushRef.current = false;
+    }
+  }, [user.id]);
 
   useEffect(() => {
     saveActiveTab(activeTab);
@@ -375,6 +458,20 @@ function AuthenticatedApp({
   useEffect(() => {
     if (isDataLoading) return;
 
+    const flushTimer = window.setTimeout(() => {
+      void flushPendingReadingRecords();
+    }, 0);
+    window.addEventListener("online", flushPendingReadingRecords);
+
+    return () => {
+      window.clearTimeout(flushTimer);
+      window.removeEventListener("online", flushPendingReadingRecords);
+    };
+  }, [flushPendingReadingRecords, isDataLoading]);
+
+  useEffect(() => {
+    if (isDataLoading) return;
+
     void saveReadingSettings(user.id, {
       currentBookId,
       dailyGoalSeconds,
@@ -417,22 +514,64 @@ function AuthenticatedApp({
 
   const handleSaveRecord = async (input: ReadingCompletionInput) => {
     if (!currentBook) return;
-    try {
-      setSyncError(null);
-      const activeRound = getActiveRound(currentBook);
-      const date = todayLabel();
-      const startPage = currentBook.currentPage;
-      const endPage = clampBookPage(
-        input.endPage,
-        currentBook.totalPages,
-        startPage,
-      );
-      const sentence = input.sentence?.trim();
-      const sentencePage = input.sentencePage
-        ? clampBookPage(input.sentencePage, currentBook.totalPages)
-        : undefined;
+    setSyncError(null);
 
-      const newRecord = await createRemoteRecord(user.id, {
+    const activeRound = getActiveRound(currentBook);
+    const date = todayLabel();
+    const startPage = currentBook.currentPage;
+    const endPage = clampBookPage(
+      input.endPage,
+      currentBook.totalPages,
+      startPage,
+    );
+    const sentence = input.sentence?.trim();
+    const sentencePage = input.sentencePage
+      ? clampBookPage(input.sentencePage, currentBook.totalPages)
+      : undefined;
+    const recordId = createClientId();
+    const newRecord: ReadingRecord = {
+      id: recordId,
+      bookId: currentBook.id,
+      roundId: activeRound?.id,
+      roundNumber: activeRound?.roundNumber,
+      bookTitle: currentBook.title,
+      date,
+      startedAt: input.startedAt,
+      endedAt: input.endedAt,
+      durationSeconds: input.durationSeconds,
+      startPage,
+      endPage,
+      sentence: sentence || undefined,
+      sentencePage,
+    };
+    const isCompleted = isBookCompletedByPage(endPage, currentBook.totalPages);
+    const isFirstRecord = !currentBook.startedAt;
+    const isFirstRoundRecord = !activeRound?.startedAt;
+    const nextRoundStatus: BookStatus = isCompleted ? "completed" : "reading";
+    const nextRound = activeRound
+      ? {
+          ...activeRound,
+          startedAt: activeRound.startedAt || date,
+          currentPage: endPage,
+          accumulatedSeconds:
+            activeRound.accumulatedSeconds + input.durationSeconds,
+          status: nextRoundStatus,
+          completedAt: isCompleted ? date : activeRound.completedAt,
+        }
+      : null;
+    const newHighlight = sentence
+      ? {
+          id: createClientId(),
+          text: sentence,
+          page: sentencePage ?? endPage,
+          recordedAt: date,
+        }
+      : null;
+    const pendingSync: PendingReadingRecordSync = {
+      id: recordId,
+      userId: user.id,
+      record: {
+        id: recordId,
         bookId: currentBook.id,
         roundId: activeRound?.id,
         roundNumber: activeRound?.roundNumber,
@@ -445,41 +584,9 @@ function AuthenticatedApp({
         endPage,
         sentence: sentence || undefined,
         sentencePage,
-      });
-
-      const isCompleted = isBookCompletedByPage(
-        endPage,
-        currentBook.totalPages,
-      );
-      const isFirstRecord = !currentBook.startedAt;
-      const isFirstRoundRecord = !activeRound?.startedAt;
-      const nextRoundStatus: BookStatus = isCompleted ? "completed" : "reading";
-      const nextRound = activeRound
-        ? {
-            ...activeRound,
-            startedAt: activeRound.startedAt || date,
-            currentPage: endPage,
-            accumulatedSeconds:
-              activeRound.accumulatedSeconds + input.durationSeconds,
-            status: nextRoundStatus,
-            completedAt: isCompleted ? date : activeRound.completedAt,
-          }
-        : null;
-
-      if (nextRound && !nextRound.id.includes("-round-")) {
-        await updateRemoteReadingRound(nextRound.id, {
-          currentPage: nextRound.currentPage,
-          accumulatedSeconds: nextRound.accumulatedSeconds,
-          status: nextRound.status,
-          startedAt: isFirstRoundRecord ? date : undefined,
-          completedAt:
-            nextRound.status === "completed"
-              ? (nextRound.completedAt ?? date)
-              : null,
-        });
-      }
-
-      await updateRemoteBook(currentBook.id, {
+      },
+      book: {
+        id: currentBook.id,
         currentPage: endPage,
         accumulatedSeconds:
           nextRound?.accumulatedSeconds ??
@@ -487,45 +594,76 @@ function AuthenticatedApp({
         status: isCompleted ? "completed" : "reading",
         startedAt: isFirstRecord ? date : undefined,
         completedAt: isCompleted ? date : (currentBook.completedAt ?? null),
-      });
-
-      const newHighlight = sentence
-        ? await createRemoteHighlight(user.id, {
+      },
+      round:
+        nextRound && !nextRound.id.includes("-round-")
+          ? {
+              id: nextRound.id,
+              currentPage: nextRound.currentPage,
+              accumulatedSeconds: nextRound.accumulatedSeconds,
+              status: nextRound.status,
+              startedAt: isFirstRoundRecord ? date : undefined,
+              completedAt:
+                nextRound.status === "completed"
+                  ? (nextRound.completedAt ?? date)
+                  : null,
+            }
+          : undefined,
+      highlight: newHighlight
+        ? {
+            id: newHighlight.id,
             bookId: currentBook.id,
-            text: sentence,
-            page: sentencePage ?? endPage,
-            recordedAt: date,
-          })
-        : null;
+            text: newHighlight.text,
+            page: newHighlight.page,
+            recordedAt: newHighlight.recordedAt,
+          }
+        : undefined,
+    };
 
-      setRecords((current) => [newRecord, ...current]);
-      setBooks((current) =>
-        current.map((book) => {
-          if (book.id !== currentBook.id) return book;
-          const nextBook = nextRound
-            ? applyActiveRoundToBook(book, nextRound)
-            : book;
+    savePendingReadingRecordSyncs([
+      ...getPendingReadingRecordSyncs().filter((item) => item.id !== recordId),
+      pendingSync,
+    ]);
+    setRecords((current) => [newRecord, ...current]);
+    setBooks((current) =>
+      current.map((book) => {
+        if (book.id !== currentBook.id) return book;
+        const nextBook = nextRound
+          ? applyActiveRoundToBook(book, nextRound)
+          : book;
 
-          return {
-            ...nextBook,
-            currentPage: endPage,
-            accumulatedSeconds:
-              nextRound?.accumulatedSeconds ??
-              book.accumulatedSeconds + input.durationSeconds,
-            status: isCompleted ? "completed" : "reading",
-            startedAt: book.startedAt || date,
-            completedAt: isCompleted ? date : nextBook.completedAt,
-            sentences: newHighlight
-              ? [newHighlight, ...book.sentences]
-              : book.sentences,
-          };
-        }),
-      );
+        return {
+          ...nextBook,
+          currentPage: endPage,
+          accumulatedSeconds:
+            nextRound?.accumulatedSeconds ??
+            book.accumulatedSeconds + input.durationSeconds,
+          status: isCompleted ? "completed" : "reading",
+          startedAt: book.startedAt || date,
+          completedAt: isCompleted ? date : nextBook.completedAt,
+          sentences: newHighlight
+            ? [newHighlight, ...book.sentences]
+            : book.sentences,
+        };
+      }),
+    );
+    setActiveTab("session");
 
-      setActiveTab("session");
-    } catch (error) {
-      handleSyncFailure(error, "독서 기록을 저장하지 못했습니다.");
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setSyncError("오프라인으로 저장했습니다. 네트워크 연결 시 자동으로 동기화됩니다.");
+      return;
     }
+
+    void syncPendingReadingRecord(pendingSync)
+      .then(() => {
+        savePendingReadingRecordSyncs(
+          getPendingReadingRecordSyncs().filter((item) => item.id !== recordId),
+        );
+        setSyncError(null);
+      })
+      .catch(() => {
+        setSyncError("오프라인으로 저장했습니다. 네트워크 연결 시 자동으로 동기화됩니다.");
+      });
   };
 
   const handleUpdateRecord = async (
@@ -1346,6 +1484,7 @@ function AuthenticatedApp({
 
 function BooklogApp() {
   const auth = useAuth();
+  const isAdminPath = window.location.pathname.startsWith("/admin");
 
   if (auth.isLoading) {
     return (
@@ -1366,6 +1505,10 @@ function BooklogApp() {
         onResetPassword={auth.resetPassword}
       />
     );
+  }
+
+  if (isAdminPath) {
+    return <AdminScreen user={auth.user} onSignOut={auth.signOut} />;
   }
 
   return <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />;

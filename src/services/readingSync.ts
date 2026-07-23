@@ -17,6 +17,9 @@ type BookRow = {
   cover_color: string
   accent_color: string
   thumbnail: string | null
+  isbn: string | null
+  publisher: string | null
+  contents: string | null
 }
 
 type HighlightRow = {
@@ -130,6 +133,9 @@ const mapBookRow = (row: BookRow, highlights: Highlight[], rounds: ReadingRound[
     coverColor: row.cover_color,
     accentColor: row.accent_color,
     thumbnail: row.thumbnail ?? undefined,
+    isbn: row.isbn ?? undefined,
+    publisher: row.publisher ?? undefined,
+    contents: row.contents ?? undefined,
     sentences: highlights,
     rounds: normalizedRounds,
     activeRoundId: activeRound.id,
@@ -259,6 +265,9 @@ export const createRemoteBook = async (
     cover_color: palette.coverColor,
     accent_color: palette.accentColor,
     thumbnail: input.thumbnail ?? null,
+    isbn: input.isbn?.trim() || null,
+    publisher: input.publisher?.trim() || null,
+    contents: input.contents?.trim() || null,
   }
 
   const { data, error } = await supabase.from('books').insert(payload).select('*').single()
@@ -341,6 +350,7 @@ export const updateRemoteReadingRound = async (
 export const createRemoteRecord = async (
   userId: string,
   input: {
+    id?: string
     bookId: string
     roundId?: string
     roundNumber?: number
@@ -356,24 +366,25 @@ export const createRemoteRecord = async (
   },
 ): Promise<ReadingRecord> => {
   const supabase = requireSupabase()
-  const { data, error } = await supabase
-    .from('reading_records')
-    .insert({
-      user_id: userId,
-      book_id: input.bookId,
-      round_id: input.roundId ?? null,
-      book_title: input.bookTitle,
-      read_date: toDbDate(input.date),
-      session_started_at: input.startedAt ?? null,
-      session_ended_at: input.endedAt ?? null,
-      duration_seconds: input.durationSeconds,
-      start_page: input.startPage,
-      end_page: input.endPage,
-      sentence: input.sentence ?? null,
-      sentence_page: input.sentencePage ?? null,
-    })
-    .select('*')
-    .single()
+  const payload = {
+    ...(input.id ? { id: input.id } : {}),
+    user_id: userId,
+    book_id: input.bookId,
+    round_id: input.roundId ?? null,
+    book_title: input.bookTitle,
+    read_date: toDbDate(input.date),
+    session_started_at: input.startedAt ?? null,
+    session_ended_at: input.endedAt ?? null,
+    duration_seconds: input.durationSeconds,
+    start_page: input.startPage,
+    end_page: input.endPage,
+    sentence: input.sentence ?? null,
+    sentence_page: input.sentencePage ?? null,
+  }
+  const query = input.id
+    ? supabase.from('reading_records').upsert(payload)
+    : supabase.from('reading_records').insert(payload)
+  const { data, error } = await query.select('*').single()
 
   if (error) throw error
 
@@ -440,20 +451,21 @@ export const deleteRemoteReadingRound = async (roundId: string) => {
 
 export const createRemoteHighlight = async (
   userId: string,
-  input: { bookId: string; text: string; page: number; recordedAt: string },
+  input: { id?: string; bookId: string; text: string; page: number; recordedAt: string },
 ): Promise<Highlight> => {
   const supabase = requireSupabase()
-  const { data, error } = await supabase
-    .from('highlights')
-    .insert({
-      user_id: userId,
-      book_id: input.bookId,
-      text: input.text.trim(),
-      page: input.page,
-      recorded_at: toDbDate(input.recordedAt),
-    })
-    .select('*')
-    .single()
+  const payload = {
+    ...(input.id ? { id: input.id } : {}),
+    user_id: userId,
+    book_id: input.bookId,
+    text: input.text.trim(),
+    page: input.page,
+    recorded_at: toDbDate(input.recordedAt),
+  }
+  const query = input.id
+    ? supabase.from('highlights').upsert(payload)
+    : supabase.from('highlights').insert(payload)
+  const { data, error } = await query.select('*').single()
 
   if (error) throw error
 
@@ -536,6 +548,9 @@ export const migrateLocalSnapshotToSupabase = async (
         startedAt: book.startedAt,
         completedAt: book.completedAt,
         thumbnail: book.thumbnail,
+        isbn: book.isbn,
+        publisher: book.publisher,
+        contents: book.contents,
       },
       palette,
       book.startedAt,

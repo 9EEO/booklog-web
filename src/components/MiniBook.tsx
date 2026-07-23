@@ -1,12 +1,15 @@
+import type { CSSProperties } from 'react'
 import type { Book } from '../types/reading'
 import { formatBookPages, getBookProgress } from '../utils/bookPages'
 
 type MiniBookProps = {
   book: Book
   compact?: boolean
+  coverStyle?: CSSProperties
+  coverTransitionKey?: string
 }
 
-export const MiniBook = ({ book, compact = false }: MiniBookProps) => {
+export const MiniBook = ({ book, compact = false, coverStyle, coverTransitionKey }: MiniBookProps) => {
   const progress = getBookProgress(book.currentPage, book.totalPages)
   const roundLabel = book.activeRoundNumber && book.activeRoundNumber > 1 ? `${book.activeRoundNumber}회독 · ` : ''
 
@@ -14,10 +17,11 @@ export const MiniBook = ({ book, compact = false }: MiniBookProps) => {
     <div className={`flex items-center gap-3 ${compact ? '' : 'min-w-0'}`}>
       <div
         className="book-cover shrink-0"
-        style={{ backgroundColor: book.coverColor, borderColor: book.accentColor }}
+        data-book-transition-key={coverTransitionKey}
+        style={{ backgroundColor: book.coverColor, borderColor: book.accentColor, ...coverStyle }}
       >
         {book.thumbnail ? (
-          <img className="book-cover-image" src={book.thumbnail} alt="" />
+          <img className="book-cover-image" src={book.thumbnail} alt={`${book.title} 표지`} draggable={false} />
         ) : (
           <span style={{ backgroundColor: book.accentColor }} />
         )}

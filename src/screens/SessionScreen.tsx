@@ -88,6 +88,35 @@ const todayLabel = () =>
     .replace(/\.\s?/g, ".")
     .replace(/\.$/, "");
 
+const toDateStart = (dateLabel: string) => {
+  const [year, month, day] = dateLabel.split(".").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return Number.isFinite(date.getTime()) ? date.getTime() : null;
+};
+
+const getDaysSinceLastReading = (book: Book, records: ReadingRecord[]) => {
+  const activeRoundId = book.activeRoundId;
+  const lastReadAt = records.reduce<number | null>((latest, record) => {
+    if (record.bookId !== book.id) return latest;
+    if (activeRoundId && record.roundId && record.roundId !== activeRoundId) {
+      return latest;
+    }
+
+    const recordDate = toDateStart(record.date);
+    if (recordDate === null) return latest;
+
+    return latest === null ? recordDate : Math.max(latest, recordDate);
+  }, null);
+
+  if (lastReadAt === null) return null;
+
+  const today = toDateStart(todayLabel());
+  if (today === null) return null;
+
+  return Math.floor((today - lastReadAt) / 86_400_000);
+};
+
 const useAnimatedPakProgress = (
   bookId: string,
   progress: number | null,
@@ -355,6 +384,11 @@ export const SessionScreen = ({
     bookProgress,
     pakInsertionSequence,
   );
+  const daysSinceLastReading = currentBook
+    ? getDaysSinceLastReading(currentBook, records)
+    : null;
+  const shouldShowReadingGapBanner =
+    daysSinceLastReading !== null && daysSinceLastReading > 0;
 
   useEffect(() => {
     return () => clearPakMotionTimer();
@@ -518,6 +552,15 @@ export const SessionScreen = ({
 
   return (
     <div className="session-screen space-y-4">
+      {shouldShowReadingGapBanner && (
+        <div className="session-reading-gap-banner" role="status">
+          <Icon name="timer" className="h-4 w-4" />
+          <span>
+            마지막 독서일로부터 {daysSinceLastReading}일이 지났어요
+          </span>
+        </div>
+      )}
+
       <section
         className={`session-focus-panel session-focus-panel-${pakMotion}`}
       >

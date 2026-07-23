@@ -33,6 +33,9 @@ export type Book = {
   coverColor: string
   accentColor: string
   thumbnail?: string
+  isbn?: string
+  publisher?: string
+  contents?: string
   sentences: Highlight[]
   rounds?: ReadingRound[]
   activeRoundId?: string
@@ -81,6 +84,9 @@ export type NewBookInput = {
   startedAt?: string
   completedAt?: string
   thumbnail?: string
+  isbn?: string
+  publisher?: string
+  contents?: string
 }
 
 export type BookSearchResult = {

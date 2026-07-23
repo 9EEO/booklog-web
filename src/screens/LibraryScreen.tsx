@@ -1,6 +1,7 @@
 import {
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -8,8 +9,10 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { flushSync } from "react-dom";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
+import { InteractiveBookCover } from "../components/InteractiveBookCover";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
 import { ReadingJourneyChart } from "../components/ReadingJourneyChart";
@@ -17,6 +20,7 @@ import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
 import { SwipeableView } from "../components/SwipeableView";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
+import { resolveBestBookCover } from "../services/bookCovers";
 import { hasKakaoBookApiKey, searchKakaoBooks } from "../services/kakaoBooks";
 import type {
   Book,
@@ -77,11 +81,107 @@ type SearchStatus = "idle" | "loading" | "success" | "empty" | "error";
 type BookFormStep = "search" | "details";
 type ShelfTab = "reading" | "completed";
 type LibraryView = "shelf" | "tier";
+type BookTransitionState =
+  | "idle"
+  | "pressing"
+  | "leaving-list"
+  | "entering-detail"
+  | "detail-idle"
+  | "leaving-detail"
+  | "returning-list";
+
+type DocumentWithViewTransition = Document & {
+  startViewTransition?: (callback: () => void) => {
+    finished: Promise<void>;
+    ready: Promise<void>;
+  };
+};
 
 const shelfTabOptions: Array<{ value: ShelfTab; label: string }> = [
   { value: "reading", label: "독서중" },
   { value: "completed", label: "완독" },
 ];
+
+const getBookTransitionKey = (bookId: string) =>
+  `book-cover-${bookId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+
+const supportsViewTransition = () =>
+  typeof document !== "undefined" &&
+  typeof (document as DocumentWithViewTransition).startViewTransition ===
+    "function" &&
+  !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const getTransitionCoverElement = (transitionKey: string) =>
+  document.querySelector<HTMLElement>(
+    `[data-book-transition-key="${transitionKey}"]`,
+  );
+
+const animateCoverClone = async (
+  sourceElement: HTMLElement | null,
+  getTargetElement: () => HTMLElement | null,
+  updateView: () => void,
+) => {
+  if (
+    !sourceElement ||
+    !sourceElement.isConnected ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    updateView();
+    return;
+  }
+
+  const startRect = sourceElement.getBoundingClientRect();
+  const overlay = sourceElement.cloneNode(true) as HTMLElement;
+  overlay.classList.add("book-cover-transition-overlay");
+  overlay.style.left = `${startRect.left}px`;
+  overlay.style.top = `${startRect.top}px`;
+  overlay.style.width = `${startRect.width}px`;
+  overlay.style.height = `${startRect.height}px`;
+  sourceElement.classList.add("book-cover-transition-hidden");
+  document.body.appendChild(overlay);
+
+  updateView();
+
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+
+  const targetElement = getTargetElement();
+  if (!targetElement || !targetElement.isConnected) {
+    overlay.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: 180,
+      easing: "ease",
+    }).finished.finally(() => overlay.remove());
+    sourceElement.classList.remove("book-cover-transition-hidden");
+    return;
+  }
+
+  const endRect = targetElement.getBoundingClientRect();
+  targetElement.classList.add("book-cover-transition-hidden");
+  const scaleX = endRect.width / startRect.width;
+  const scaleY = endRect.height / startRect.height;
+  const translateX = endRect.left - startRect.left;
+  const translateY = endRect.top - startRect.top;
+
+  try {
+    await overlay.animate(
+      [
+        { transform: "translate3d(0, 0, 0) scale(1, 1)" },
+        {
+          transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scaleX}, ${scaleY})`,
+        },
+      ],
+      {
+        duration: 520,
+        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      },
+    ).finished;
+  } finally {
+    overlay.remove();
+    sourceElement.classList.remove("book-cover-transition-hidden");
+    targetElement.classList.remove("book-cover-transition-hidden");
+  }
+};
 
 const parseAnimatedMetric = (value: string) => {
   const match = value.match(/^(\d+)(.*)$/);
@@ -492,6 +592,12 @@ export const LibraryScreen = ({
   const [isMutating, setIsMutating] = useState(false);
   const [activeShelfTab, setActiveShelfTab] = useState<ShelfTab>("reading");
   const [libraryView, setLibraryView] = useState<LibraryView>("shelf");
+  const [bookTransitionState, setBookTransitionState] =
+    useState<BookTransitionState>("idle");
+  const [transitionBookId, setTransitionBookId] = useState<string | null>(null);
+  const detailPageRef = useRef<HTMLElement | null>(null);
+  const bookButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const listScrollYRef = useRef(0);
   const selectedBook = selectedBookId
     ? books.find((book) => book.id === selectedBookId)
     : null;
@@ -613,7 +719,19 @@ export const LibraryScreen = ({
     };
   }, [onDetailModeChange]);
 
-  const selectBook = (bookId: string) => {
+  const registerBookButton = useCallback(
+    (bookId: string, element: HTMLButtonElement | null) => {
+      if (element) {
+        bookButtonRefs.current.set(bookId, element);
+        return;
+      }
+
+      bookButtonRefs.current.delete(bookId);
+    },
+    [],
+  );
+
+  const applySelectedBook = (bookId: string) => {
     const book = books.find((item) => item.id === bookId);
 
     setSelectedBookId(bookId);
@@ -621,7 +739,7 @@ export const LibraryScreen = ({
     setTotalPagesDraft(book?.totalPages ?? book?.currentPage ?? 1);
   };
 
-  const closeDetail = () => {
+  const resetDetailState = () => {
     setSelectedBookId(null);
     setEditingSentenceId(null);
     setIsAddingSentence(false);
@@ -630,6 +748,102 @@ export const LibraryScreen = ({
     setDeleteRoundId(null);
     setSelectedRoundId(null);
     setExpandedCompleteSentenceId(null);
+  };
+
+  const selectBook = async (bookId: string) => {
+    if (
+      bookTransitionState !== "idle" &&
+      bookTransitionState !== "detail-idle"
+    ) {
+      return;
+    }
+    if (selectedBookId === bookId) return;
+
+    const transitionKey = getBookTransitionKey(bookId);
+    const sourceElement = getTransitionCoverElement(transitionKey);
+    listScrollYRef.current = window.scrollY;
+    flushSync(() => {
+      setTransitionBookId(bookId);
+      setBookTransitionState("leaving-list");
+    });
+
+    if (supportsViewTransition()) {
+      const transition = (
+        document as DocumentWithViewTransition
+      ).startViewTransition?.(() => {
+        flushSync(() => {
+          applySelectedBook(bookId);
+          setBookTransitionState("entering-detail");
+        });
+      });
+
+      await transition?.finished.catch(() => undefined);
+    } else {
+      await animateCoverClone(
+        sourceElement,
+        () => getTransitionCoverElement(transitionKey),
+        () => {
+          flushSync(() => {
+            applySelectedBook(bookId);
+            setBookTransitionState("entering-detail");
+          });
+        },
+      );
+    }
+
+    setBookTransitionState("detail-idle");
+    window.requestAnimationFrame(() => {
+      detailPageRef.current?.focus({ preventScroll: true });
+    });
+  };
+
+  const closeDetail = async () => {
+    if (!selectedBookId) return;
+    if (
+      bookTransitionState !== "detail-idle" &&
+      bookTransitionState !== "idle"
+    ) {
+      return;
+    }
+
+    const closingBookId = selectedBookId;
+    const transitionKey = getBookTransitionKey(closingBookId);
+    const sourceElement = getTransitionCoverElement(transitionKey);
+    flushSync(() => {
+      setTransitionBookId(closingBookId);
+      setBookTransitionState("leaving-detail");
+    });
+
+    if (supportsViewTransition()) {
+      const transition = (
+        document as DocumentWithViewTransition
+      ).startViewTransition?.(() => {
+        flushSync(() => {
+          resetDetailState();
+          setBookTransitionState("returning-list");
+        });
+      });
+
+      await transition?.finished.catch(() => undefined);
+    } else {
+      await animateCoverClone(
+        sourceElement,
+        () => getTransitionCoverElement(transitionKey),
+        () => {
+          flushSync(() => {
+            resetDetailState();
+            setBookTransitionState("returning-list");
+          });
+        },
+      );
+    }
+
+    window.scrollTo({ top: listScrollYRef.current, behavior: "auto" });
+    setBookTransitionState("idle");
+    setTransitionBookId(null);
+    window.requestAnimationFrame(() => {
+      bookButtonRefs.current.get(closingBookId)?.focus({ preventScroll: true });
+    });
   };
 
   const startEdit = (sentenceId: string, text: string, page: number) => {
@@ -860,12 +1074,17 @@ export const LibraryScreen = ({
     setIsMutating(true);
 
     try {
+      const resolvedThumbnail = await resolveBestBookCover({
+        isbn: newBook.isbn,
+        fallbackThumbnail: newBook.thumbnail,
+      });
       const newBookId = await onAddBook({
         ...newBook,
         totalPages,
         currentPage,
         startedAt: startedAt ?? undefined,
         completedAt: completedAt ?? undefined,
+        thumbnail: resolvedThumbnail,
       });
 
       setSelectedBookId(newBookId);
@@ -914,9 +1133,28 @@ export const LibraryScreen = ({
       title: book.title,
       author: book.authors.join(", ") || current.author,
       thumbnail: book.thumbnail,
+      isbn: book.isbn,
+      publisher: book.publisher,
+      contents: book.contents,
     }));
     setBookDateError("");
     setBookFormStep("details");
+
+    void resolveBestBookCover({
+      isbn: book.isbn,
+      fallbackThumbnail: book.thumbnail,
+    }).then((resolvedThumbnail) => {
+      if (!resolvedThumbnail || resolvedThumbnail === book.thumbnail) return;
+
+      setNewBook((current) => {
+        if (current.isbn !== book.isbn) return current;
+
+        return {
+          ...current,
+          thumbnail: resolvedThumbnail,
+        };
+      });
+    });
   };
 
   useBackNavigationLayer(
@@ -1060,6 +1298,9 @@ export const LibraryScreen = ({
                   books={activeShelfBooks}
                   tierBoard={tierBoard}
                   onSelectBook={selectBook}
+                  transitionBookId={transitionBookId}
+                  transitionState={bookTransitionState}
+                  registerBookButton={registerBookButton}
                 />
               </SwipeableView>
             </div>
@@ -1068,7 +1309,12 @@ export const LibraryScreen = ({
       )}
 
       {selectedBook && (
-        <section className="book-detail-page" aria-label="책 상세">
+        <section
+          ref={detailPageRef}
+          className={`book-detail-page book-detail-transition-${bookTransitionState}`}
+          aria-label="책 상세"
+          tabIndex={-1}
+        >
           <header className="book-detail-page-header">
             <button
               type="button"
@@ -1079,7 +1325,7 @@ export const LibraryScreen = ({
                   return;
                 }
 
-                closeDetail();
+                void closeDetail();
               }}
               aria-label={
                 selectedRound ? "책 상세로 돌아가기" : "서재로 돌아가기"
@@ -1105,7 +1351,7 @@ export const LibraryScreen = ({
                 </div>
               </div>
 
-              <div className="book-detail-body">
+              <div className="book-detail-body book-detail-enter-item book-detail-enter-item-3">
                 <div className="book-round-summary">
                   <div className="book-round-stat book-round-stat-status">
                     <span>상태</span>
@@ -1351,22 +1597,17 @@ export const LibraryScreen = ({
             <>
               <div className="book-detail-header">
                 <div className="book-detail-hero">
-                  <div
-                    className="book-detail-cover"
-                    style={{
-                      backgroundColor: selectedBook.coverColor,
-                      borderColor: selectedBook.accentColor,
-                    }}
-                  >
-                    {selectedBook.thumbnail ? (
-                      <img src={selectedBook.thumbnail} alt="" />
-                    ) : (
-                      <span
-                        style={{ backgroundColor: selectedBook.accentColor }}
-                      />
-                    )}
-                  </div>
-                  <div className="book-detail-hero-copy">
+                  <InteractiveBookCover
+                    coverImage={selectedBook.thumbnail}
+                    title={selectedBook.title}
+                    author={selectedBook.author}
+                    coverColor={selectedBook.coverColor}
+                    accentColor={selectedBook.accentColor}
+                    viewTransitionName={getBookTransitionKey(selectedBook.id)}
+                    transitionKey={getBookTransitionKey(selectedBook.id)}
+                    isSettled={bookTransitionState === "detail-idle"}
+                  />
+                  <div className="book-detail-hero-copy book-detail-enter-item book-detail-enter-item-1">
                     <div className="book-detail-hero-meta">
                       <span className="book-detail-status-badge">
                         {getReadingStatusLabel(
@@ -1384,7 +1625,7 @@ export const LibraryScreen = ({
                     <p>{selectedBook.author}</p>
                   </div>
                   <div
-                    className="book-detail-hero-progress"
+                    className="book-detail-hero-progress book-detail-enter-item book-detail-enter-item-2"
                     aria-label="독서 진행률"
                   >
                     <div className="book-detail-hero-progress-label">
@@ -2583,6 +2824,9 @@ type BookShelfSectionProps = {
   books: Book[];
   tierBoard: TierBoard;
   onSelectBook: (bookId: string) => void;
+  transitionBookId: string | null;
+  transitionState: BookTransitionState;
+  registerBookButton: (bookId: string, element: HTMLButtonElement | null) => void;
 };
 
 const BookShelfSection = ({
@@ -2590,6 +2834,9 @@ const BookShelfSection = ({
   books,
   tierBoard,
   onSelectBook,
+  transitionBookId,
+  transitionState,
+  registerBookButton,
 }: BookShelfSectionProps) => {
   const completedPages = books.reduce(
     (sum, book) => sum + (book.totalPages ?? book.currentPage),
@@ -2619,19 +2866,36 @@ const BookShelfSection = ({
           <div className="completed-library-grid">
             {books.map((book, index) => {
               const bookTier = getBookTier(tierBoard, book.id);
+              const transitionKey = getBookTransitionKey(book.id);
+              const isTransitionBook = transitionBookId === book.id;
+              const isTransitioningFromList =
+                transitionState === "leaving-list" ||
+                transitionState === "entering-detail";
 
               return (
                 <button
                   key={book.id}
+                  ref={(element) => registerBookButton(book.id, element)}
                   type="button"
-                  className="completed-book-button"
+                  className={`completed-book-button book-select-button ${
+                    isTransitionBook ? "book-select-button-active" : ""
+                  } ${
+                    isTransitioningFromList && !isTransitionBook
+                      ? "book-select-button-dimmed"
+                      : ""
+                  }`}
                   onClick={() => onSelectBook(book.id)}
+                  aria-label={`${book.title} 상세 보기`}
                 >
                   <div className="completed-book-card">
                     <div className="completed-book-card-inner">
                       <div
                         className="completed-book-cover"
-                        style={{ backgroundColor: book.coverColor }}
+                        data-book-transition-key={transitionKey}
+                        style={{
+                          backgroundColor: book.coverColor,
+                          viewTransitionName: transitionKey,
+                        }}
                       >
                         <span className="completed-book-badge completed-book-rank-badge">
                           #{index + 1}
@@ -2645,7 +2909,11 @@ const BookShelfSection = ({
                           </span>
                         )}
                         {book.thumbnail ? (
-                          <img src={book.thumbnail} alt="" />
+                          <img
+                            src={book.thumbnail}
+                            alt={`${book.title} 표지`}
+                            draggable={false}
+                          />
                         ) : (
                           <div
                             className="h-full w-full"
@@ -2667,16 +2935,33 @@ const BookShelfSection = ({
         <div className="library-reading-list">
           {books.map((book) => {
             const progress = getBookProgress(book.currentPage, book.totalPages);
+            const transitionKey = getBookTransitionKey(book.id);
+            const isTransitionBook = transitionBookId === book.id;
+            const isTransitioningFromList =
+              transitionState === "leaving-list" ||
+              transitionState === "entering-detail";
 
             return (
               <button
                 key={book.id}
+                ref={(element) => registerBookButton(book.id, element)}
                 type="button"
-                className="library-book-card"
+                className={`library-book-card book-select-button ${
+                  isTransitionBook ? "book-select-button-active" : ""
+                } ${
+                  isTransitioningFromList && !isTransitionBook
+                    ? "book-select-button-dimmed"
+                    : ""
+                }`}
                 onClick={() => onSelectBook(book.id)}
+                aria-label={`${book.title} 상세 보기`}
               >
                 <div className="library-book-card-main">
-                  <MiniBook book={book} />
+                  <MiniBook
+                    book={book}
+                    coverTransitionKey={transitionKey}
+                    coverStyle={{ viewTransitionName: transitionKey }}
+                  />
                   <span className="library-book-progress-badge">
                     {progress !== null
                       ? `${progress}%`

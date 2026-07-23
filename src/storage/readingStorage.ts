@@ -1,4 +1,4 @@
-import type { Book, ReadingRecord, ReadingRound, TabKey } from '../types/reading'
+import type { Book, BookStatus, ReadingRecord, ReadingRound, TabKey } from '../types/reading'
 import type { TimerMode, TimerStatus } from '../hooks/useReadingTimer'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
@@ -22,6 +22,49 @@ export type ReadingStorageSnapshot = {
   readingTimer: StoredReadingTimer
 }
 
+export type PendingReadingRecordSync = {
+  id: string
+  userId: string
+  record: {
+    id: string
+    bookId: string
+    roundId?: string
+    roundNumber?: number
+    bookTitle: string
+    date: string
+    startedAt?: string
+    endedAt?: string
+    durationSeconds: number
+    startPage: number
+    endPage: number
+    sentence?: string
+    sentencePage?: number
+  }
+  book: {
+    id: string
+    currentPage: number
+    accumulatedSeconds: number
+    status: BookStatus
+    startedAt?: string
+    completedAt: string | null
+  }
+  round?: {
+    id: string
+    currentPage: number
+    accumulatedSeconds: number
+    status: BookStatus
+    startedAt?: string
+    completedAt: string | null
+  }
+  highlight?: {
+    id: string
+    bookId: string
+    text: string
+    page: number
+    recordedAt: string
+  }
+}
+
 export const defaultDailyGoalSeconds = 20 * 60
 export const defaultWeeklyGoalDays = 5
 
@@ -35,6 +78,7 @@ export const readingStorageKeys = {
   weeklyGoalDays: 'booklog-weekly-goal-days',
   tierBoard: 'booklog-tier-board',
   readingTimer: 'booklog-reading-timer',
+  pendingReadingRecordSyncs: 'booklog-pending-reading-record-syncs',
 } as const
 
 const tabKeys: TabKey[] = ['home', 'session', 'records', 'library', 'profile']
@@ -210,4 +254,14 @@ export const getStoredReadingTimer = (initialTargetSeconds: number): StoredReadi
 
 export const saveReadingTimer = (timer: StoredReadingTimer) => {
   writeLocalStorage(readingStorageKeys.readingTimer, timer)
+}
+
+export const getPendingReadingRecordSyncs = () => {
+  const pending = readLocalStorage<PendingReadingRecordSync[]>(readingStorageKeys.pendingReadingRecordSyncs, [])
+
+  return Array.isArray(pending) ? pending : []
+}
+
+export const savePendingReadingRecordSyncs = (pending: PendingReadingRecordSync[]) => {
+  writeLocalStorage(readingStorageKeys.pendingReadingRecordSyncs, pending)
 }
