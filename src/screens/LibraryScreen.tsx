@@ -1571,28 +1571,6 @@ export const LibraryScreen = ({
                   </div>
                 </section>
 
-                <section className="book-complete-ai-card">
-                  <div className="book-complete-ai-copy">
-                    <div className="book-complete-ai-icon">
-                      <Icon name="quote" className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h2>책과 다시 대화하기</h2>
-                      <p>
-                        완독 기록과 남겨둔 문장을 바탕으로 회고를 이어갑니다.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="book-complete-ai-button"
-                    onClick={() => setIsBookChatOpen(true)}
-                  >
-                    시작
-                    <Icon name="chevronRight" className="h-4 w-4" />
-                  </button>
-                </section>
-
                 <div className="book-complete-mini-insights">
                   <article className="book-complete-focus-card">
                     <h2>몰입 리듬</h2>
@@ -2275,6 +2253,16 @@ export const LibraryScreen = ({
               </div>
             </>
           ) : null}
+        {selectedBookReport && !selectedRound && (
+          <button
+            type="button"
+            className="book-chat-floating-button"
+            onClick={() => setIsBookChatOpen(true)}
+            aria-label="AI 완독 회고 열기"
+          >
+            <Icon name="chat" className="h-6 w-6" />
+          </button>
+        )}
         </section>
       )}
 
