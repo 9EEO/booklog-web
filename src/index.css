@@ -9426,16 +9426,9 @@ button {
     box-shadow 160ms ease;
 }
 
-.book-chat-floating-button::after {
-  content: "";
-  position: absolute;
-  top: 11px;
-  right: 11px;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.24);
+.book-chat-floating-icon {
+  width: 30px;
+  height: 30px;
 }
 
 .book-chat-floating-button:active {

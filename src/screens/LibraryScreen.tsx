@@ -2260,7 +2260,7 @@ export const LibraryScreen = ({
             onClick={() => setIsBookChatOpen(true)}
             aria-label="AI 완독 회고 열기"
           >
-            <Icon name="chat" className="h-6 w-6" />
+            <Icon name="chat" className="book-chat-floating-icon" />
           </button>
         )}
         </section>
