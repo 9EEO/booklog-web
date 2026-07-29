@@ -5,6 +5,25 @@
 - Design system and component inventory: `http://localhost:5173/?design-system`
 - The design system view is only available while running Vite in development mode.
 
+## Local environment
+
+Create `.env.local` in the project root and add the Supabase values from
+Supabase Dashboard > Project Settings > API:
+
+```env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+The admin API routes also need server-only values:
+
+```env
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
+
+After changing `.env.local`, restart the Vite dev server.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -21,6 +21,10 @@ import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
 import { SwipeableView } from "../components/SwipeableView";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import { resolveBestBookCover } from "../services/bookCovers";
+import {
+  createBookChatMessage,
+  sendBookChatMessage,
+} from "../services/bookChat";
 import { hasKakaoBookApiKey, searchKakaoBooks } from "../services/kakaoBooks";
 import type {
   Book,
@@ -29,7 +33,9 @@ import type {
   ReadingRecord,
   ReadingRound,
 } from "../types/reading";
+import type { BookChatMessage } from "../types/bookChat";
 import { buildCompletedReadingReport } from "../utils/completedReadingReport";
+import { buildCompletedBookChatContext } from "../utils/completedBookChatContext";
 import { formatDuration } from "../utils/formatDuration";
 import { parsePageInput } from "../utils/pageInput";
 import { buildReadingPattern } from "../utils/readingPattern";
@@ -100,6 +106,15 @@ type DocumentWithViewTransition = Document & {
 const shelfTabOptions: Array<{ value: ShelfTab; label: string }> = [
   { value: "reading", label: "독서중" },
   { value: "completed", label: "완독" },
+];
+
+const bookChatInitialQuestions = [
+  "이 책을 내가 어떻게 읽었는지 요약해줘",
+  "저자와 책 배경을 내 기록과 연결해줘",
+  "저장한 문장들의 공통 주제를 찾아줘",
+  "독서모임에서 말할 감상 포인트를 만들어줘",
+  "이 책을 한 문장 리뷰로 정리해줘",
+  "비슷하게 읽을 만한 책 방향을 추천해줘",
 ];
 
 const getBookTransitionKey = (bookId: string) =>
@@ -572,6 +587,13 @@ export const LibraryScreen = ({
   const [expandedCompleteSentenceId, setExpandedCompleteSentenceId] = useState<
     string | null
   >(null);
+  const [isBookChatOpen, setIsBookChatOpen] = useState(false);
+  const [bookChatMessages, setBookChatMessages] = useState<BookChatMessage[]>(
+    [],
+  );
+  const [bookChatDraft, setBookChatDraft] = useState("");
+  const [isBookChatLoading, setIsBookChatLoading] = useState(false);
+  const [bookChatError, setBookChatError] = useState("");
   const [sentenceSort, setSentenceSort] = useState<"created" | "page">(
     "created",
   );
@@ -743,6 +765,11 @@ export const LibraryScreen = ({
     setSelectedBookId(null);
     setEditingSentenceId(null);
     setIsAddingSentence(false);
+    setIsBookChatOpen(false);
+    setBookChatMessages([]);
+    setBookChatDraft("");
+    setIsBookChatLoading(false);
+    setBookChatError("");
     setDeleteSentenceId(null);
     setDeleteBookId(null);
     setDeleteRoundId(null);
@@ -960,6 +987,62 @@ export const LibraryScreen = ({
     setIsBookFormOpen(true);
   };
 
+  const submitBookChatQuestion = async (question: string) => {
+    if (
+      !selectedBook ||
+      selectedBook.status !== "completed" ||
+      isBookChatLoading
+    ) {
+      return;
+    }
+
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) return;
+
+    const userMessage = createBookChatMessage({
+      role: "user",
+      content: trimmedQuestion,
+    });
+    const nextMessages = [...bookChatMessages, userMessage];
+    const context = buildCompletedBookChatContext({
+      book: selectedBook,
+      records: selectedBookRecords,
+      report: selectedBookReport,
+      pattern: selectedBookPattern,
+      tierBoard,
+      completedBooks,
+    });
+
+    setBookChatMessages(nextMessages);
+    setBookChatDraft("");
+    setBookChatError("");
+    setIsBookChatLoading(true);
+
+    try {
+      const response = await sendBookChatMessage({
+        context,
+        question: trimmedQuestion,
+        messages: nextMessages,
+      });
+      const assistantMessage = createBookChatMessage({
+        role: "assistant",
+        content: response.answer,
+        evidence: response.evidence,
+        followUpQuestions: response.followUpQuestions,
+      });
+
+      setBookChatMessages((current) => [...current, assistantMessage]);
+    } catch (error) {
+      setBookChatError(
+        error instanceof Error
+          ? error.message
+          : "AI 응답을 불러오지 못했습니다.",
+      );
+    } finally {
+      setIsBookChatLoading(false);
+    }
+  };
+
   const confirmDeleteRound = async () => {
     if (!selectedBook || !deleteRound || deleteRound.roundNumber <= 1) return;
     if (isMutating) return;
@@ -1172,6 +1255,11 @@ export const LibraryScreen = ({
     Boolean(selectedBook && isAddingSentence),
     cancelDraft,
     "library-add-sentence",
+  );
+  useBackNavigationLayer(
+    Boolean(selectedBook && isBookChatOpen),
+    () => setIsBookChatOpen(false),
+    "library-book-chat",
   );
   useBackNavigationLayer(
     Boolean(deleteBook),
@@ -1481,6 +1569,28 @@ export const LibraryScreen = ({
                       </span>
                     ))}
                   </div>
+                </section>
+
+                <section className="book-complete-ai-card">
+                  <div className="book-complete-ai-copy">
+                    <div className="book-complete-ai-icon">
+                      <Icon name="quote" className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2>책과 다시 대화하기</h2>
+                      <p>
+                        완독 기록과 남겨둔 문장을 바탕으로 회고를 이어갑니다.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="book-complete-ai-button"
+                    onClick={() => setIsBookChatOpen(true)}
+                  >
+                    시작
+                    <Icon name="chevronRight" className="h-4 w-4" />
+                  </button>
                 </section>
 
                 <div className="book-complete-mini-insights">
@@ -2167,6 +2277,131 @@ export const LibraryScreen = ({
           ) : null}
         </section>
       )}
+
+      <BottomSheetModal
+        isOpen={Boolean(selectedBook && isBookChatOpen)}
+        ariaLabel="AI 완독 회고"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="book-chat-sheet"
+        onBackdropClick={() => setIsBookChatOpen(false)}
+      >
+        {selectedBook && (
+          <>
+            <div className="book-chat-header">
+              <div>
+                <span>AI 완독 회고</span>
+                <h2>{selectedBook.title}</h2>
+                <p>
+                  {selectedBook.completedAt ?? "완독일 기록 전"} ·{" "}
+                  {formatDuration(selectedBookRecordedSeconds)}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="book-chat-close"
+                onClick={() => setIsBookChatOpen(false)}
+                aria-label="AI 완독 회고 닫기"
+              >
+                <Icon name="close" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="book-chat-messages" aria-live="polite">
+              {bookChatMessages.length === 0 ? (
+                <div className="book-chat-empty">
+                  <strong>완독 기록을 기준으로 질문해보세요.</strong>
+                  <p>
+                    책 전문 대신, 내가 남긴 독서 시간과 문장을 근거로 회고를
+                    도와줍니다.
+                  </p>
+                </div>
+              ) : (
+                bookChatMessages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={`book-chat-message book-chat-message-${message.role}`}
+                  >
+                    <div className="book-chat-bubble">
+                      {message.content.split("\n").map((line, index) => (
+                        <p key={`${message.id}-${index}`}>{line || "\u00A0"}</p>
+                      ))}
+                    </div>
+
+                    {message.followUpQuestions &&
+                      message.followUpQuestions.length > 0 && (
+                        <div className="book-chat-followups">
+                          {message.followUpQuestions.map((followUp) => (
+                            <button
+                              key={followUp}
+                              type="button"
+                              onClick={() => void submitBookChatQuestion(followUp)}
+                              disabled={isBookChatLoading}
+                            >
+                              {followUp}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                  </article>
+                ))
+              )}
+
+              {isBookChatLoading && (
+                <div className="book-chat-message book-chat-message-assistant">
+                  <div className="book-chat-bubble book-chat-bubble-loading">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {bookChatMessages.length === 0 && (
+              <div className="book-chat-prompt-grid">
+                {bookChatInitialQuestions.map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    onClick={() => void submitBookChatQuestion(question)}
+                    disabled={isBookChatLoading}
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {bookChatError && (
+              <p className="book-chat-error" role="alert">
+                {bookChatError}
+              </p>
+            )}
+
+            <form
+              className="book-chat-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submitBookChatQuestion(bookChatDraft);
+              }}
+            >
+              <input
+                value={bookChatDraft}
+                onChange={(event) => setBookChatDraft(event.target.value)}
+                placeholder="완독 기록에 대해 물어보세요"
+                disabled={isBookChatLoading}
+              />
+              <button
+                type="submit"
+                disabled={bookChatDraft.trim().length === 0 || isBookChatLoading}
+                aria-label="AI에게 질문 보내기"
+              >
+                <Icon name="chevronRight" className="h-5 w-5" />
+              </button>
+            </form>
+          </>
+        )}
+      </BottomSheetModal>
 
       <BottomSheetModal
         isOpen={Boolean(selectedBook && isAddingSentence)}
