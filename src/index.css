@@ -9446,7 +9446,7 @@ button {
 .book-chat-sheet {
   display: flex;
   width: 100%;
-  max-width: none;
+  max-width: 520px;
   height: 80svh;
   max-height: 80svh;
   flex-direction: column;
@@ -9458,13 +9458,13 @@ button {
 
 .book-chat-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid rgba(37, 99, 235, 0.16);
   background: #2563eb;
   color: #ffffff;
-  padding: 16px;
+  padding: 8px 16px;
 }
 
 .book-chat-header span,
@@ -9477,7 +9477,6 @@ button {
 
 .book-chat-header h2 {
   overflow: hidden;
-  margin-top: 3px;
   font-size: 16px;
   font-weight: 950;
   text-overflow: ellipsis;
@@ -9490,13 +9489,12 @@ button {
 
 .book-chat-close {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.14);
+  border: 0;
+  background: transparent;
   color: #ffffff;
 }
 
@@ -9539,6 +9537,7 @@ button {
 
 .book-chat-message-user {
   justify-items: end;
+  scroll-margin-top: 6px;
 }
 
 .book-chat-message-assistant {

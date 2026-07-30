@@ -109,12 +109,30 @@ const shelfTabOptions: Array<{ value: ShelfTab; label: string }> = [
 ];
 
 const bookChatInitialQuestions = [
-  "이 책을 내가 어떻게 읽었는지 요약해줘",
-  "저자와 책 배경을 내 기록과 연결해줘",
-  "저장한 문장들의 공통 주제를 찾아줘",
-  "독서모임에서 말할 감상 포인트를 만들어줘",
-  "이 책을 한 문장 리뷰로 정리해줘",
-  "비슷하게 읽을 만한 책 방향을 추천해줘",
+  {
+    label: "내 독서 흐름 요약",
+    question: "이 책을 내가 어떻게 읽었는지 요약해줘",
+  },
+  {
+    label: "저자 배경 연결",
+    question: "저자와 책 배경을 내 기록과 연결해줘",
+  },
+  {
+    label: "저장 문장 주제",
+    question: "저장한 문장들의 공통 주제를 찾아줘",
+  },
+  {
+    label: "독서모임 포인트",
+    question: "독서모임에서 말할 감상 포인트를 만들어줘",
+  },
+  {
+    label: "한 문장 리뷰",
+    question: "이 책을 한 문장 리뷰로 정리해줘",
+  },
+  {
+    label: "다음 책 방향",
+    question: "비슷하게 읽을 만한 책 방향을 추천해줘",
+  },
 ];
 
 const getBookTransitionKey = (bookId: string) =>
@@ -598,6 +616,8 @@ export const LibraryScreen = ({
   const [bookChatDraft, setBookChatDraft] = useState("");
   const [isBookChatLoading, setIsBookChatLoading] = useState(false);
   const [bookChatError, setBookChatError] = useState("");
+  const latestBookChatQuestionRef = useRef<HTMLElement | null>(null);
+  const bookChatEndRef = useRef<HTMLDivElement | null>(null);
   const [sentenceSort, setSentenceSort] = useState<"created" | "page">(
     "created",
   );
@@ -1300,6 +1320,33 @@ export const LibraryScreen = ({
         : latestId,
     null,
   );
+  const latestBookChatQuestionId = bookChatMessages.reduce<string | null>(
+    (latestId, message) => (message.role === "user" ? message.id : latestId),
+    null,
+  );
+
+  const scrollBookChatElementIntoView = (
+    element: Element | null,
+    block: ScrollLogicalPosition,
+  ) => {
+    requestAnimationFrame(() => {
+      element?.scrollIntoView({
+        behavior: "smooth",
+        block,
+      });
+    });
+  };
+
+  useEffect(() => {
+    if (!isBookChatOpen) return;
+
+    scrollBookChatElementIntoView(
+      isBookChatLoading
+        ? bookChatEndRef.current
+        : latestBookChatQuestionRef.current,
+      isBookChatLoading ? "end" : "start",
+    );
+  }, [bookChatMessages, isBookChatLoading, isBookChatOpen]);
 
   return (
     <div className="library-page">
@@ -2292,12 +2339,7 @@ export const LibraryScreen = ({
           <>
             <div className="book-chat-header">
               <div>
-                {/* <span>AI 완독 회고</span> */}
                 <h2>{selectedBook.title}</h2>
-                <p>
-                  {selectedBook.completedAt ?? "완독일 기록 전"} ·{" "}
-                  {formatDuration(selectedBookRecordedSeconds)}
-                </p>
               </div>
               <button
                 type="button"
@@ -2305,7 +2347,7 @@ export const LibraryScreen = ({
                 onClick={() => setIsBookChatOpen(false)}
                 aria-label="AI 완독 회고 닫기"
               >
-                <Icon name="close" className="h-4 w-4" />
+                <Icon name="close" className="h-[22px] w-[22px]" />
               </button>
             </div>
 
@@ -2321,14 +2363,16 @@ export const LibraryScreen = ({
                   </div>
 
                   <div className="book-chat-prompt-grid">
-                    {bookChatInitialQuestions.map((question) => (
+                    {bookChatInitialQuestions.map((prompt) => (
                       <button
-                        key={question}
+                        key={prompt.label}
                         type="button"
-                        onClick={() => void submitBookChatQuestion(question)}
+                        onClick={() =>
+                          void submitBookChatQuestion(prompt.question)
+                        }
                         disabled={isBookChatLoading}
                       >
-                        {question}
+                        {prompt.label}
                       </button>
                     ))}
                   </div>
@@ -2337,6 +2381,11 @@ export const LibraryScreen = ({
                 bookChatMessages.map((message) => (
                   <article
                     key={message.id}
+                    ref={
+                      message.id === latestBookChatQuestionId
+                        ? latestBookChatQuestionRef
+                        : undefined
+                    }
                     className={`book-chat-message book-chat-message-${message.role}`}
                   >
                     <div className="book-chat-bubble">
@@ -2376,6 +2425,8 @@ export const LibraryScreen = ({
                   </div>
                 </div>
               )}
+
+              <div ref={bookChatEndRef} />
             </div>
 
             {bookChatError && (
