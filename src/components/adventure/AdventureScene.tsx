@@ -39,6 +39,12 @@ type AdventureSceneProps = {
   memoryLogs: MemoryLog[];
   memorySeed: string;
   completionContent?: ReactNode;
+  emptyState?: {
+    title: string;
+    description: string;
+    actionLabel: string;
+    onAction: () => void;
+  };
   onChangeMode: (mode: AdventureMode) => void;
   onSelectPreset: (seconds: number) => void;
   onStart: () => void;
@@ -151,6 +157,45 @@ const MissionList = styled.div`
   align-content: center;
   gap: 6px;
   margin-top: 8px;
+`;
+
+const EmptyMissionGuide = styled.div`
+  display: grid;
+  min-height: 210px;
+  place-items: center;
+  padding: 10px 12px;
+  text-align: center;
+
+  div {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+  }
+
+  svg {
+    width: 28px;
+    height: 28px;
+    color: #2563eb;
+  }
+
+  strong {
+    color: #151515;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: 950;
+    letter-spacing: 0;
+    line-height: 1.25;
+  }
+
+  p {
+    max-width: 230px;
+    color: rgba(21, 21, 21, 0.58);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: 0;
+    line-height: 1.5;
+  }
 `;
 
 const MissionButton = styled.button<{ $active: boolean }>`
@@ -553,6 +598,7 @@ export const AdventurePrepare = ({
   mode,
   presets,
   targetSeconds,
+  emptyState,
   onChangeMode,
   onSelectPreset,
   onBack,
@@ -562,6 +608,7 @@ export const AdventurePrepare = ({
   | "mode"
   | "presets"
   | "targetSeconds"
+  | "emptyState"
   | "onChangeMode"
   | "onSelectPreset"
   | "onStart"
@@ -582,38 +629,51 @@ export const AdventurePrepare = ({
         ) : (
           <MenuLabel>MISSION SELECT</MenuLabel>
         )}
-        <MissionList>
-          {stages.map((preset, index) => {
-            const isActive =
-              mode === "countdown" && targetSeconds === preset.seconds;
+        {emptyState ? (
+          <EmptyMissionGuide>
+            <div>
+              <Icon name="book" />
+              <strong>{emptyState.title}</strong>
+              <p>{emptyState.description}</p>
+            </div>
+          </EmptyMissionGuide>
+        ) : (
+          <MissionList>
+            {stages.map((preset, index) => {
+              const isActive =
+                mode === "countdown" && targetSeconds === preset.seconds;
 
-            return (
-              <MissionButton
-                key={preset.seconds}
-                type="button"
-                $active={isActive}
-                onClick={() => onSelectPreset(preset.seconds)}
-              >
-                <Icon name="chevronRight" />
-                <strong style={{ fontSize: "0.53em" }}>{preset.label}</strong>
-                <span>STAGE {index + 1}</span>
-              </MissionButton>
-            );
-          })}
-          <MissionButton
-            type="button"
-            $active={isFreeJourney}
-            onClick={() => onChangeMode("stopwatch")}
-          >
-            <Icon name="chevronRight" />
-            <strong style={{ fontSize: "0.53em" }}>FREE JOURNEY</strong>
-            <span>STOPWATCH</span>
-          </MissionButton>
-        </MissionList>
+              return (
+                <MissionButton
+                  key={preset.seconds}
+                  type="button"
+                  $active={isActive}
+                  onClick={() => onSelectPreset(preset.seconds)}
+                >
+                  <Icon name="chevronRight" />
+                  <strong style={{ fontSize: "0.53em" }}>{preset.label}</strong>
+                  <span>STAGE {index + 1}</span>
+                </MissionButton>
+              );
+            })}
+            <MissionButton
+              type="button"
+              $active={isFreeJourney}
+              onClick={() => onChangeMode("stopwatch")}
+            >
+              <Icon name="chevronRight" />
+              <strong style={{ fontSize: "0.53em" }}>FREE JOURNEY</strong>
+              <span>STOPWATCH</span>
+            </MissionButton>
+          </MissionList>
+        )}
       </MissionSelect>
 
-      <StartButton type="button" onClick={onStart}>
-        START ADVENTURE
+      <StartButton
+        type="button"
+        onClick={emptyState ? emptyState.onAction : onStart}
+      >
+        {emptyState ? emptyState.actionLabel : "START ADVENTURE"}
       </StartButton>
     </PrepOverlay>
   );
@@ -637,6 +697,7 @@ export const AdventureScene = ({
   memoryLogs,
   memorySeed,
   completionContent,
+  emptyState,
   onChangeMode,
   onSelectPreset,
   onStart,
@@ -742,6 +803,7 @@ export const AdventureScene = ({
           mode={mode}
           presets={presets}
           targetSeconds={targetSeconds}
+          emptyState={emptyState}
           onChangeMode={onChangeMode}
           onSelectPreset={onSelectPreset}
           onBack={() => {

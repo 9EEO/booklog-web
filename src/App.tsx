@@ -272,6 +272,7 @@ function AuthenticatedApp({
   );
   const [tierBoard, setTierBoard] = useState<TierBoard>(getInitialTierBoard);
   const [isLibraryDetailMode, setIsLibraryDetailMode] = useState(false);
+  const [bookFormOpenRequestId, setBookFormOpenRequestId] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
   const pendingFlushRef = useRef(false);
@@ -1388,6 +1389,12 @@ function AuthenticatedApp({
     }
   };
 
+  const openFirstBookForm = () => {
+    setActiveTab("library");
+    setIsLibraryDetailMode(false);
+    setBookFormOpenRequestId((current) => current + 1);
+  };
+
   const activeScreen = (
     <>
       {activeTab === "session" && (
@@ -1399,7 +1406,7 @@ function AuthenticatedApp({
           timer={readingTimer}
           onChangeBook={setCurrentBookId}
           onSaveRecord={handleSaveRecord}
-          onGoLibrary={() => setActiveTab("library")}
+          onAddFirstBook={openFirstBookForm}
         />
       )}
       {activeTab === "records" && (
@@ -1425,7 +1432,8 @@ function AuthenticatedApp({
           onUpdateBookTotalPages={handleUpdateBookTotalPages}
           onStartReread={handleStartReread}
           onDeleteRound={handleDeleteRound}
-          shouldOpenBookForm={false}
+          bookFormOpenRequestId={bookFormOpenRequestId}
+          onConsumeBookFormOpenRequest={() => setBookFormOpenRequestId(0)}
           onDetailModeChange={setIsLibraryDetailMode}
         />
       )}
@@ -1473,7 +1481,6 @@ function AuthenticatedApp({
         {!shouldHideBottomTabs && (
           <BottomTabs
             activeTab={activeTab}
-            disabledTabs={books.length === 0 ? ["session"] : []}
             onChange={setActiveTab}
           />
         )}
