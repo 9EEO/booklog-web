@@ -33,7 +33,7 @@ import type {
   ReadingRecord,
   ReadingRound,
 } from "../types/reading";
-import type { BookChatMessage } from "../types/bookChat";
+import type { BookChatEvidence, BookChatMessage } from "../types/bookChat";
 import { buildCompletedReadingReport } from "../utils/completedReadingReport";
 import { buildCompletedBookChatContext } from "../utils/completedBookChatContext";
 import { formatDuration } from "../utils/formatDuration";
@@ -110,30 +110,51 @@ const shelfTabOptions: Array<{ value: ShelfTab; label: string }> = [
 
 const bookChatInitialQuestions = [
   {
-    label: "내 독서 흐름 요약",
-    question: "이 책을 내가 어떻게 읽었는지 요약해줘",
+    label: "내 독서 과정 3줄 정리",
+    question: "내 독서 과정을 3줄로 정리해줘",
   },
   {
-    label: "저자 배경 연결",
-    question: "저자와 책 배경을 내 기록과 연결해줘",
+    label: "끌린 주제 찾기",
+    question: "내가 이 책에서 끌린 주제를 저장 문장 기준으로 찾아줘",
   },
   {
-    label: "저장 문장 주제",
-    question: "저장한 문장들의 공통 주제를 찾아줘",
+    label: "3줄 감상 만들기",
+    question: "내 기록을 바탕으로 3줄 감상을 만들어줘",
   },
   {
-    label: "독서모임 포인트",
-    question: "독서모임에서 말할 감상 포인트를 만들어줘",
-  },
-  {
-    label: "한 문장 리뷰",
+    label: "한 문장 리뷰 만들기",
     question: "이 책을 한 문장 리뷰로 정리해줘",
   },
   {
-    label: "다음 책 방향",
-    question: "비슷하게 읽을 만한 책 방향을 추천해줘",
+    label: "독서모임 의견 3개",
+    question: "독서모임에서 말할 의견 3개를 내 기록 기준으로 만들어줘",
+  },
+  {
+    label: "개인 메모 만들기",
+    question: "나중에 다시 볼 개인 메모로 정리해줘",
   },
 ];
+
+const getBookChatEvidenceSummary = (evidence?: BookChatEvidence[]) => {
+  if (!evidence?.length) return "";
+
+  const quoteCount = evidence.filter((item) => item.type === "quote").length;
+  const externalCount = evidence.filter(
+    (item) => item.type === "external",
+  ).length;
+  const personalCount = evidence.filter((item) =>
+    ["quote", "record", "pattern", "report", "tier", "comparison"].includes(
+      item.type,
+    ),
+  ).length;
+  const parts = [];
+
+  if (personalCount > 0) parts.push(`내 기록 ${personalCount}개 활용`);
+  if (quoteCount > 0) parts.push(`저장 문장 ${quoteCount}개 분석`);
+  if (externalCount > 0) parts.push(`외부 정보 ${externalCount}개 참고`);
+
+  return parts.join(" · ");
+};
 
 const getBookTransitionKey = (bookId: string) =>
   `book-cover-${bookId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
@@ -2355,11 +2376,15 @@ export const LibraryScreen = ({
               {bookChatMessages.length === 0 ? (
                 <>
                   <div className="book-chat-empty">
-                    <strong>완독 기록을 기준으로 질문해보세요.</strong>
+                    <strong>내 독서 기록으로 완독 후 생각을 정리해요.</strong>
                     <p>
-                      책 전문 대신, 내가 남긴 독서 시간과 문장을 근거로 회고를
-                      도와줍니다.
+                      책 설명보다 내가 어떻게 읽었고 어떤 문장에 머물렀는지를
+                      먼저 봅니다.
                     </p>
+                    <span>
+                      독서 기록 {selectedBookRecords.length}개 활용 · 저장
+                      문장 {selectedBook.sentences.length}개 분석
+                    </span>
                   </div>
 
                   <div className="book-chat-prompt-grid">
@@ -2378,42 +2403,56 @@ export const LibraryScreen = ({
                   </div>
                 </>
               ) : (
-                bookChatMessages.map((message) => (
-                  <article
-                    key={message.id}
-                    ref={
-                      message.id === latestBookChatQuestionId
-                        ? latestBookChatQuestionRef
-                        : undefined
-                    }
-                    className={`book-chat-message book-chat-message-${message.role}`}
-                  >
-                    <div className="book-chat-bubble">
-                      {message.content.split("\n").map((line, index) => (
-                        <p key={`${message.id}-${index}`}>{line || "\u00A0"}</p>
-                      ))}
-                    </div>
+                bookChatMessages.map((message) => {
+                  const evidenceSummary = getBookChatEvidenceSummary(
+                    message.evidence,
+                  );
 
-                    {message.id === latestBookChatAssistantId &&
-                      message.followUpQuestions &&
-                      message.followUpQuestions.length > 0 && (
-                        <div className="book-chat-followups">
-                          {message.followUpQuestions.map((followUp) => (
-                            <button
-                              key={followUp}
-                              type="button"
-                              onClick={() =>
-                                void submitBookChatQuestion(followUp)
-                              }
-                              disabled={isBookChatLoading}
-                            >
-                              {followUp}
-                            </button>
-                          ))}
-                        </div>
+                  return (
+                    <article
+                      key={message.id}
+                      ref={
+                        message.id === latestBookChatQuestionId
+                          ? latestBookChatQuestionRef
+                          : undefined
+                      }
+                      className={`book-chat-message book-chat-message-${message.role}`}
+                    >
+                      <div className="book-chat-bubble">
+                        {message.content.split("\n").map((line, index) => (
+                          <p key={`${message.id}-${index}`}>
+                            {line || "\u00A0"}
+                          </p>
+                        ))}
+                      </div>
+
+                      {message.role === "assistant" && evidenceSummary && (
+                        <p className="book-chat-evidence-summary">
+                          {evidenceSummary}
+                        </p>
                       )}
-                  </article>
-                ))
+
+                      {message.id === latestBookChatAssistantId &&
+                        message.followUpQuestions &&
+                        message.followUpQuestions.length > 0 && (
+                          <div className="book-chat-followups">
+                            {message.followUpQuestions.map((followUp) => (
+                              <button
+                                key={followUp}
+                                type="button"
+                                onClick={() =>
+                                  void submitBookChatQuestion(followUp)
+                                }
+                                disabled={isBookChatLoading}
+                              >
+                                {followUp}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                    </article>
+                  );
+                })
               )}
 
               {isBookChatLoading && (

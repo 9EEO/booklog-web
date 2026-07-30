@@ -2,11 +2,11 @@
 
 ## Goal
 
-Build an AI chat experience around completed books that feels technically meaningful, not like a generic chatbot bolted onto the app.
+Build an AI reflection experience around completed books that feels technically meaningful, not like a generic chatbot bolted onto the app.
 
 The product concept is:
 
-> Talk with a completed book through my own reading traces.
+> Turn my completed reading traces into a clear reflection.
 
 The AI should answer from the user's reading data: completed book metadata, reading records, saved sentences, completed report, reading pattern, and tier placement. It should not pretend to know the full book text unless that text is explicitly provided.
 
@@ -35,6 +35,12 @@ Use this framing:
 
 The AI's job is to help the user review, interpret, and reuse their completed reading experience.
 
+Stronger positioning:
+
+> An AI reflection tool that organizes post-reading thoughts from my own reading records.
+
+The core asset is not general book knowledge. It is the user's own reading data: reading sessions, saved sentences, completion rhythm, tier placement, and prior completed books. External search is useful only as supporting context when the user explicitly asks for author, work background, awards, or other outside information.
+
 Example user questions:
 
 - What themes did I seem to care about in this book?
@@ -56,32 +62,30 @@ Recommended product label:
 - Primary: `책과 다시 대화하기`
 - Technical/demo label: `AI 완독 회고`
 
-### Chat Surface
+### Reflection Surface
 
-Use a bottom sheet or dedicated full-screen chat view.
+Use a bottom sheet or dedicated full-screen view, but frame the first screen as a reflection/result generator before a generic chat.
 
-The chat surface should show:
+The surface should show:
 
 - Book title and author
-- Completed date
-- Total reading time
-- Saved sentence count
-- Tier, if available
-- Recommended question chips
+- A short signal that user records and saved sentences will be used
+- Result-oriented action chips
 - Conversation messages
-- Evidence cards under AI answers
+- A compact evidence summary under AI answers
 
 ### Initial Recommended Questions
 
-Show 4-6 quick prompts:
+Show 4-6 result-oriented actions:
 
-- 이 책을 내가 어떻게 읽었는지 요약해줘
-- 저장한 문장들의 공통 주제를 찾아줘
-- 독서모임에서 말할 감상 포인트를 만들어줘
-- 이 책을 한 문장 리뷰로 정리해줘
-- 내가 이 책을 좋아한 이유를 추론해줘
-- 다음에 읽을 책 방향을 추천해줘
+- 내 독서 과정 3줄 정리
+- 끌린 주제 찾기
+- 3줄 감상 만들기
+- 한 문장 리뷰 만들기
+- 독서모임 의견 3개
+- 개인 메모 만들기
 
+Question-style prompts are less clear than labels that describe the output the user will get.
 ## Technical Architecture
 
 ### 1. Server-Side AI Endpoint
@@ -100,6 +104,7 @@ Environment variable:
 ```env
 OPENAI_API_KEY=...
 OPENAI_BOOK_CHAT_MODEL=gpt-5.1
+DATA4LIBRARY_AUTH_KEY=...
 VITE_BOOK_CHAT_USE_MOCK=false
 ```
 
@@ -337,8 +342,25 @@ Search-trigger examples:
 
 - 저자와 책 배경을 내 기록과 연결해줘
 - 이 책이 왜 유명한지 알려줘
-- 비슷하게 읽을 만한 책 방향을 추천해줘
 - 독서모임에서 말할 배경지식을 만들어줘
+
+### Phase 7: Library Reference Data
+
+Use 도서관 정보나루 as optional reference data when the completed book has an ISBN and the server has `DATA4LIBRARY_AUTH_KEY`.
+
+Current status:
+
+- The local key is configured, but the API currently returns `vitalizationErr` / `API 활성화 상태가아닙니다.`
+- Until approval or activation is complete, the server ignores the error response and falls back to the normal book-chat flow.
+
+Good use cases:
+
+- Loan/usage trend questions
+- Core keyword questions
+- Similar or next-book recommendation questions
+- Reader tendency questions such as age/gender/usage groups
+
+Do not use this as proof of the book's full content or the user's personal impression. It is public library usage metadata, so it should support answers as reading-market context, not replace the user's own reading records.
 
 ## Demo Story For Stakeholders
 

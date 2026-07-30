@@ -9530,6 +9530,14 @@ button {
   line-height: 1.55;
 }
 
+.book-chat-empty span {
+  display: block;
+  margin-top: 10px;
+  color: rgba(30, 64, 175, 0.58);
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .book-chat-message {
   display: grid;
   gap: 8px;
@@ -9567,6 +9575,12 @@ button {
 .book-chat-message-assistant .book-chat-bubble {
   background: #ffffff;
   color: #111827;
+}
+
+.book-chat-evidence-summary {
+  color: rgba(30, 64, 175, 0.56);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .book-chat-bubble-loading {

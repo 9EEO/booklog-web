@@ -1,6 +1,10 @@
 const OPENAI_CHAT_COMPLETIONS_API_URL =
   "https://api.openai.com/v1/chat/completions";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
+const DATA4LIBRARY_USAGE_ANALYSIS_API_URL =
+  "https://data4library.kr/api/usageAnalysisList";
+const DATA4LIBRARY_RECOMMENDATION_API_URL =
+  "https://data4library.kr/api/recommandList";
 const DEFAULT_MODEL = "gpt-5.1";
 const DEFAULT_LIGHT_MODEL = "gpt-5-mini";
 const MAX_QUESTION_LENGTH = 600;
@@ -145,21 +149,17 @@ const needsExternalSearch = (question) => {
   const searchKeywords = [
     "저자",
     "작가",
-    "배경",
+    "작품 배경",
+    "시대적 배경",
     "시대",
     "유명",
     "왜 유명",
-    "비슷한",
-    "추천",
     "외부",
     "검색",
     "평점",
-    "작품",
     "줄거리",
     "책 정보",
     "소개",
-    "독서모임",
-    "토론",
     "출판",
     "수상",
     "문학사",
@@ -168,6 +168,28 @@ const needsExternalSearch = (question) => {
   ];
 
   return includesAny(normalizedQuestion, searchKeywords);
+};
+
+const needsLibraryReference = (question) => {
+  const normalizedQuestion = question.replace(/\s+/g, " ").toLowerCase();
+  const libraryKeywords = [
+    "도서관",
+    "정보나루",
+    "대출",
+    "인기",
+    "이용",
+    "독자",
+    "연령",
+    "성별",
+    "통계",
+    "키워드",
+    "함께",
+    "비슷한",
+    "추천",
+    "다음 책",
+  ];
+
+  return includesAny(normalizedQuestion, libraryKeywords);
 };
 
 const canUseLightModel = (question) => {
@@ -203,15 +225,23 @@ const getOpenAIErrorMessage = (status, data) => {
   return "AI 응답을 생성하지 못했습니다.";
 };
 
-const buildPrompt = ({ context, question, messages, externalResearch }) => `
+const buildPrompt = ({
+  context,
+  question,
+  messages,
+  externalResearch,
+  libraryReference,
+}) => `
 너는 사용자의 완독 기록과 저장된 책 정보를 함께 읽어 회고를 돕는 AI다.
 
 반드시 지켜야 할 규칙:
 - 책 전문을 알고 있는 척하지 않는다.
 - web search 도구가 제공된 경우에만 외부 정보를 사용할 수 있다.
 - web search 도구가 제공되지 않은 경우 인터넷을 검색했다고 말하지 않는다.
-- 제공된 완독 기록, 저장 문장, 독서 패턴, 티어 정보, 책 메타데이터, web search 결과만 근거로 답한다.
+- 도서관 정보나루 참고 데이터가 제공된 경우에만 대출/이용/추천/키워드 데이터를 사용할 수 있다.
+- 제공된 완독 기록, 저장 문장, 독서 패턴, 티어 정보, 책 메타데이터, 도서관 정보나루 참고 데이터, web search 결과만 근거로 답한다.
 - 책 메타데이터의 contents/publisher/isbn은 "책 정보"로만 다루고, 책 전문이나 검증된 외부 검색 결과처럼 과장하지 않는다.
+- 도서관 정보나루 데이터는 독자 이용 경향과 추천 참고 데이터일 뿐, 작품 내용이나 사용자의 감상을 증명하는 근거처럼 과장하지 않는다.
 - 답변 구조는 질문 의도에 맞게 고른다.
 - 사용자가 내 기록, 저장 문장, 독서 패턴, 티어, 감상, 회고를 묻는 경우에만 "내 기록에서 본 점"을 포함한다.
 - 사용자가 저자/작가 배경, 작품 배경, 출판, 수상, 외부 정보만 묻는 경우에는 "내 기록에서 본 점" 섹션을 만들지 않는다.
@@ -226,8 +256,12 @@ const buildPrompt = ({ context, question, messages, externalResearch }) => `
 - answer는 900자 이내로 간결하게 쓴다.
 - 사용자가 바로 읽기 좋은 자연스러운 문장으로 답한다.
 - evidence에는 답변에 실제로 사용한 근거만 담는다.
+- 도서관 정보나루 참고 데이터를 사용했다면 evidence에 type "external"을 포함하고 label은 "도서관 정보나루"로 쓴다.
 - web search 결과를 사용했다면 evidence에 type "external"을 포함하고 출처 이름이나 URL을 detail에 적는다.
-- followUpQuestions는 사용자가 이어서 누르기 좋은 짧은 질문으로 만든다.
+- followUpQuestions는 사용자가 AI에게 그대로 보내는 짧은 질문/명령문으로 만든다.
+- followUpQuestions에 AI가 사용자에게 되묻는 문장이나 선택을 요청하는 문장을 넣지 않는다.
+- 좋은 followUpQuestions 예: "내 독서 과정 3줄 정리", "끌린 주제 더 찾기", "한 문장 리뷰 만들기"
+- 나쁜 followUpQuestions 예: "더 깊게 이야기하고 싶나요?", "다른 분위기의 작품도 괜찮으세요?"
 
 완독 책 컨텍스트:
 ${JSON.stringify(context, null, 2)}
@@ -237,6 +271,12 @@ ${JSON.stringify(messages, null, 2)}
 
 사용자 질문:
 ${question}
+
+${
+  libraryReference
+    ? `도서관 정보나루 참고 데이터:\n${JSON.stringify(libraryReference, null, 2)}`
+    : "도서관 정보나루 참고 데이터: 없음"
+}
 
 ${
   externalResearch
@@ -329,6 +369,70 @@ const appendExternalEvidence = (parsed, externalResearch) => {
   };
 };
 
+const appendLibraryEvidence = (parsed, libraryReference) => {
+  if (!Array.isArray(parsed?.evidence) || !libraryReference?.summary) {
+    return parsed;
+  }
+
+  const hasLibraryEvidence = parsed.evidence.some(
+    (evidence) => evidence?.label === "도서관 정보나루",
+  );
+
+  if (hasLibraryEvidence) return parsed;
+
+  return {
+    ...parsed,
+    evidence: [
+      {
+        type: "external",
+        label: "도서관 정보나루",
+        detail: libraryReference.summary.slice(0, 600),
+      },
+      ...parsed.evidence,
+    ].slice(0, 5),
+  };
+};
+
+const fallbackFollowUpQuestions = [
+  "내 독서 과정 3줄 정리",
+  "끌린 주제 더 찾기",
+  "한 문장 리뷰 만들기",
+];
+
+const isAssistantQuestionToUser = (text) =>
+  [
+    "싶나요",
+    "볼까요",
+    "괜찮으세요",
+    "원하나요",
+    "궁금한가요",
+    "궁금하세요",
+    "해볼까요",
+    "드릴까요",
+    "하시겠어요",
+    "아니면",
+  ].some((ending) => text.includes(ending));
+
+const normalizeFollowUpQuestions = (parsed) => {
+  if (!Array.isArray(parsed?.followUpQuestions)) return parsed;
+
+  const validQuestions = parsed.followUpQuestions
+    .filter((question) => typeof question === "string" && question.trim())
+    .map((question) => question.trim())
+    .filter((question) => !isAssistantQuestionToUser(question));
+  const followUpQuestions = [
+    ...validQuestions,
+    ...fallbackFollowUpQuestions.filter(
+      (question) => !validQuestions.includes(question),
+    ),
+  ].slice(0, 3);
+
+  return {
+    ...parsed,
+    followUpQuestions,
+  };
+};
+
 const fetchExternalResearch = async ({ apiKey, model, context, question }) => {
   const openaiResponse = await fetch(OPENAI_RESPONSES_API_URL, {
     method: "POST",
@@ -364,6 +468,117 @@ const fetchExternalResearch = async ({ apiKey, model, context, question }) => {
   };
 };
 
+const cleanIsbn = (isbn) =>
+  typeof isbn === "string" ? isbn.replace(/[^0-9Xx]/g, "") : "";
+
+const fetchData4LibraryJson = async ({ url, authKey, isbn }) => {
+  const params = new URLSearchParams({
+    authKey,
+    isbn13: isbn,
+    format: "json",
+  });
+  const data4LibraryResponse = await fetch(`${url}?${params.toString()}`);
+
+  if (!data4LibraryResponse.ok) return null;
+
+  const data = await data4LibraryResponse.json();
+  if (data?.response?.errCode || data?.response?.error) return null;
+
+  return data;
+};
+
+const collectData4LibraryWords = (value, key, results = []) => {
+  if (results.length >= 8 || value === null || value === undefined) {
+    return results;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectData4LibraryWords(item, key, results));
+    return results;
+  }
+
+  if (typeof value !== "object") return results;
+
+  Object.entries(value).forEach(([entryKey, entryValue]) => {
+    if (
+      entryKey === key &&
+      (typeof entryValue === "string" || typeof entryValue === "number")
+    ) {
+      results.push(String(entryValue));
+      return;
+    }
+
+    collectData4LibraryWords(entryValue, key, results);
+  });
+
+  return results;
+};
+
+const buildLibraryReferenceSummary = ({ usageAnalysis, recommendations }) => {
+  const keywords = collectData4LibraryWords(usageAnalysis, "word");
+  const bookNames = collectData4LibraryWords(recommendations, "bookname");
+  const authors = collectData4LibraryWords(recommendations, "authors");
+  const parts = [];
+
+  if (keywords.length > 0) {
+    parts.push(`핵심 키워드: ${keywords.slice(0, 5).join(", ")}`);
+  }
+
+  if (bookNames.length > 0) {
+    parts.push(
+      `추천/함께 읽힌 책: ${bookNames
+        .slice(0, 3)
+        .map((bookName, index) =>
+          authors[index] ? `${bookName}(${authors[index]})` : bookName,
+        )
+        .join(", ")}`,
+    );
+  }
+
+  return parts.length > 0
+    ? parts.join("\n")
+    : "ISBN 기반 도서 이용분석 데이터를 참고했습니다.";
+};
+
+const compactLibraryPayload = (value) => JSON.stringify(value).slice(0, 6000);
+
+const fetchLibraryReference = async ({ context, question }) => {
+  const authKey =
+    process.env.DATA4LIBRARY_AUTH_KEY ?? process.env.DATA4LIBRARY_API_KEY;
+  const isbn = cleanIsbn(context.book?.isbn);
+
+  if (!authKey || !isbn || !needsLibraryReference(question)) return null;
+
+  try {
+    const [usageAnalysis, recommendations] = await Promise.all([
+      fetchData4LibraryJson({
+        url: DATA4LIBRARY_USAGE_ANALYSIS_API_URL,
+        authKey,
+        isbn,
+      }),
+      fetchData4LibraryJson({
+        url: DATA4LIBRARY_RECOMMENDATION_API_URL,
+        authKey,
+        isbn,
+      }),
+    ]);
+
+    if (!usageAnalysis && !recommendations) return null;
+
+    return {
+      source: "도서관 정보나루",
+      summary: buildLibraryReferenceSummary({
+        usageAnalysis,
+        recommendations,
+      }),
+      usageAnalysis: compactLibraryPayload(usageAnalysis),
+      recommendations: compactLibraryPayload(recommendations),
+    };
+  } catch {
+    return null;
+  }
+};
+
 export default async function handler(request, response) {
   if (request.method !== "POST") {
     sendJson(response, 405, { error: "Method not allowed" });
@@ -391,18 +606,27 @@ export default async function handler(request, response) {
   const lightModel =
     process.env.OPENAI_BOOK_CHAT_LIGHT_MODEL ?? DEFAULT_LIGHT_MODEL;
   const shouldUseWebSearch = needsExternalSearch(question);
+  const shouldUseLibraryReference = needsLibraryReference(question);
   const model =
-    !shouldUseWebSearch && canUseLightModel(question) ? lightModel : mainModel;
+    !shouldUseWebSearch && !shouldUseLibraryReference && canUseLightModel(question)
+      ? lightModel
+      : mainModel;
 
   try {
-    const externalResearch = shouldUseWebSearch
-      ? await fetchExternalResearch({
-          apiKey,
-          model: mainModel,
-          context,
-          question,
-        })
-      : null;
+    const [externalResearch, libraryReference] = await Promise.all([
+      shouldUseWebSearch
+        ? fetchExternalResearch({
+            apiKey,
+            model: mainModel,
+            context,
+            question,
+          })
+        : null,
+      fetchLibraryReference({
+        context,
+        question,
+      }),
+    ]);
 
     const openaiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_API_URL, {
       method: "POST",
@@ -420,6 +644,7 @@ export default async function handler(request, response) {
               question,
               messages,
               externalResearch,
+              libraryReference,
             }),
           },
           {
@@ -449,14 +674,15 @@ export default async function handler(request, response) {
     }
 
     const outputText = extractOutputText(data);
-    const parsed = JSON.parse(outputText);
+    const parsed = normalizeFollowUpQuestions(JSON.parse(outputText));
+    const withLibraryEvidence = appendLibraryEvidence(parsed, libraryReference);
 
     sendJson(
       response,
       200,
       externalResearch
-        ? appendExternalEvidence(parsed, externalResearch)
-        : parsed,
+        ? appendExternalEvidence(withLibraryEvidence, externalResearch)
+        : withLibraryEvidence,
     );
   } catch (error) {
     sendJson(response, 500, {

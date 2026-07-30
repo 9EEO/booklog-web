@@ -211,9 +211,9 @@ const buildMockBookChatResponse = (
       answer: `내 기록에서 본 점\n${sentenceSummary} ${readingSummary}\n\n책 정보로 보강한 점\n${bookInfoSummary}\n\n종합 회고\n${context.book.title}을 독서모임에서 말한다면, 줄거리 요약보다 내가 어느 지점에서 멈췄고 어떤 리듬으로 읽었는지를 중심으로 잡는 편이 좋아요. ${tierSummary}\n\n이 답변은 책 전문 분석이 아니라, 앱에 저장된 기록과 책 정보를 바탕으로 만든 회고 초안입니다.`,
       evidence,
       followUpQuestions: [
-        "감상 포인트를 더 짧게 정리해줘",
-        "독서모임 질문 5개를 만들어줘",
-        "내 저장 문장 기준으로 핵심 감정을 뽑아줘",
+        "의견 3개만 다시 만들기",
+        "독서모임 질문 5개 만들기",
+        "저장 문장 감정 뽑기",
       ],
     };
   }
@@ -226,9 +226,9 @@ const buildMockBookChatResponse = (
       answer: `내 기록에서 본 점\n${sentencePhrase} ${patternSummary}\n\n책 정보로 보강한 점\n${bookInfoSummary}\n\n종합 회고\n리뷰 초안은 이렇게 잡아볼 수 있어요.\n\n'${context.book.title}은 완독 후에도 읽은 흔적이 남아 있는 책이다. 저장된 책 정보가 책의 바깥 윤곽을 잡아준다면, 내 독서 기록은 이 책이 실제로 나에게 어떻게 남았는지를 보여준다.'`,
       evidence,
       followUpQuestions: [
-        "더 감성적인 리뷰로 바꿔줘",
-        "SNS에 올릴 짧은 문장으로 줄여줘",
-        "근거 문장을 더 많이 반영해줘",
+        "더 감성적인 리뷰 만들기",
+        "SNS 공유 문장 만들기",
+        "저장 문장 더 반영하기",
       ],
     };
   }
@@ -238,9 +238,9 @@ const buildMockBookChatResponse = (
       answer: `내 기록에서 본 점\n${evidenceIntro} 이 책을 좋게 기억했을 가능성은 '완독했다는 사실'보다 그 이후에 남은 신호에서 봐야 해요. ${sentenceSummary} ${patternSummary} ${tierSummary}\n\n책 정보로 보강한 점\n${bookInfoSummary}\n\n종합 회고\n좋아한 이유를 확정할 수는 없지만, 내 기록과 책 정보가 만나는 지점을 보면 어떤 분위기나 주제가 오래 남았는지 더 구체적으로 짚어볼 수 있습니다.`,
       evidence,
       followUpQuestions: [
-        "이 추론을 더 날카롭게 정리해줘",
-        "반대로 아쉬웠을 점도 추론해줘",
-        "다른 완독 책과 비교해줘",
+        "좋았던 이유 더 정리하기",
+        "아쉬웠을 점 추론하기",
+        "다른 완독 책과 비교하기",
       ],
     };
   }
@@ -270,9 +270,9 @@ const buildMockBookChatResponse = (
         })),
       ].slice(0, 5),
       followUpQuestions: [
-        "내 취향 키워드를 더 정리해줘",
-        "완독 책끼리 공통점을 찾아줘",
-        "다음 책 선택 기준을 3개로 만들어줘",
+        "내 취향 키워드 정리",
+        "완독 책 공통점 찾기",
+        "다음 책 선택 기준 3개",
       ],
     };
   }
@@ -281,9 +281,9 @@ const buildMockBookChatResponse = (
     answer: `내 기록에서 본 점\n${readingSummary} ${sentenceSummary} ${patternSummary} ${tierSummary}\n\n책 정보로 보강한 점\n${bookInfoSummary}\n\n종합 회고\n이 답변은 책 자체를 아는 척하는 답변이 아니라, 앱에 남은 완독 기록과 저장된 책 정보를 함께 읽어낸 회고 초안입니다. 다음 단계에서 외부 검색을 붙이면 저자 배경이나 유사 도서까지 더 확장할 수 있어요.`,
     evidence,
     followUpQuestions: [
-      "저장한 문장들의 공통 주제를 찾아줘",
-      "이 책을 한 문장 리뷰로 정리해줘",
-      "독서모임에서 말할 포인트를 만들어줘",
+      "끌린 주제 찾기",
+      "한 문장 리뷰 만들기",
+      "독서모임 의견 3개",
     ],
   };
 };
