@@ -2,6 +2,7 @@ const OPENAI_CHAT_COMPLETIONS_API_URL =
   "https://api.openai.com/v1/chat/completions";
 const OPENAI_RESPONSES_API_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.1";
+const DEFAULT_LIGHT_MODEL = "gpt-5-mini";
 const MAX_QUESTION_LENGTH = 600;
 const MAX_CONTEXT_LENGTH = 60_000;
 const MAX_MESSAGES = 8;
@@ -136,6 +137,9 @@ const collectWebSources = (data) => {
   return sources.slice(0, 3);
 };
 
+const includesAny = (source, keywords) =>
+  keywords.some((keyword) => source.includes(keyword.toLowerCase()));
+
 const needsExternalSearch = (question) => {
   const normalizedQuestion = question.replace(/\s+/g, " ").toLowerCase();
   const searchKeywords = [
@@ -149,7 +153,6 @@ const needsExternalSearch = (question) => {
     "추천",
     "외부",
     "검색",
-    "리뷰",
     "평점",
     "작품",
     "줄거리",
@@ -164,9 +167,22 @@ const needsExternalSearch = (question) => {
     "비교",
   ];
 
-  return searchKeywords.some((keyword) =>
-    normalizedQuestion.includes(keyword.toLowerCase()),
-  );
+  return includesAny(normalizedQuestion, searchKeywords);
+};
+
+const canUseLightModel = (question) => {
+  const normalizedQuestion = question.replace(/\s+/g, " ").toLowerCase();
+  const lightKeywords = [
+    "한 문장",
+    "짧게",
+    "줄여",
+    "sns",
+    "키워드",
+    "태그",
+    "제목",
+  ];
+
+  return includesAny(normalizedQuestion, lightKeywords);
 };
 
 const getOpenAIErrorMessage = (status, data) => {
@@ -196,7 +212,12 @@ const buildPrompt = ({ context, question, messages, externalResearch }) => `
 - web search 도구가 제공되지 않은 경우 인터넷을 검색했다고 말하지 않는다.
 - 제공된 완독 기록, 저장 문장, 독서 패턴, 티어 정보, 책 메타데이터, web search 결과만 근거로 답한다.
 - 책 메타데이터의 contents/publisher/isbn은 "책 정보"로만 다루고, 책 전문이나 검증된 외부 검색 결과처럼 과장하지 않는다.
-- 답변에서 가능하면 "내 기록에서 본 점", "책 정보/외부 정보로 보강한 점", "종합 회고"를 구분한다.
+- 답변 구조는 질문 의도에 맞게 고른다.
+- 사용자가 내 기록, 저장 문장, 독서 패턴, 티어, 감상, 회고를 묻는 경우에만 "내 기록에서 본 점"을 포함한다.
+- 사용자가 저자/작가 배경, 작품 배경, 출판, 수상, 외부 정보만 묻는 경우에는 "내 기록에서 본 점" 섹션을 만들지 않는다.
+- 사용자가 외부 정보와 내 기록을 연결해 달라고 요청한 경우에만 "내 기록과 연결되는 지점"을 만든다.
+- 한 문장 리뷰, 짧은 요약, 키워드 추출처럼 결과 형식이 중요한 요청은 섹션 제목 없이 바로 답한다.
+- 질문 의도가 애매하면 질문의 중심 의도를 기준으로 답하고, 근거 없는 사용자 기록 연결을 억지로 만들지 않는다.
 - 추론은 "추론" 또는 "가능성"이라고 표현한다.
 - 사용자의 개인 상황, 감정, 가족/학교/직장 문제처럼 컨텍스트에 없는 사정은 invent하지 않는다.
 - 외부 정보는 책과 저자 맥락을 설명하는 데만 쓰고, 사용자 기록과 연결할 때는 제공된 독서 기록과 저장 문장에만 연결한다.
@@ -366,12 +387,21 @@ export default async function handler(request, response) {
   const context = request.body.context;
   const question = request.body.question.trim();
   const messages = getUserMessages(request.body.messages);
-  const model = process.env.OPENAI_BOOK_CHAT_MODEL ?? DEFAULT_MODEL;
+  const mainModel = process.env.OPENAI_BOOK_CHAT_MODEL ?? DEFAULT_MODEL;
+  const lightModel =
+    process.env.OPENAI_BOOK_CHAT_LIGHT_MODEL ?? DEFAULT_LIGHT_MODEL;
   const shouldUseWebSearch = needsExternalSearch(question);
+  const model =
+    !shouldUseWebSearch && canUseLightModel(question) ? lightModel : mainModel;
 
   try {
     const externalResearch = shouldUseWebSearch
-      ? await fetchExternalResearch({ apiKey, model, context, question })
+      ? await fetchExternalResearch({
+          apiKey,
+          model: mainModel,
+          context,
+          question,
+        })
       : null;
 
     const openaiResponse = await fetch(OPENAI_CHAT_COMPLETIONS_API_URL, {

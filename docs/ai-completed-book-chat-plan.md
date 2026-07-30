@@ -194,12 +194,19 @@ Reason:
 
 ### Lightweight Tasks
 
-Use `gpt-5-mini` later for lower-risk helper tasks:
+Use `gpt-5-mini` for clear lower-risk helper tasks:
 
 - Suggested question generation
 - Short title generation
 - Keyword extraction
 - Small summaries
+
+Routing rule:
+
+- External search and heavy interpretation always use the main model.
+- Clear short-generation requests can use the light model.
+- Ambiguous requests default to the main model.
+- Do not add a mini classifier until keyword routing creates repeated real misroutes; it adds another API call and can hurt latency.
 
 ### Retrieval
 

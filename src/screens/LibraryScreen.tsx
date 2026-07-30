@@ -163,10 +163,12 @@ const animateCoverClone = async (
 
   const targetElement = getTargetElement();
   if (!targetElement || !targetElement.isConnected) {
-    overlay.animate([{ opacity: 1 }, { opacity: 0 }], {
-      duration: 180,
-      easing: "ease",
-    }).finished.finally(() => overlay.remove());
+    overlay
+      .animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 180,
+        easing: "ease",
+      })
+      .finished.finally(() => overlay.remove());
     sourceElement.classList.remove("book-cover-transition-hidden");
     return;
   }
@@ -278,7 +280,9 @@ const AnimatedCompleteMetric = ({ value }: { value: string }) => {
   }
 
   return (
-    <strong aria-label={`${formatAnimatedMetricNumber(amount)}${metric.suffix}`}>
+    <strong
+      aria-label={`${formatAnimatedMetricNumber(amount)}${metric.suffix}`}
+    >
       <span
         ref={numberRef}
         className={`book-complete-slot-number ${
@@ -1289,6 +1293,14 @@ export const LibraryScreen = ({
     "library-book-form",
   );
 
+  const latestBookChatAssistantId = bookChatMessages.reduce<string | null>(
+    (latestId, message) =>
+      message.role === "assistant" && message.followUpQuestions?.length
+        ? message.id
+        : latestId,
+    null,
+  );
+
   return (
     <div className="library-page">
       {!selectedBook && (
@@ -1608,7 +1620,10 @@ export const LibraryScreen = ({
                   ) : (
                     <div className="book-complete-pattern-grid">
                       {selectedBookReport.patterns.map((pattern) => (
-                        <div key={pattern.title} className="book-complete-pattern">
+                        <div
+                          key={pattern.title}
+                          className="book-complete-pattern"
+                        >
                           <Icon name={pattern.icon} className="h-4 w-4" />
                           <strong>{pattern.title}</strong>
                           <p>{pattern.description}</p>
@@ -2253,23 +2268,23 @@ export const LibraryScreen = ({
               </div>
             </>
           ) : null}
-        {selectedBookReport && !selectedRound && (
-          <button
-            type="button"
-            className="book-chat-floating-button"
-            onClick={() => setIsBookChatOpen(true)}
-            aria-label="AI 완독 회고 열기"
-          >
-            <Icon name="chat" className="book-chat-floating-icon" />
-          </button>
-        )}
+          {selectedBookReport && !selectedRound && (
+            <button
+              type="button"
+              className="book-chat-floating-button"
+              onClick={() => setIsBookChatOpen(true)}
+              aria-label="AI 완독 회고 열기"
+            >
+              <Icon name="chat" className="book-chat-floating-icon" />
+            </button>
+          )}
         </section>
       )}
 
       <BottomSheetModal
         isOpen={Boolean(selectedBook && isBookChatOpen)}
         ariaLabel="AI 완독 회고"
-        backdropClassName="modal-backdrop-top"
+        backdropClassName="modal-backdrop-top book-chat-backdrop"
         panelClassName="book-chat-sheet"
         onBackdropClick={() => setIsBookChatOpen(false)}
       >
@@ -2277,7 +2292,7 @@ export const LibraryScreen = ({
           <>
             <div className="book-chat-header">
               <div>
-                <span>AI 완독 회고</span>
+                {/* <span>AI 완독 회고</span> */}
                 <h2>{selectedBook.title}</h2>
                 <p>
                   {selectedBook.completedAt ?? "완독일 기록 전"} ·{" "}
@@ -2296,13 +2311,28 @@ export const LibraryScreen = ({
 
             <div className="book-chat-messages" aria-live="polite">
               {bookChatMessages.length === 0 ? (
-                <div className="book-chat-empty">
-                  <strong>완독 기록을 기준으로 질문해보세요.</strong>
-                  <p>
-                    책 전문 대신, 내가 남긴 독서 시간과 문장을 근거로 회고를
-                    도와줍니다.
-                  </p>
-                </div>
+                <>
+                  <div className="book-chat-empty">
+                    <strong>완독 기록을 기준으로 질문해보세요.</strong>
+                    <p>
+                      책 전문 대신, 내가 남긴 독서 시간과 문장을 근거로 회고를
+                      도와줍니다.
+                    </p>
+                  </div>
+
+                  <div className="book-chat-prompt-grid">
+                    {bookChatInitialQuestions.map((question) => (
+                      <button
+                        key={question}
+                        type="button"
+                        onClick={() => void submitBookChatQuestion(question)}
+                        disabled={isBookChatLoading}
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </>
               ) : (
                 bookChatMessages.map((message) => (
                   <article
@@ -2315,14 +2345,17 @@ export const LibraryScreen = ({
                       ))}
                     </div>
 
-                    {message.followUpQuestions &&
+                    {message.id === latestBookChatAssistantId &&
+                      message.followUpQuestions &&
                       message.followUpQuestions.length > 0 && (
                         <div className="book-chat-followups">
                           {message.followUpQuestions.map((followUp) => (
                             <button
                               key={followUp}
                               type="button"
-                              onClick={() => void submitBookChatQuestion(followUp)}
+                              onClick={() =>
+                                void submitBookChatQuestion(followUp)
+                              }
                               disabled={isBookChatLoading}
                             >
                               {followUp}
@@ -2345,21 +2378,6 @@ export const LibraryScreen = ({
               )}
             </div>
 
-            {bookChatMessages.length === 0 && (
-              <div className="book-chat-prompt-grid">
-                {bookChatInitialQuestions.map((question) => (
-                  <button
-                    key={question}
-                    type="button"
-                    onClick={() => void submitBookChatQuestion(question)}
-                    disabled={isBookChatLoading}
-                  >
-                    {question}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {bookChatError && (
               <p className="book-chat-error" role="alert">
                 {bookChatError}
@@ -2381,7 +2399,9 @@ export const LibraryScreen = ({
               />
               <button
                 type="submit"
-                disabled={bookChatDraft.trim().length === 0 || isBookChatLoading}
+                disabled={
+                  bookChatDraft.trim().length === 0 || isBookChatLoading
+                }
                 aria-label="AI에게 질문 보내기"
               >
                 <Icon name="chevronRight" className="h-5 w-5" />
@@ -3049,7 +3069,10 @@ type BookShelfSectionProps = {
   onSelectBook: (bookId: string) => void;
   transitionBookId: string | null;
   transitionState: BookTransitionState;
-  registerBookButton: (bookId: string, element: HTMLButtonElement | null) => void;
+  registerBookButton: (
+    bookId: string,
+    element: HTMLButtonElement | null,
+  ) => void;
 };
 
 const BookShelfSection = ({
