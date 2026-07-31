@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { User } from "@supabase/supabase-js";
 import {
+  deleteAdminLibraryReference,
+  fetchAdminLibraryReferences,
   fetchAdminSummary,
   fetchAdminUserDetail,
   fetchAdminUsers,
+  type AdminLibraryReferenceSummary,
   type AdminSummary,
   type AdminUserDetail,
   type AdminUserSummary,
@@ -55,6 +65,8 @@ const formatDuration = (seconds: number) => {
   return `${minutes}분`;
 };
 
+const formatJson = (value: unknown) => JSON.stringify(value, null, 2);
+
 const summaryCards = (summary: AdminSummary | null) => [
   { label: "전체 유저", value: summary?.totalUsers ?? 0 },
   { label: "최근 7일 활성", value: summary?.activeUsers7d ?? 0 },
@@ -67,18 +79,32 @@ const summaryCards = (summary: AdminSummary | null) => [
 export const AdminScreen = ({ user, onSignOut }: AdminScreenProps) => {
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
+  const [libraryReferences, setLibraryReferences] = useState<
+    AdminLibraryReferenceSummary[]
+  >([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const selectedUserIdRef = useRef("");
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
+  const [referenceQuery, setReferenceQuery] = useState("");
+  const [submittedReferenceQuery, setSubmittedReferenceQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [referencePage, setReferencePage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [referenceTotal, setReferenceTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isReferencesLoading, setIsReferencesLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [deletingIsbn13, setDeletingIsbn13] = useState("");
+  const [openReferenceIsbn13, setOpenReferenceIsbn13] = useState("");
   const [error, setError] = useState<string | null>(null);
   const pageSize = 20;
   const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+  const referenceTotalPages = Math.max(
+    Math.ceil(referenceTotal / pageSize),
+    1,
+  );
 
   const loadUserDetail = useCallback(async (userId: string) => {
     if (!userId) {
@@ -135,6 +161,30 @@ export const AdminScreen = ({ user, onSignOut }: AdminScreenProps) => {
     }
   }, [loadUserDetail, page, submittedQuery]);
 
+  const loadLibraryReferences = useCallback(async () => {
+    setIsReferencesLoading(true);
+    setError(null);
+
+    try {
+      const nextReferences = await fetchAdminLibraryReferences({
+        page: referencePage,
+        pageSize,
+        query: submittedReferenceQuery,
+      });
+
+      setLibraryReferences(nextReferences.references);
+      setReferenceTotal(nextReferences.total);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "외부 참고자료를 불러오지 못했습니다.",
+      );
+    } finally {
+      setIsReferencesLoading(false);
+    }
+  }, [referencePage, submittedReferenceQuery]);
+
   useEffect(() => {
     const loadingTimeout = window.setTimeout(() => {
       void loadOverview();
@@ -143,10 +193,49 @@ export const AdminScreen = ({ user, onSignOut }: AdminScreenProps) => {
     return () => window.clearTimeout(loadingTimeout);
   }, [loadOverview]);
 
+  useEffect(() => {
+    const loadingTimeout = window.setTimeout(() => {
+      void loadLibraryReferences();
+    }, 0);
+
+    return () => window.clearTimeout(loadingTimeout);
+  }, [loadLibraryReferences]);
+
   const selectedUser = useMemo(
     () => users.find((item) => item.id === selectedUserId) ?? null,
     [selectedUserId, users],
   );
+
+  const refreshAdmin = () => {
+    void loadOverview();
+    void loadLibraryReferences();
+  };
+
+  const deleteLibraryReference = async (
+    reference: AdminLibraryReferenceSummary,
+  ) => {
+    const confirmed = window.confirm(
+      `${reference.isbn13} 외부 참고자료 캐시를 삭제할까요?`,
+    );
+
+    if (!confirmed) return;
+
+    setDeletingIsbn13(reference.isbn13);
+    setError(null);
+
+    try {
+      await deleteAdminLibraryReference(reference.isbn13);
+      await loadLibraryReferences();
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "외부 참고자료를 삭제하지 못했습니다.",
+      );
+    } finally {
+      setDeletingIsbn13("");
+    }
+  };
 
   return (
     <main className="admin-screen">
@@ -159,7 +248,7 @@ export const AdminScreen = ({ user, onSignOut }: AdminScreenProps) => {
           </div>
           <div className="admin-header-actions">
             <a href="/">앱으로 이동</a>
-            <button type="button" onClick={loadOverview}>
+            <button type="button" onClick={refreshAdmin}>
               새로고침
             </button>
             <button type="button" onClick={() => void onSignOut()}>
@@ -350,6 +439,135 @@ export const AdminScreen = ({ user, onSignOut }: AdminScreenProps) => {
                 <p className="admin-empty">유저를 선택해주세요.</p>
               )}
             </aside>
+          </div>
+        </section>
+
+        <section className="admin-panel">
+          <div className="admin-panel-header">
+            <div>
+              <h2>외부 도서 자료</h2>
+              <p>전체 {referenceTotal.toLocaleString()}건</p>
+            </div>
+            <form
+              className="admin-search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setReferencePage(1);
+                setSubmittedReferenceQuery(referenceQuery);
+              }}
+            >
+              <input
+                value={referenceQuery}
+                onChange={(event) => setReferenceQuery(event.target.value)}
+                placeholder="ISBN, 제목, 내용 검색"
+              />
+              <button type="submit">검색</button>
+            </form>
+          </div>
+
+          <div className="admin-table-wrap">
+            <table className="admin-table admin-reference-table">
+              <thead>
+                <tr>
+                  <th>ISBN</th>
+                  <th>제목</th>
+                  <th>출처</th>
+                  <th>추천책</th>
+                  <th>갱신일</th>
+                  <th>삭제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isReferencesLoading ? (
+                  <tr>
+                    <td colSpan={6}>불러오는 중입니다.</td>
+                  </tr>
+                ) : libraryReferences.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>저장된 외부 참고자료가 없습니다.</td>
+                  </tr>
+                ) : (
+                  libraryReferences.map((reference) => (
+                    <Fragment key={reference.isbn13}>
+                      <tr
+                        className={
+                          openReferenceIsbn13 === reference.isbn13
+                            ? "admin-reference-row-active"
+                            : undefined
+                        }
+                        onClick={() =>
+                          setOpenReferenceIsbn13((current) =>
+                            current === reference.isbn13
+                              ? ""
+                              : reference.isbn13,
+                          )
+                        }
+                      >
+                        <td>
+                          <strong>{reference.isbn13}</strong>
+                        </td>
+                        <td>
+                          <strong>{reference.title || "제목 없음"}</strong>
+                          <small>
+                            {reference.contents || reference.summary || "-"}
+                          </small>
+                        </td>
+                        <td>{reference.source}</td>
+                        <td>{reference.recommendedBooks.length}</td>
+                        <td>{formatDate(reference.updated_at)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="admin-danger-button"
+                            disabled={deletingIsbn13 === reference.isbn13}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void deleteLibraryReference(reference);
+                            }}
+                          >
+                            {deletingIsbn13 === reference.isbn13
+                              ? "삭제 중"
+                              : "삭제"}
+                          </button>
+                        </td>
+                      </tr>
+                      {openReferenceIsbn13 === reference.isbn13 && (
+                        <tr className="admin-reference-raw-row">
+                          <td colSpan={6}>
+                            <pre>{formatJson(reference.raw)}</pre>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))
+                )}
+              </tbody>
+            </table>
+            <div className="admin-pagination">
+              <button
+                type="button"
+                disabled={referencePage <= 1}
+                onClick={() =>
+                  setReferencePage((current) => Math.max(current - 1, 1))
+                }
+              >
+                이전
+              </button>
+              <span>
+                {referencePage} / {referenceTotalPages}
+              </span>
+              <button
+                type="button"
+                disabled={referencePage >= referenceTotalPages}
+                onClick={() =>
+                  setReferencePage((current) =>
+                    Math.min(current + 1, referenceTotalPages),
+                  )
+                }
+              >
+                다음
+              </button>
+            </div>
           </div>
         </section>
       </div>

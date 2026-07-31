@@ -246,30 +246,38 @@ ISBN이 있고 `DATA4LIBRARY_AUTH_KEY`가 설정되어 있으면, 도서관 정�
 
 현재 사용하는 데이터:
 
-- `usageAnalysisList`: ISBN 기반 도서 이용분석
+- `usageAnalysisList`: ISBN 기반 책 소개/contents
 - `recommandList`: ISBN 기반 추천/함께 읽힌 책 목록
 
 트리거되는 대표 질문:
 
-- 이 책의 핵심 키워드 알려줘
 - 비슷하게 읽을 만한 책 추천해줘
 - 다음에 읽을 책 방향을 잡아줘
-- 이 책은 어떤 독자층에서 많이 읽히는지 알려줘
+- 정보나루 책 소개를 내 기록과 연결해줘
 
-정보나루 데이터는 대출/이용/추천 경향을 보여주는 공개 메타데이터다. 작품 내용이나 사용자의 실제 감상을 증명하는 근거처럼 쓰지 않고, 내 독서 기록을 보조하는 참고 데이터로만 사용한다.
+정보나루 데이터는 공개 메타데이터다. 책 소개/contents와 함께 읽힌 책 정도만 저장하고, 작품 전문이나 사용자의 실제 감상을 증명하는 근거처럼 쓰지 않는다.
 
 현재 상태:
 
 - `.env.local`에 `DATA4LIBRARY_AUTH_KEY`는 추가되어 있고 서버에서 읽을 수 있다.
-- 실제 API 호출은 `vitalizationErr` / `API 활성화 상태가아닙니다.` 응답을 반환한다.
-- 정보나루 승인 또는 API 활성화가 완료되기 전까지는 참고 데이터 없이 기존 챗봇 흐름으로 fallback한다.
+- 정보나루 API 승인 후 실제 호출에서 이용분석/추천 데이터가 정상 반환되는 것을 확인했다.
+- 책 등록 시 ISBN이 있으면 `/api/book-library-reference`에서 먼저 자체 캐시를 조회하고, 캐시에 없을 때만 `usageAnalysisList`, `recommandList`를 조회한다.
+- 자체 캐시는 `book_library_references.isbn13` 기준으로 저장한다.
+- 정보나루에서 새로 조회한 결과는 책 소개/contents와 함께 읽힌 책만 저장한다.
+- 국립중앙도서관 ISBN 서지 API는 제목, 저자, 출판사, 판형, 주제, 전자책/CIP 여부 등 보조 서지정보만 함께 저장한다.
+- 외부 API 호출 한도를 아끼기 위해 결과가 없는 ISBN도 `data4LibraryCheckedAt`, `nationalLibraryCheckedAt` 메타값으로 캐시에 남긴다. 이 경우 책 등록 응답에는 참고 데이터를 내려주지 않는다.
+- 저장 데이터는 `books.library_reference` JSONB 컬럼에 보관한다.
+- 책 상세에는 `도서관 이용 데이터` 섹션으로 책 소개와 함께 읽힌 책을 보여준다.
+- 챗봇 컨텍스트에도 저장된 정보나루 요약을 포함한다.
+- 정보나루 호출 실패 또는 데이터 없음 상태에서는 책 등록을 막지 않고 참고 데이터 없이 저장한다.
 - 서버는 정보나루 오류 응답을 참고 데이터로 사용하지 않도록 `errCode` / `error` 응답을 무시한다.
 
-승인 완료 후 확인할 것:
+적용한 DB 마이그레이션:
 
-- `usageAnalysisList`가 ISBN 기준 도서 이용분석 JSON을 반환하는지 확인한다.
-- `recommandList`가 추천/함께 읽힌 책 JSON을 반환하는지 확인한다.
-- Vercel 배포 환경변수에도 `DATA4LIBRARY_AUTH_KEY`를 추가한다.
+- `20260731000000_add_book_library_reference.sql`
+- `public.books.library_reference jsonb`
+- `20260731001000_add_book_library_reference_cache.sql`
+- `public.book_library_references`
 
 ## 답변 형식
 

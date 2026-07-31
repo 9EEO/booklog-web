@@ -17,6 +17,7 @@ const allowedCoverHosts = new Set([
 
 type DevJsonRequest = IncomingMessage & {
   body?: unknown
+  query?: Record<string, string>
 }
 
 type VercelJsonResponse = ServerResponse & {
@@ -87,6 +88,37 @@ const withVercelJsonResponse = (response: ServerResponse): VercelJsonResponse =>
   return jsonResponse
 }
 
+const getQuery = (url: URL) =>
+  Object.fromEntries(url.searchParams.entries())
+
+const loadAdminHandler = async (
+  pathname: string,
+  query: Record<string, string>,
+): Promise<VercelJsonHandler | null> => {
+  if (pathname === '/summary') {
+    const { default: handler } = await import('./api/admin/summary.js') as { default: VercelJsonHandler }
+    return handler
+  }
+
+  if (pathname === '/library-references') {
+    const { default: handler } = await import('./api/admin/library-references.js') as { default: VercelJsonHandler }
+    return handler
+  }
+
+  if (pathname === '/users') {
+    const { default: handler } = await import('./api/admin/users.js') as { default: VercelJsonHandler }
+    return handler
+  }
+
+  if (pathname.startsWith('/users/')) {
+    query.userId = decodeURIComponent(pathname.slice('/users/'.length))
+    const { default: handler } = await import('./api/admin/users/[userId].js') as { default: VercelJsonHandler }
+    return handler
+  }
+
+  return null
+}
+
 const devApiMiddleware = (): Plugin => ({
   name: 'dev-api-middleware',
   configureServer(server) {
@@ -131,6 +163,49 @@ const devApiMiddleware = (): Plugin => ({
         response.statusCode = 400
         response.setHeader('Content-Type', 'application/json; charset=utf-8')
         response.end(JSON.stringify({ error: 'AI 요청 형식이 올바르지 않습니다.' }))
+      }
+    })
+
+    server.middlewares.use('/api/book-library-reference', async (request, response) => {
+      try {
+        loadLocalEnv()
+        const jsonRequest = request as DevJsonRequest
+        jsonRequest.body = await readJsonBody(request)
+        const { default: bookLibraryReferenceHandler } = await import('./api/book-library-reference.js') as {
+          default: VercelJsonHandler
+        }
+
+        await bookLibraryReferenceHandler(jsonRequest, withVercelJsonResponse(response))
+      } catch {
+        response.statusCode = 400
+        response.setHeader('Content-Type', 'application/json; charset=utf-8')
+        response.end(JSON.stringify({ error: '정보나루 요청 형식이 올바르지 않습니다.' }))
+      }
+    })
+
+    server.middlewares.use('/api/admin', async (request, response) => {
+      try {
+        loadLocalEnv()
+        const requestUrl = new URL(request.url ?? '', 'http://localhost')
+        const pathname = requestUrl.pathname.replace(/^\/api\/admin/, '') || '/'
+        const query = getQuery(requestUrl)
+        const handler = await loadAdminHandler(pathname, query)
+
+        if (!handler) {
+          response.statusCode = 404
+          response.setHeader('Content-Type', 'application/json; charset=utf-8')
+          response.end(JSON.stringify({ error: '관리자 API를 찾지 못했습니다.' }))
+          return
+        }
+
+        const jsonRequest = request as DevJsonRequest
+        jsonRequest.query = query
+
+        await handler(jsonRequest, withVercelJsonResponse(response))
+      } catch {
+        response.statusCode = 400
+        response.setHeader('Content-Type', 'application/json; charset=utf-8')
+        response.end(JSON.stringify({ error: '관리자 요청 형식이 올바르지 않습니다.' }))
       }
     })
   },

@@ -29,6 +29,29 @@ export type AdminUsersResponse = {
   pageSize: number;
 };
 
+export type AdminLibraryReferenceSummary = {
+  isbn13: string;
+  title: string;
+  source: string;
+  contents: string;
+  summary: string;
+  raw: unknown;
+  recommendedBooks: Array<{
+    title?: string;
+    author?: string;
+  }>;
+  syncedAt: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminLibraryReferencesResponse = {
+  references: AdminLibraryReferenceSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export type AdminUserDetail = {
   user: {
     id: string;
@@ -100,10 +123,15 @@ const getAdminToken = async () => {
   return data.session.access_token;
 };
 
-const fetchAdmin = async <T>(path: string): Promise<T> => {
+const fetchAdmin = async <T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> => {
   const token = await getAdminToken();
   const response = await fetch(path, {
+    ...init,
     headers: {
+      ...init.headers,
       Authorization: `Bearer ${token}`,
     },
   });
@@ -156,3 +184,28 @@ export const fetchAdminUsers = (input: {
 
 export const fetchAdminUserDetail = (userId: string) =>
   fetchAdmin<AdminUserDetail>(`/api/admin/users/${encodeURIComponent(userId)}`);
+
+export const fetchAdminLibraryReferences = (input: {
+  page: number;
+  pageSize: number;
+  query: string;
+}) => {
+  const params = new URLSearchParams({
+    page: String(input.page),
+    pageSize: String(input.pageSize),
+  });
+
+  if (input.query.trim()) {
+    params.set("q", input.query.trim());
+  }
+
+  return fetchAdmin<AdminLibraryReferencesResponse>(
+    `/api/admin/library-references?${params}`,
+  );
+};
+
+export const deleteAdminLibraryReference = (isbn13: string) =>
+  fetchAdmin<{ ok: true }>(
+    `/api/admin/library-references?isbn13=${encodeURIComponent(isbn13)}`,
+    { method: "DELETE" },
+  );

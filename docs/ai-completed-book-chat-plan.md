@@ -350,15 +350,18 @@ Use 도서관 정보나루 as optional reference data when the completed book ha
 
 Current status:
 
-- The local key is configured, but the API currently returns `vitalizationErr` / `API 활성화 상태가아닙니다.`
-- Until approval or activation is complete, the server ignores the error response and falls back to the normal book-chat flow.
+- The API keys are active and the book registration flow enriches selected books by ISBN.
+- `/api/book-library-reference` checks the local `book_library_references` cache by ISBN first.
+- On cache miss, it fetches Data4Library `usageAnalysisList` / `recommandList` and National Library ISBN bibliography data, stores the compact result in `book_library_references`, then copies useful data to `books.library_reference` during book registration.
+- Empty external lookups are also cached with checked-at markers, so the same ISBN does not repeatedly consume public API quota.
+- Book detail shows a small `도서관 이용 데이터` section when stored reference data exists.
+- The completed-book chat context includes the stored library reference data.
+- If the API fails or returns no useful data, book registration continues without blocking.
 
 Good use cases:
 
-- Loan/usage trend questions
-- Core keyword questions
+- Stored book introduction/contents questions
 - Similar or next-book recommendation questions
-- Reader tendency questions such as age/gender/usage groups
 
 Do not use this as proof of the book's full content or the user's personal impression. It is public library usage metadata, so it should support answers as reading-market context, not replace the user's own reading records.
 

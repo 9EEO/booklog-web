@@ -20,6 +20,7 @@ import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { SwipeSegmentedControl } from "../components/SwipeSegmentedControl";
 import { SwipeableView } from "../components/SwipeableView";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
+import { fetchBookLibraryReference } from "../services/bookLibraryReference";
 import { resolveBestBookCover } from "../services/bookCovers";
 import {
   createBookChatMessage,
@@ -660,6 +661,7 @@ export const LibraryScreen = ({
     BookSearchResult[]
   >([]);
   const [bookDateError, setBookDateError] = useState("");
+  const [isManualBookEntry, setIsManualBookEntry] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [activeShelfTab, setActiveShelfTab] = useState<ShelfTab>("reading");
   const [libraryView, setLibraryView] = useState<LibraryView>("shelf");
@@ -1149,6 +1151,7 @@ export const LibraryScreen = ({
     setBookSearchMessage("");
     setBookSearchResults([]);
     setBookDateError("");
+    setIsManualBookEntry(false);
   };
 
   const openBookSearchStep = () => {
@@ -1163,6 +1166,7 @@ export const LibraryScreen = ({
   }, [bookFormOpenRequestId, onConsumeBookFormOpenRequest]);
 
   const startManualBookEntry = () => {
+    setIsManualBookEntry(true);
     setNewBook({
       ...emptyNewBook,
       title: bookSearchQuery.trim(),
@@ -1212,10 +1216,13 @@ export const LibraryScreen = ({
     setIsMutating(true);
 
     try {
-      const resolvedThumbnail = await resolveBestBookCover({
-        isbn: newBook.isbn,
-        fallbackThumbnail: newBook.thumbnail,
-      });
+      const [resolvedThumbnail, libraryReference] = await Promise.all([
+        resolveBestBookCover({
+          isbn: newBook.isbn,
+          fallbackThumbnail: newBook.thumbnail,
+        }),
+        fetchBookLibraryReference(newBook.isbn, newBook.title),
+      ]);
       const newBookId = await onAddBook({
         ...newBook,
         totalPages,
@@ -1223,6 +1230,7 @@ export const LibraryScreen = ({
         startedAt: startedAt ?? undefined,
         completedAt: completedAt ?? undefined,
         thumbnail: resolvedThumbnail,
+        libraryReference,
       });
 
       setSelectedBookId(newBookId);
@@ -1266,6 +1274,7 @@ export const LibraryScreen = ({
   };
 
   const selectSearchResult = (book: BookSearchResult) => {
+    setIsManualBookEntry(false);
     setNewBook((current) => ({
       ...current,
       title: book.title,
@@ -2059,6 +2068,32 @@ export const LibraryScreen = ({
                   </div>
                 </section>
 
+                {selectedBook.libraryReference && (
+                  <section className="book-library-reference-section">
+                    <div className="book-detail-section-title">
+                      <h2>도서관 이용 데이터</h2>
+                      <strong>{selectedBook.libraryReference.source}</strong>
+                    </div>
+                    <p className="book-library-reference-summary">
+                      {selectedBook.libraryReference.contents ??
+                        selectedBook.libraryReference.summary}
+                    </p>
+                    {selectedBook.libraryReference.recommendedBooks.length >
+                      0 && (
+                      <div className="book-library-reference-books">
+                        {selectedBook.libraryReference.recommendedBooks.map(
+                          (book) => (
+                            <p key={`${book.title}-${book.author ?? ""}`}>
+                              {book.title}
+                              {book.author ? ` · ${book.author}` : ""}
+                            </p>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </section>
+                )}
+
                 <section className="book-detail-journey-section">
                   <div className="book-detail-section-title">
                     <h2>독서 여정</h2>
@@ -2392,8 +2427,8 @@ export const LibraryScreen = ({
                       먼저 봅니다.
                     </p>
                     <span>
-                      독서 기록 {selectedBookRecords.length}개 활용 · 저장
-                      문장 {selectedBook.sentences.length}개 분석
+                      독서 기록 {selectedBookRecords.length}개 활용 · 저장 문장{" "}
+                      {selectedBook.sentences.length}개 분석
                     </span>
                   </div>
 
@@ -2896,35 +2931,39 @@ export const LibraryScreen = ({
             </div>
 
             <div className="book-form-fields">
-              <label className="book-form-label" htmlFor="new-book-title">
-                책 제목
-              </label>
-              <input
-                id="new-book-title"
-                className="book-form-input"
-                value={newBook.title}
-                onChange={(event) =>
-                  setNewBook((current) => ({
-                    ...current,
-                    title: event.target.value,
-                  }))
-                }
-              />
+              {isManualBookEntry && (
+                <>
+                  <label className="book-form-label" htmlFor="new-book-title">
+                    책 제목
+                  </label>
+                  <input
+                    id="new-book-title"
+                    className="book-form-input"
+                    value={newBook.title}
+                    onChange={(event) =>
+                      setNewBook((current) => ({
+                        ...current,
+                        title: event.target.value,
+                      }))
+                    }
+                  />
 
-              <label className="book-form-label" htmlFor="new-book-author">
-                저자
-              </label>
-              <input
-                id="new-book-author"
-                className="book-form-input"
-                value={newBook.author}
-                onChange={(event) =>
-                  setNewBook((current) => ({
-                    ...current,
-                    author: event.target.value,
-                  }))
-                }
-              />
+                  <label className="book-form-label" htmlFor="new-book-author">
+                    저자
+                  </label>
+                  <input
+                    id="new-book-author"
+                    className="book-form-input"
+                    value={newBook.author}
+                    onChange={(event) =>
+                      setNewBook((current) => ({
+                        ...current,
+                        author: event.target.value,
+                      }))
+                    }
+                  />
+                </>
+              )}
 
               <div>
                 <p className="book-form-label">등록 상태</p>

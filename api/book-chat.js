@@ -238,10 +238,10 @@ const buildPrompt = ({
 - 책 전문을 알고 있는 척하지 않는다.
 - web search 도구가 제공된 경우에만 외부 정보를 사용할 수 있다.
 - web search 도구가 제공되지 않은 경우 인터넷을 검색했다고 말하지 않는다.
-- 도서관 정보나루 참고 데이터가 제공된 경우에만 대출/이용/추천/키워드 데이터를 사용할 수 있다.
-- 제공된 완독 기록, 저장 문장, 독서 패턴, 티어 정보, 책 메타데이터, 도서관 정보나루 참고 데이터, web search 결과만 근거로 답한다.
+- 외부 도서 참고 데이터가 제공된 경우에만 대출/이용/추천/서지 데이터를 사용할 수 있다.
+- 제공된 완독 기록, 저장 문장, 독서 패턴, 티어 정보, 책 메타데이터, 책 컨텍스트에 저장된 외부 도서 참고 데이터, web search 결과만 근거로 답한다.
 - 책 메타데이터의 contents/publisher/isbn은 "책 정보"로만 다루고, 책 전문이나 검증된 외부 검색 결과처럼 과장하지 않는다.
-- 도서관 정보나루 데이터는 독자 이용 경향과 추천 참고 데이터일 뿐, 작품 내용이나 사용자의 감상을 증명하는 근거처럼 과장하지 않는다.
+- 외부 도서 참고 데이터는 이용 경향, 추천, 서지 정보일 뿐, 작품 내용이나 사용자의 감상을 증명하는 근거처럼 과장하지 않는다.
 - 답변 구조는 질문 의도에 맞게 고른다.
 - 사용자가 내 기록, 저장 문장, 독서 패턴, 티어, 감상, 회고를 묻는 경우에만 "내 기록에서 본 점"을 포함한다.
 - 사용자가 저자/작가 배경, 작품 배경, 출판, 수상, 외부 정보만 묻는 경우에는 "내 기록에서 본 점" 섹션을 만들지 않는다.
@@ -256,7 +256,7 @@ const buildPrompt = ({
 - answer는 900자 이내로 간결하게 쓴다.
 - 사용자가 바로 읽기 좋은 자연스러운 문장으로 답한다.
 - evidence에는 답변에 실제로 사용한 근거만 담는다.
-- 도서관 정보나루 참고 데이터를 사용했다면 evidence에 type "external"을 포함하고 label은 "도서관 정보나루"로 쓴다.
+- 외부 도서 참고 데이터를 사용했다면 evidence에 type "external"을 포함하고 label은 해당 출처명으로 쓴다.
 - web search 결과를 사용했다면 evidence에 type "external"을 포함하고 출처 이름이나 URL을 detail에 적는다.
 - followUpQuestions는 사용자가 AI에게 그대로 보내는 짧은 질문/명령문으로 만든다.
 - followUpQuestions에 AI가 사용자에게 되묻는 문장이나 선택을 요청하는 문장을 넣지 않는다.
@@ -274,8 +274,8 @@ ${question}
 
 ${
   libraryReference
-    ? `도서관 정보나루 참고 데이터:\n${JSON.stringify(libraryReference, null, 2)}`
-    : "도서관 정보나루 참고 데이터: 없음"
+    ? `외부 도서 참고 데이터:\n${JSON.stringify(libraryReference, null, 2)}`
+    : "외부 도서 참고 데이터: 없음"
 }
 
 ${
@@ -375,7 +375,7 @@ const appendLibraryEvidence = (parsed, libraryReference) => {
   }
 
   const hasLibraryEvidence = parsed.evidence.some(
-    (evidence) => evidence?.label === "도서관 정보나루",
+    (evidence) => evidence?.label === libraryReference.source,
   );
 
   if (hasLibraryEvidence) return parsed;
@@ -385,7 +385,7 @@ const appendLibraryEvidence = (parsed, libraryReference) => {
     evidence: [
       {
         type: "external",
-        label: "도서관 정보나루",
+        label: libraryReference.source,
         detail: libraryReference.summary.slice(0, 600),
       },
       ...parsed.evidence,
@@ -468,8 +468,16 @@ const fetchExternalResearch = async ({ apiKey, model, context, question }) => {
   };
 };
 
-const cleanIsbn = (isbn) =>
-  typeof isbn === "string" ? isbn.replace(/[^0-9Xx]/g, "") : "";
+const cleanIsbn = (isbn) => {
+  if (typeof isbn !== "string") return "";
+
+  const candidates = isbn.match(/(?:97[89])?\d{9}[\dXx]/g) ?? [];
+  return (
+    candidates.find((candidate) => candidate.length === 13) ??
+    candidates[0]?.toUpperCase() ??
+    ""
+  );
+};
 
 const fetchData4LibraryJson = async ({ url, authKey, isbn }) => {
   const params = new URLSearchParams({
@@ -514,25 +522,58 @@ const collectData4LibraryWords = (value, key, results = []) => {
   return results;
 };
 
-const buildLibraryReferenceSummary = ({ usageAnalysis, recommendations }) => {
-  const keywords = collectData4LibraryWords(usageAnalysis, "word");
+const getRepresentativeBookTitle = (value) =>
+  typeof value === "string" ? value.split(/[:：]/)[0]?.trim() ?? "" : "";
+
+const normalizeBookTitle = (value) =>
+  getRepresentativeBookTitle(value).replace(/\s+/g, "").toLowerCase();
+
+const cleanBookAuthor = (value) =>
+  typeof value === "string"
+    ? value.replace(/^(지은이|저자|글|옮긴이|엮은이)\s*[:：]\s*/, "").trim()
+    : "";
+
+const buildLibraryReferenceSummary = ({
+  usageAnalysis,
+  recommendations,
+  title,
+}) => {
+  const contents =
+    usageAnalysis?.response?.book?.description ??
+    usageAnalysis?.response?.book?.contents;
+  const sourceTitle = normalizeBookTitle(
+    title ?? usageAnalysis?.response?.book?.bookname,
+  );
   const bookNames = collectData4LibraryWords(recommendations, "bookname");
   const authors = collectData4LibraryWords(recommendations, "authors");
+  const seenTitles = new Set();
+  const recommendedBooks = bookNames.reduce((books, bookName, index) => {
+    const normalizedTitle = normalizeBookTitle(bookName);
+
+    if (
+      !normalizedTitle ||
+      normalizedTitle === sourceTitle ||
+      seenTitles.has(normalizedTitle) ||
+      books.length >= 3
+    ) {
+      return books;
+    }
+
+    seenTitles.add(normalizedTitle);
+    const representativeTitle = getRepresentativeBookTitle(bookName);
+    const author = cleanBookAuthor(authors[index]);
+
+    books.push(author ? `${representativeTitle}(${author})` : representativeTitle);
+    return books;
+  }, []);
   const parts = [];
 
-  if (keywords.length > 0) {
-    parts.push(`핵심 키워드: ${keywords.slice(0, 5).join(", ")}`);
+  if (typeof contents === "string" && contents.trim()) {
+    parts.push(contents.trim());
   }
 
-  if (bookNames.length > 0) {
-    parts.push(
-      `추천/함께 읽힌 책: ${bookNames
-        .slice(0, 3)
-        .map((bookName, index) =>
-          authors[index] ? `${bookName}(${authors[index]})` : bookName,
-        )
-        .join(", ")}`,
-    );
+  if (recommendedBooks.length > 0) {
+    parts.push(`추천/함께 읽힌 책: ${recommendedBooks.join(", ")}`);
   }
 
   return parts.length > 0
@@ -570,6 +611,7 @@ const fetchLibraryReference = async ({ context, question }) => {
       summary: buildLibraryReferenceSummary({
         usageAnalysis,
         recommendations,
+        title: context.book?.title,
       }),
       usageAnalysis: compactLibraryPayload(usageAnalysis),
       recommendations: compactLibraryPayload(recommendations),

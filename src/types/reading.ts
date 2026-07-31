@@ -36,10 +36,47 @@ export type Book = {
   isbn?: string
   publisher?: string
   contents?: string
+  libraryReference?: BookLibraryReference
   sentences: Highlight[]
   rounds?: ReadingRound[]
   activeRoundId?: string
   activeRoundNumber?: number
+}
+
+export type BookLibraryReference = {
+  source: string
+  title?: string
+  summary: string
+  contents?: string
+  recommendedBooks: Array<{
+    title: string
+    author?: string
+  }>
+  nationalLibrary?: {
+    source?: string
+    title?: string
+    author?: string
+    isbn?: string
+    setIsbn?: string
+    publisher?: string
+    edition?: string
+    page?: string
+    bookSize?: string
+    form?: string
+    subject?: string
+    ebookYn?: string
+    cipYn?: string
+    coverUrl?: string
+    tocUrl?: string
+    introductionUrl?: string
+    summaryUrl?: string
+    inputDate?: string
+    updateDate?: string
+    syncedAt?: string
+  }
+  data4LibraryCheckedAt?: string
+  nationalLibraryCheckedAt?: string
+  syncedAt: string
 }
 
 export type ReadingRecord = {
@@ -87,6 +124,7 @@ export type NewBookInput = {
   isbn?: string
   publisher?: string
   contents?: string
+  libraryReference?: BookLibraryReference
 }
 
 export type BookSearchResult = {

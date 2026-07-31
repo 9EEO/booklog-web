@@ -1,6 +1,6 @@
 import { defaultDailyGoalSeconds, defaultWeeklyGoalDays } from '../storage/readingStorage'
 import { requireSupabase } from './supabase'
-import type { Book, BookStatus, Highlight, NewBookInput, ReadingRecord, ReadingRound } from '../types/reading'
+import type { Book, BookLibraryReference, BookStatus, Highlight, NewBookInput, ReadingRecord, ReadingRound } from '../types/reading'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
 type BookRow = {
@@ -20,6 +20,7 @@ type BookRow = {
   isbn: string | null
   publisher: string | null
   contents: string | null
+  library_reference?: BookLibraryReference | null
 }
 
 type HighlightRow = {
@@ -136,6 +137,7 @@ const mapBookRow = (row: BookRow, highlights: Highlight[], rounds: ReadingRound[
     isbn: row.isbn ?? undefined,
     publisher: row.publisher ?? undefined,
     contents: row.contents ?? undefined,
+    libraryReference: row.library_reference ?? undefined,
     sentences: highlights,
     rounds: normalizedRounds,
     activeRoundId: activeRound.id,
@@ -268,6 +270,7 @@ export const createRemoteBook = async (
     isbn: input.isbn?.trim() || null,
     publisher: input.publisher?.trim() || null,
     contents: input.contents?.trim() || null,
+    library_reference: input.libraryReference ?? null,
   }
 
   const { data, error } = await supabase.from('books').insert(payload).select('*').single()
@@ -551,6 +554,7 @@ export const migrateLocalSnapshotToSupabase = async (
         isbn: book.isbn,
         publisher: book.publisher,
         contents: book.contents,
+        libraryReference: book.libraryReference,
       },
       palette,
       book.startedAt,

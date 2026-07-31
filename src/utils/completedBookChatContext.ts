@@ -78,6 +78,7 @@ export const buildCompletedBookChatContext = ({
       publisher: book.publisher,
       isbn: book.isbn,
       contents: book.contents,
+      libraryReference: book.libraryReference,
       totalPages: book.totalPages,
       startedAt: book.startedAt,
       completedAt: book.completedAt,

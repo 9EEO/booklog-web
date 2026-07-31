@@ -109,15 +109,15 @@ const resolveUncachedBookCover = async ({
 
   if (!primaryIsbn) return fallbackThumbnail;
 
+  const openLibraryCover = getOpenLibraryCoverUrl(primaryIsbn);
+  if (await canLoadImage(openLibraryCover)) return openLibraryCover;
+
   try {
     const googleCover = await findGoogleBooksCover(primaryIsbn);
     if (googleCover) return googleCover;
   } catch {
-    // Fallback to Open Library below.
+    // Keep the original thumbnail if both cover lookups fail.
   }
-
-  const openLibraryCover = getOpenLibraryCoverUrl(primaryIsbn);
-  if (await canLoadImage(openLibraryCover)) return openLibraryCover;
 
   return fallbackThumbnail;
 };

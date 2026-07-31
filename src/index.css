@@ -3983,6 +3983,13 @@ button {
   text-align: left;
 }
 
+.admin-table td strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .admin-table td small {
   display: block;
   max-width: 240px;
@@ -3993,6 +4000,58 @@ button {
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.admin-reference-table tr {
+  cursor: default;
+}
+
+.admin-reference-table tbody tr:not(.admin-reference-raw-row) {
+  cursor: pointer;
+}
+
+.admin-reference-row-active,
+.admin-reference-row-active:hover {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.admin-reference-raw-row:hover {
+  background: transparent;
+}
+
+.admin-reference-raw-row td {
+  padding-top: 0;
+}
+
+.admin-reference-raw-row pre {
+  max-height: 320px;
+  overflow: auto;
+  border-radius: 10px;
+  background: #f8f9fc;
+  color: rgba(21, 21, 21, 0.72);
+  margin: 0;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-table td .admin-danger-button {
+  display: inline-flex;
+  border-radius: 10px;
+  background: rgba(231, 111, 81, 0.12);
+  color: #a3402b;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.admin-table td .admin-danger-button:disabled {
+  opacity: 0.45;
 }
 
 .admin-pagination {
@@ -8249,6 +8308,7 @@ button {
 .book-detail-progress-section,
 .book-detail-journey-section,
 .book-detail-records-section,
+.book-library-reference-section,
 .book-detail-pattern-section,
 .book-detail-sentence-section,
 .book-detail-rounds {
@@ -8270,6 +8330,10 @@ button {
 
 .book-detail-records-section {
   background: #ffffff;
+}
+
+.book-library-reference-section {
+  background: #f8fbff;
 }
 
 .book-detail-pattern-section {
@@ -8438,6 +8502,26 @@ button {
   color: rgba(21, 21, 21, 0.78);
   font-size: 11px;
   font-weight: 950;
+}
+
+.book-library-reference-summary {
+  color: rgba(21, 21, 21, 0.72);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.book-library-reference-books {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.book-library-reference-books p {
+  color: rgba(21, 21, 21, 0.62);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .book-journey-chart {
