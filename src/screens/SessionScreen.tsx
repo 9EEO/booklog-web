@@ -8,7 +8,6 @@ import {
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
-import { PixelCard } from "../components/PixelCard";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import { useBookCoverPalette } from "../hooks/useBookCoverPalette";
@@ -44,7 +43,7 @@ type SessionScreenProps = {
   timer: ReadingTimer;
   onChangeBook: (bookId: string) => void;
   onSaveRecord: (input: ReadingCompletionInput) => Promise<void>;
-  onGoLibrary: () => void;
+  onAddFirstBook: () => void;
 };
 
 type PakMotion = "idle" | "ejecting" | "out" | "inserting";
@@ -240,7 +239,7 @@ export const SessionScreen = ({
   timer,
   onChangeBook,
   onSaveRecord,
-  onGoLibrary,
+  onAddFirstBook,
 }: SessionScreenProps) => {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
@@ -403,24 +402,46 @@ export const SessionScreen = ({
   if (!currentBook) {
     return (
       <div className="session-screen space-y-4">
-        <header>
-          <h1 className="text-2xl font-black">독서중</h1>
-        </header>
-        <PixelCard className="bg-[#F3E8D0] text-center">
-          <Icon name="book" className="mx-auto mb-3 h-8 w-8 text-[#5F6D57]" />
-          <p className="text-lg font-black">읽을 책이 없습니다.</p>
-          <p className="mt-2 text-sm font-bold leading-relaxed text-stone-600">
-            서재에서 첫 책을 추가한 뒤 독서를 시작해 주세요.
-          </p>
-          <button
-            type="button"
-            className="primary-button mt-4 w-full"
-            onClick={onGoLibrary}
-          >
-            <Icon name="plus" className="h-5 w-5" />
-            서재로 이동
-          </button>
-        </PixelCard>
+        <section className="session-focus-panel">
+          <div className="focus-timer-card">
+            <div className="relative z-10">
+              <AdventureScene
+                status="idle"
+                mode={timer.mode}
+                displayTime={formatFocusTime(timer.remainingSeconds)}
+                progress={0}
+                goalApproachProgress={null}
+                showStartBanner={false}
+                presets={presets}
+                targetSeconds={timer.targetSeconds}
+                memoryLogs={[]}
+                memorySeed="empty-book"
+                emptyState={{
+                  title: "첫 책을 추가해볼까요?",
+                  description:
+                    "읽고 있는 책을 등록하면 바로 독서 시간을 기록할 수 있어요.",
+                  actionLabel: "첫 책 추가하기",
+                  onAction: onAddFirstBook,
+                }}
+                onChangeMode={() => undefined}
+                onSelectPreset={() => undefined}
+                onStart={() => undefined}
+                onPause={() => undefined}
+                onStop={() => undefined}
+              />
+            </div>
+          </div>
+        </section>
+
+        <div
+          className="session-book-pak-dock session-book-pak-dock-empty"
+          aria-hidden="true"
+        >
+          <div className="session-book-slot-rear" />
+          <div className="session-book-slot-lip">
+            <span />
+          </div>
+        </div>
       </div>
     );
   }

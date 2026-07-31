@@ -4621,6 +4621,10 @@ button {
   padding-bottom: 28px;
 }
 
+.session-book-pak-dock-empty {
+  min-height: 76px;
+}
+
 .session-screen .modal-backdrop {
   z-index: 100;
 }

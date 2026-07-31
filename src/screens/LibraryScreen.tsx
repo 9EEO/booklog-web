@@ -71,7 +71,8 @@ type LibraryScreenProps = {
   onUpdateBookTotalPages: (bookId: string, totalPages: number) => Promise<void>;
   onStartReread: (bookId: string) => Promise<void>;
   onDeleteRound: (bookId: string, roundId: string) => Promise<void>;
-  shouldOpenBookForm: boolean;
+  bookFormOpenRequestId: number;
+  onConsumeBookFormOpenRequest: () => void;
   onDetailModeChange?: (isDetailMode: boolean) => void;
 };
 
@@ -614,7 +615,8 @@ export const LibraryScreen = ({
   onUpdateBookTotalPages,
   onStartReread,
   onDeleteRound,
-  shouldOpenBookForm,
+  bookFormOpenRequestId,
+  onConsumeBookFormOpenRequest,
   onDetailModeChange,
 }: LibraryScreenProps) => {
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
@@ -622,7 +624,9 @@ export const LibraryScreen = ({
     null,
   );
   const [isAddingSentence, setIsAddingSentence] = useState(false);
-  const [isBookFormOpen, setIsBookFormOpen] = useState(shouldOpenBookForm);
+  const [isBookFormOpen, setIsBookFormOpen] = useState(
+    bookFormOpenRequestId > 0,
+  );
   const [deleteSentenceId, setDeleteSentenceId] = useState<string | null>(null);
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
   const [deleteRoundId, setDeleteRoundId] = useState<string | null>(null);
@@ -1151,6 +1155,12 @@ export const LibraryScreen = ({
     setBookFormStep("search");
     setBookDateError("");
   };
+
+  useEffect(() => {
+    if (bookFormOpenRequestId === 0) return;
+
+    onConsumeBookFormOpenRequest();
+  }, [bookFormOpenRequestId, onConsumeBookFormOpenRequest]);
 
   const startManualBookEntry = () => {
     setNewBook({
