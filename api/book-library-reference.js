@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-import WebSocket from "ws";
 
 const DATA4LIBRARY_USAGE_ANALYSIS_API_URL =
   "https://data4library.kr/api/usageAnalysisList";
@@ -21,9 +20,6 @@ const createCacheClient = () => {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-    },
-    realtime: {
-      transport: WebSocket,
     },
   });
 };
