@@ -994,6 +994,14 @@ export const SessionScreen = ({
                     </label>
                     <label>
                       <span>문장</span>
+                      <SentenceOcrButton
+                        disabled={isSavingWordNote}
+                        onRecognized={(text) =>
+                          setWordNoteSentence((current) =>
+                            current.trim() ? `${current.trim()}\n${text}` : text,
+                          )
+                        }
+                      />
                       <textarea
                         value={wordNoteSentence}
                         onChange={(event) =>

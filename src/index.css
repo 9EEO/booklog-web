@@ -7210,6 +7210,21 @@ button {
   padding: 8px;
 }
 
+.session-word-note-draft .sentence-ocr-control {
+  gap: 4px;
+}
+
+.session-word-note-draft .sentence-ocr-button {
+  width: 100%;
+  min-height: 30px;
+  border: 2px dashed rgba(21, 21, 21, 0.48);
+  border-radius: 2px;
+  background: #fffef8;
+  color: #151515;
+  font-family: var(--font-ui);
+  font-size: 10px;
+}
+
 .session-word-search-footer {
   display: flex;
   min-height: 24px;
