@@ -423,8 +423,11 @@ const SceneHudStatus = styled.span`
 `;
 
 const ActionButton = styled.button<{ $danger?: boolean }>`
+  display: inline-flex;
   min-width: 48px;
   min-height: 32px;
+  align-items: center;
+  justify-content: center;
   border: 2px solid #151515;
   border-radius: 2px;
   background: ${({ $danger }) =>
@@ -432,9 +435,15 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
   color: ${({ $danger }) => ($danger ? "#151515" : "#f2c94c")};
   padding: 0 9px;
   font-family: var(--font-pixel);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 950;
   letter-spacing: 0;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+  }
 
   &:active {
     opacity: 0.68;
@@ -904,15 +913,38 @@ export const AdventureScene = ({
                 type="button"
                 onClick={status === "running" ? onPause : onStart}
                 disabled={status === "paused" && isInteractionPanelOpen}
-              >
-                {status === "running"
-                  ? "일시정지"
-                  : isInteractionPanelOpen
+                aria-label={
+                  status === "running"
                     ? "일시정지"
-                    : "재개"}
+                    : isInteractionPanelOpen
+                      ? "일시정지됨"
+                      : "재개"
+                }
+                title={
+                  status === "running"
+                    ? "일시정지"
+                    : isInteractionPanelOpen
+                      ? "일시정지됨"
+                      : "재개"
+                }
+              >
+                <Icon
+                  name={
+                    status === "running" || isInteractionPanelOpen
+                      ? "pause"
+                      : "play"
+                  }
+                  className="h-4 w-4"
+                />
               </ActionButton>
-              <ActionButton type="button" $danger onClick={onStop}>
-                종료
+              <ActionButton
+                type="button"
+                $danger
+                onClick={onStop}
+                aria-label="종료"
+                title="종료"
+              >
+                <Icon name="stop" className="h-4 w-4" />
               </ActionButton>
               {onSearch && (
                 <ActionButton
