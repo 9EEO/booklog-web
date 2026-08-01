@@ -381,8 +381,9 @@ const ActionDock = styled.div`
   bottom: 10px;
   left: 10px;
   display: flex;
+  flex-wrap: nowrap;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
 `;
 
 const SceneHud = styled.time`
@@ -422,15 +423,16 @@ const SceneHudStatus = styled.span`
 `;
 
 const ActionButton = styled.button<{ $danger?: boolean }>`
-  min-height: 22px;
+  min-width: 48px;
+  min-height: 32px;
   border: 2px solid #151515;
   border-radius: 2px;
   background: ${({ $danger }) =>
     $danger ? "rgba(255, 255, 255, 0.9)" : "#151515"};
   color: ${({ $danger }) => ($danger ? "#151515" : "#f2c94c")};
-  padding: 0 6px;
+  padding: 0 9px;
   font-family: var(--font-pixel);
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 950;
   letter-spacing: 0;
 
