@@ -951,8 +951,10 @@ export const AdventureScene = ({
                   type="button"
                   onClick={onSearch}
                   aria-pressed={isSearchPanelOpen}
+                  aria-label="단어 검색"
+                  title="단어 검색"
                 >
-                  단어
+                  <Icon name="search" className="h-4 w-4" />
                 </ActionButton>
               )}
               {onSentence && (
@@ -960,8 +962,10 @@ export const AdventureScene = ({
                   type="button"
                   onClick={onSentence}
                   aria-pressed={isSentencePanelOpen}
+                  aria-label="문장 추가"
+                  title="문장 추가"
                 >
-                  문장
+                  <Icon name="edit" className="h-4 w-4" />
                 </ActionButton>
               )}
             </ActionDock>
