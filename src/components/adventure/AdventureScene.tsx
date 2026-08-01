@@ -904,13 +904,13 @@ export const AdventureScene = ({
                 disabled={status === "paused" && isInteractionPanelOpen}
               >
                 {status === "running"
-                  ? "PAUSE"
+                  ? "일시정지"
                   : isInteractionPanelOpen
-                    ? "PAUSED"
-                    : "RESUME"}
+                    ? "일시정지"
+                    : "재개"}
               </ActionButton>
               <ActionButton type="button" $danger onClick={onStop}>
-                STOP
+                종료
               </ActionButton>
               {onSearch && (
                 <ActionButton
@@ -918,7 +918,7 @@ export const AdventureScene = ({
                   onClick={onSearch}
                   aria-pressed={isSearchPanelOpen}
                 >
-                  SEARCH
+                  단어
                 </ActionButton>
               )}
               {onSentence && (
@@ -927,7 +927,7 @@ export const AdventureScene = ({
                   onClick={onSentence}
                   aria-pressed={isSentencePanelOpen}
                 >
-                  QUOTE
+                  문장
                 </ActionButton>
               )}
             </ActionDock>
