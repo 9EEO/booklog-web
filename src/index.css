@@ -2718,6 +2718,56 @@ button {
   color: rgba(21, 21, 21, 0.58);
 }
 
+.sentence-ocr-selector-close:disabled {
+  cursor: wait;
+  opacity: 0.36;
+}
+
+.sentence-ocr-loading {
+  display: grid;
+  min-height: min(46svh, 360px);
+  place-items: center;
+  gap: 8px;
+  border: 1px solid rgba(21, 21, 21, 0.1);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fffefa 0%, #f7f6f0 100%);
+  color: rgba(21, 21, 21, 0.66);
+  padding: 28px 18px;
+  text-align: center;
+}
+
+.sentence-ocr-loading svg {
+  color: #2563eb;
+  animation: sentence-ocr-loading-pulse 1s ease-in-out infinite;
+}
+
+.sentence-ocr-loading strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.sentence-ocr-loading p {
+  max-width: 260px;
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+@keyframes sentence-ocr-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
 .sentence-ocr-selector-toolbar {
   display: flex;
   min-height: 34px;
@@ -2738,6 +2788,41 @@ button {
   padding: 0 4px 0 12px;
   font-size: 10px;
   font-weight: 950;
+}
+
+.sentence-ocr-selector-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid rgba(21, 21, 21, 0.12);
+  border-radius: 9px;
+  background: rgba(21, 21, 21, 0.04);
+}
+
+.sentence-ocr-selector-tabs button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(21, 21, 21, 0.44);
+  font-size: 10px;
+  font-weight: 950;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.sentence-ocr-selector-tabs button.is-active {
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(21, 21, 21, 0.1);
+}
+
+.sentence-ocr-selector-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
 .sentence-ocr-add-page {
@@ -2762,6 +2847,24 @@ button {
 .sentence-ocr-add-page:disabled {
   cursor: wait;
   opacity: 0.52;
+}
+
+.sentence-ocr-selector-busy {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.06);
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.sentence-ocr-selector-busy svg {
+  animation: sentence-ocr-loading-pulse 1s ease-in-out infinite;
 }
 
 .sentence-ocr-selector-error {
