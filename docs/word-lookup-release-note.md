@@ -1,6 +1,6 @@
 # 독서 중 단어/문장 기록 기능 배포 정리
 
-배포 커밋: `a6da74a Move sentence notes into reading session`
+배포 커밋: `e2dfcad Select OCR text from image preview`
 브랜치: `main`
 작성일: `2026.08.01`
 
@@ -28,9 +28,10 @@
 1. 타이머 실행 중 `QUOTE` 버튼을 누른다.
 2. 타이머가 일시정지되고 전체 화면 문장 추가 화면이 열린다.
 3. 문장을 직접 입력하거나 `사진으로 담기`로 OCR 문장 선택을 사용한다.
-4. 필요하면 문장이 나온 페이지를 입력한다.
-5. `저장`을 누르면 책 상세의 문장 기록에 저장된다.
-6. 문장 추가 화면이 닫히고 3초 카운트다운 후 타이머가 다시 시작된다.
+4. OCR 결과는 사진 위의 텍스트 영역을 직접 탭하거나, 아래 텍스트 목록에서 선택할 수 있다.
+5. 필요하면 문장이 나온 페이지를 입력한다.
+6. `저장`을 누르면 책 상세의 문장 기록에 저장된다.
+7. 문장 추가 화면이 닫히고 3초 카운트다운 후 타이머가 다시 시작된다.
 
 ## 포함된 기능
 
@@ -44,6 +45,8 @@
 - 책 상세 페이지에서 저장된 단어 기록 조회
 - 독서 중 문장 직접 입력 저장
 - 독서 중 사진 OCR 기반 문장 선택 저장
+- 사진 위 OCR 텍스트 영역 탭 선택
+- OCR 좌표가 없는 경우 기존 텍스트 목록 선택 유지
 - 독서 종료 화면의 `문장 남기기` 제거
 - Supabase `word_notes` 테이블 기반 영구 저장
 - 오프라인 저장 후 온라인 복구 시 pending sync
@@ -59,6 +62,9 @@
 - `src/services/readingSync.ts`
 - `src/storage/readingStorage.ts`
 - `src/types/reading.ts`
+- `src/services/sentenceOcr.ts`
+- `src/components/SentenceOcrButton.tsx`
+- `supabase/functions/recognize-sentence/index.ts`
 - `supabase/migrations/20260801000000_add_word_notes.sql`
 
 ## 데이터 구조
@@ -84,6 +90,9 @@ Supabase에 `word_notes` 테이블을 추가했다.
 - `main` 브랜치에 기능 커밋 머지 완료
 - GitHub `origin/main` 푸시 완료
 - 독서 중 문장 추가 기능 커밋 적용 완료: `a6da74a`
+- 단어 메모 문장 입력 OCR 추가 커밋 적용 완료: `b827da5`
+- 사진 위 OCR 영역 선택 커밋 적용 완료: `e2dfcad`
+- Supabase Edge Function `recognize-sentence` 배포 완료
 - `npm run lint` 통과
 - `npm run build` 통과
 
@@ -111,6 +120,8 @@ Supabase에 `word_notes` 테이블을 추가했다.
 - `QUOTE` 버튼을 누르면 타이머가 일시정지되고 문장 추가 화면이 열리는지 확인한다.
 - 문장을 직접 입력해 저장하면 책 상세의 문장 기록에 표시되는지 확인한다.
 - 사진 OCR로 선택한 문장을 저장할 수 있는지 확인한다.
+- OCR 선택 화면에서 사진 위 텍스트 영역을 탭해 문장을 선택할 수 있는지 확인한다.
+- 사진 위 영역 선택과 아래 텍스트 목록 선택이 같은 preview 문장에 반영되는지 확인한다.
 - 문장 저장 또는 닫기 후 3초 카운트다운 뒤 타이머가 재개되는지 확인한다.
 - 독서 종료 화면에서 `문장 남기기` 버튼이 제거되었는지 확인한다.
 - 새로고침 후에도 단어 기록이 유지되는지 확인한다.
