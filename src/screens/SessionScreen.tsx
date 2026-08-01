@@ -285,9 +285,9 @@ export const SessionScreen = ({
   const pakMotionTimerRef = useRef<number | null>(null);
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? "",
-    endPage: currentBook?.currentPage ?? 1,
+    endPage: 0,
     sentence: "",
-    sentencePage: currentBook?.currentPage ?? 1,
+    sentencePage: 0,
   });
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
@@ -478,11 +478,9 @@ export const SessionScreen = ({
     );
   }
   const isFormForCurrentBook = form.bookId === currentBook.id;
-  const endPage = isFormForCurrentBook ? form.endPage : currentBook.currentPage;
+  const endPage = isFormForCurrentBook ? form.endPage : 0;
   const sentence = isFormForCurrentBook ? form.sentence : "";
-  const sentencePage = isFormForCurrentBook
-    ? form.sentencePage
-    : currentBook.currentPage;
+  const sentencePage = isFormForCurrentBook ? form.sentencePage : 0;
   const roundLabel =
     currentBook.activeRoundNumber && currentBook.activeRoundNumber > 1
       ? `${currentBook.activeRoundNumber}회독`
@@ -546,9 +544,9 @@ export const SessionScreen = ({
       timer.reset();
       setForm({
         bookId: currentBook.id,
-        endPage,
+        endPage: 0,
         sentence: "",
-        sentencePage: endPage,
+        sentencePage: 0,
       });
       setIsSentenceOpen(false);
       setIsCompletionOpen(false);
@@ -578,9 +576,9 @@ export const SessionScreen = ({
     timer.reset();
     setForm({
       bookId: currentBook.id,
-      endPage: currentBook.currentPage,
+      endPage: 0,
       sentence: "",
-      sentencePage: currentBook.currentPage,
+      sentencePage: 0,
     });
     setIsSentenceOpen(false);
     setIsCompletionOpen(false);
@@ -964,7 +962,7 @@ export const SessionScreen = ({
                         inputMode="numeric"
                         min={currentBook.currentPage}
                         max={currentBook.totalPages ?? undefined}
-                        value={endPage}
+                        value={endPage > 0 ? endPage : ""}
                         onChange={(event) =>
                           updateForm({
                             endPage: parsePageInput(event.target.value),
@@ -1224,7 +1222,7 @@ export const SessionScreen = ({
                 inputMode="numeric"
                 min={1}
                 max={currentBook.totalPages ?? undefined}
-                value={sentencePage}
+                value={sentencePage > 0 ? sentencePage : ""}
                 onChange={(event) =>
                   updateForm({
                     sentencePage: parsePageInput(event.target.value),

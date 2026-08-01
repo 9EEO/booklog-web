@@ -7390,12 +7390,12 @@ button {
 .session-completion-sentence-button,
 .session-completion-extension,
 .session-completion-actions button {
-  min-height: 25px;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  min-height: 34px;
+  border: 3px solid var(--session-ink);
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 var(--session-ink);
   font-family: var(--font-pixel);
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 950;
 }
 
@@ -7403,25 +7403,16 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: #fffef8;
   color: #151515;
-}
-
-.session-completion-sentence-button::before,
-.session-completion-actions button::before {
-  content: ">";
-  margin-right: 4px;
-  color: rgba(21, 21, 21, 0.36);
-  font-family: var(--font-pixel);
 }
 
 .session-completion-extension {
   display: grid;
-  grid-template-columns: 25px minmax(0, 1fr) 25px;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
   align-items: center;
   overflow: hidden;
-  border: 1px solid rgba(21, 21, 21, 0.22);
-  background: rgba(255, 255, 255, 0.62);
+  background: linear-gradient(180deg, #fffef8 0%, #fff8e8 100%);
   color: #151515;
 }
 
@@ -7432,52 +7423,55 @@ button {
   border: 0;
   background: transparent;
   color: #151515;
+  font-size: 12px;
 }
 
 .session-completion-extension button + strong,
 .session-completion-extension strong + button {
-  border-left: 1px solid rgba(21, 21, 21, 0.2);
+  border-left: 3px solid var(--session-ink);
 }
 
 .session-completion-extension strong {
   font-family: var(--font-pixel);
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 950;
   text-align: center;
 }
 
 .session-completion-actions .completion-secondary-action {
-  background: transparent;
+  background: #fffef8;
   color: #151515;
 }
 
 .session-completion-actions .completion-save-action {
-  background: transparent;
+  background: var(--session-yellow);
   color: #151515;
-  text-shadow: 1px 1px 0 #f2c94c;
 }
 
 .session-completion-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  padding: 0 6px;
 }
 
 .session-completion-reset {
-  justify-self: center;
-  border: 0;
-  background: transparent;
-  color: rgba(21, 21, 21, 0.38);
-  padding: 3px;
+  justify-self: stretch;
+  min-height: 34px;
+  border: 3px solid var(--session-ink);
+  border-radius: 4px;
+  background: #fffef8;
+  box-shadow: 3px 3px 0 var(--session-ink);
+  color: #151515;
+  padding: 0 8px;
   font-family: var(--font-pixel);
-  font-size: 6px;
+  font-size: 8px;
   font-weight: 950;
 }
 
 .session-completion-hud button:active {
-  color: #2563eb;
-  transform: translateX(1px);
+  transform: translate(3px, 3px);
+  box-shadow: none;
 }
 
 .session-completion-hud button:disabled {
