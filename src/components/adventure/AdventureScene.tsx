@@ -493,11 +493,11 @@ const ProgressDock = styled.div`
   top: 29px;
   left: 50%;
   display: grid;
-  width: min(210px, calc(100% - 48px));
+  width: fit-content;
   transform: translateX(-50%);
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: min(168px, calc(100vw - 120px)) auto;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 `;
 
 const ProgressTrack = styled.div`
@@ -779,7 +779,7 @@ export const AdventureScene = ({
   const hudStatusLabel =
     status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
   const isInteractionPanelOpen = isSearchPanelOpen || isSentencePanelOpen;
-  const shouldShowProgress = mode === "countdown";
+  const shouldShowProgress = mode === "countdown" && status !== "completed";
 
   const clearCountdownTimers = useCallback(() => {
     countdownTimersRef.current.forEach((timerId) =>
