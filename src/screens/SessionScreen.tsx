@@ -49,6 +49,7 @@ type SessionScreenProps = {
   timer: ReadingTimer;
   onChangeBook: (bookId: string) => void;
   onSaveRecord: (input: ReadingCompletionInput) => Promise<void>;
+  onAddSentence: (bookId: string, text: string, page: number) => Promise<void>;
   onAddWordNote: (bookId: string, input: WordNoteInput) => Promise<void>;
   onAddFirstBook: () => void;
 };
@@ -254,16 +255,23 @@ export const SessionScreen = ({
   timer,
   onChangeBook,
   onSaveRecord,
+  onAddSentence,
   onAddWordNote,
   onAddFirstBook,
 }: SessionScreenProps) => {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
-  const [isSentenceOpen, setIsSentenceOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
   const [wordSearchResumeCountdownKey, setWordSearchResumeCountdownKey] =
     useState(0);
+  const [isSentenceNoteOpen, setIsSentenceNoteOpen] = useState(false);
+  const [sentenceNoteResumeCountdownKey, setSentenceNoteResumeCountdownKey] =
+    useState(0);
+  const [sentenceNoteText, setSentenceNoteText] = useState("");
+  const [sentenceNotePageInput, setSentenceNotePageInput] = useState("");
+  const [isSavingSentenceNote, setIsSavingSentenceNote] = useState(false);
+  const [sentenceNoteMessage, setSentenceNoteMessage] = useState("");
   const [wordSearchQuery, setWordSearchQuery] = useState("");
   const [wordSearchStatus, setWordSearchStatus] =
     useState<WordSearchStatus>("idle");
@@ -286,8 +294,6 @@ export const SessionScreen = ({
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? "",
     endPage: 0,
-    sentence: "",
-    sentencePage: 0,
   });
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
@@ -336,6 +342,38 @@ export const SessionScreen = ({
     }, 300);
   };
 
+  const clearSentenceNoteDraft = () => {
+    setSentenceNoteText("");
+    setSentenceNotePageInput("");
+  };
+
+  const closeSentenceNoteAndResume = () => {
+    setIsSentenceNoteOpen(false);
+    setSentenceNoteMessage("");
+    clearSentenceNoteDraft();
+    if (timer.status === "paused" && timer.elapsedSeconds > 0) {
+      setSentenceNoteResumeCountdownKey((current) => current + 1);
+    }
+  };
+
+  const closeSentenceNote = () => {
+    vibrateTap();
+    timerControlSound.playSelect();
+    closeSentenceNoteAndResume();
+  };
+
+  const openSentenceNote = () => {
+    vibrateTimerPause();
+    timerControlSound.playPause();
+    if (timer.status === "running") {
+      timer.pause();
+    }
+    setIsWordSearchOpen(false);
+    setSentenceNoteMessage("");
+    clearSentenceNoteDraft();
+    setIsSentenceNoteOpen(true);
+  };
+
   useBackNavigationLayer(
     isBookModalOpen,
     closeBookPicker,
@@ -353,11 +391,9 @@ export const SessionScreen = ({
     "session-completion",
   );
   useBackNavigationLayer(
-    isSentenceOpen &&
-      (isCompletionOpen ||
-        (timer.status === "completed" && timer.elapsedSeconds > 0)),
-    () => setIsSentenceOpen(false),
-    "session-completion-sentence",
+    isSentenceNoteOpen,
+    () => closeSentenceNote(),
+    "session-sentence-note",
   );
 
   const readingBooks = useMemo(
@@ -479,8 +515,6 @@ export const SessionScreen = ({
   }
   const isFormForCurrentBook = form.bookId === currentBook.id;
   const endPage = isFormForCurrentBook ? form.endPage : 0;
-  const sentence = isFormForCurrentBook ? form.sentence : "";
-  const sentencePage = isFormForCurrentBook ? form.sentencePage : 0;
   const roundLabel =
     currentBook.activeRoundNumber && currentBook.activeRoundNumber > 1
       ? `${currentBook.activeRoundNumber}회독`
@@ -505,8 +539,6 @@ export const SessionScreen = ({
       ...current,
       bookId: currentBook.id,
       endPage,
-      sentence,
-      sentencePage,
       ...patch,
     }));
   };
@@ -514,6 +546,7 @@ export const SessionScreen = ({
   const openCompletion = () => {
     if (timer.elapsedSeconds === 0) return;
     setIsWordSearchOpen(false);
+    setIsSentenceNoteOpen(false);
     vibrateTimerStop();
     timerControlSound.playStop();
     timerCompletionSound.suppressNextCompletionSound();
@@ -538,17 +571,12 @@ export const SessionScreen = ({
         startedAt: startedAt.toISOString(),
         endedAt: endedAt.toISOString(),
         endPage,
-        sentence,
-        sentencePage: sentence.trim() ? sentencePage : undefined,
       });
       timer.reset();
       setForm({
         bookId: currentBook.id,
         endPage: 0,
-        sentence: "",
-        sentencePage: 0,
       });
-      setIsSentenceOpen(false);
       setIsCompletionOpen(false);
     } finally {
       setIsSaving(false);
@@ -556,7 +584,6 @@ export const SessionScreen = ({
   };
 
   const closeCompletion = () => {
-    setIsSentenceOpen(false);
     setIsCompletionOpen(false);
     if (timer.status === "completed") {
       timer.cancelCompletion();
@@ -566,7 +593,6 @@ export const SessionScreen = ({
   const continueReading = () => {
     vibrateTap();
     timerCompletionSound.prepare();
-    setIsSentenceOpen(false);
     setIsCompletionOpen(false);
     timer.extendAndResume(extensionSeconds);
   };
@@ -577,10 +603,7 @@ export const SessionScreen = ({
     setForm({
       bookId: currentBook.id,
       endPage: 0,
-      sentence: "",
-      sentencePage: 0,
     });
-    setIsSentenceOpen(false);
     setIsCompletionOpen(false);
   };
 
@@ -608,6 +631,7 @@ export const SessionScreen = ({
     if (timer.status === "running") {
       timer.pause();
     }
+    setIsSentenceNoteOpen(false);
     setIsWordSearchOpen(true);
     setWordSaveMessage("");
   };
@@ -749,6 +773,101 @@ export const SessionScreen = ({
       setIsSavingWordNote(false);
     }
   };
+
+  const saveSentenceNote = async () => {
+    const text = sentenceNoteText.trim();
+    if (isSavingSentenceNote || !text) return;
+
+    setIsSavingSentenceNote(true);
+    setSentenceNoteMessage("");
+
+    try {
+      const parsedPage = parsePageInput(sentenceNotePageInput);
+      const page = parsedPage > 0 ? parsedPage : currentBook.currentPage;
+
+      await onAddSentence(currentBook.id, text, page);
+      vibrateSuccess();
+      timerControlSound.playConfirm();
+      closeSentenceNoteAndResume();
+    } catch (error) {
+      timerControlSound.playError();
+      setSentenceNoteMessage(
+        error instanceof Error ? error.message : "문장을 저장하지 못했습니다.",
+      );
+    } finally {
+      setIsSavingSentenceNote(false);
+    }
+  };
+
+  const sentenceNotePanel = (
+    <form
+      className="session-sentence-panel"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void saveSentenceNote();
+      }}
+    >
+      <div className="session-sentence-panel-header">
+        <strong>문장 추가</strong>
+        <button type="button" onClick={closeSentenceNote} aria-label="닫기">
+          <Icon name="close" className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="session-sentence-panel-body">
+        <label className="session-sentence-page-field">
+          <span>페이지</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={sentenceNotePageInput}
+            onChange={(event) => setSentenceNotePageInput(event.target.value)}
+            placeholder="비워둘 수 있어요"
+            aria-label="문장이 나온 페이지"
+          />
+        </label>
+
+        <SentenceOcrButton
+          disabled={isSavingSentenceNote}
+          onRecognized={(text) =>
+            setSentenceNoteText((current) =>
+              current.trim() ? `${current.trim()}\n${text}` : text,
+            )
+          }
+        />
+
+        <label className="session-sentence-text-field">
+          <span>문장</span>
+          <textarea
+            value={sentenceNoteText}
+            onChange={(event) => {
+              setSentenceNoteText(event.target.value);
+              setSentenceNoteMessage("");
+            }}
+            placeholder="읽다가 붙잡고 싶은 문장을 남겨보세요."
+            aria-label="저장할 문장"
+          />
+        </label>
+      </div>
+
+      <div className="session-sentence-panel-actions">
+        <button type="button" onClick={closeSentenceNote}>
+          닫기
+        </button>
+        <button
+          type="submit"
+          disabled={!sentenceNoteText.trim() || isSavingSentenceNote}
+        >
+          {isSavingSentenceNote ? "저장 중" : "저장"}
+        </button>
+      </div>
+
+      <div className="session-sentence-panel-footer" aria-live="polite">
+        <span>책 상세 문장 기록에 저장됩니다.</span>
+        {sentenceNoteMessage && <strong>{sentenceNoteMessage}</strong>}
+      </div>
+    </form>
+  );
 
   const wordSearchPanel = (
     <form
@@ -934,6 +1053,9 @@ export const SessionScreen = ({
               searchPanelContent={wordSearchPanel}
               isSearchPanelOpen={isWordSearchOpen}
               searchCountdownKey={wordSearchResumeCountdownKey}
+              sentencePanelContent={sentenceNotePanel}
+              isSentencePanelOpen={isSentenceNoteOpen}
+              sentenceCountdownKey={sentenceNoteResumeCountdownKey}
               completionContent={
                 isCompletionVisible ? (
                   <div className="session-completion-hud">
@@ -973,16 +1095,8 @@ export const SessionScreen = ({
                     </span>
                   </label>
 
-                  <div className="session-completion-tools">
-                    <button
-                      type="button"
-                    className="session-completion-sentence-button"
-                    onClick={() => setIsSentenceOpen(true)}
-                  >
-                      {sentence.trim() ? "문장 수정" : "문장 남기기"}
-                    </button>
-
-                    {!isStopwatchMode && (
+                  {!isStopwatchMode && (
+                    <div className="session-completion-tools">
                       <div className="session-completion-extension">
                         <button
                           type="button"
@@ -1008,8 +1122,8 @@ export const SessionScreen = ({
                           +
                         </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <div className="session-completion-actions">
                     <button
@@ -1062,6 +1176,13 @@ export const SessionScreen = ({
               }}
               onSearch={openWordSearch}
               onSearchCountdownComplete={() => {
+                vibrateTimerStart();
+                timerControlSound.playStart();
+                timerCompletionSound.prepare();
+                timer.start();
+              }}
+              onSentence={openSentenceNote}
+              onSentenceCountdownComplete={() => {
                 vibrateTimerStart();
                 timerControlSound.playStart();
                 timerCompletionSound.prepare();
@@ -1182,82 +1303,6 @@ export const SessionScreen = ({
             );
           })}
         </div>
-      </BottomSheetModal>
-
-      <BottomSheetModal
-        isOpen={isSentenceOpen && isCompletionVisible}
-        ariaLabel="기억에 남는 문장"
-        backdropClassName="modal-backdrop-top"
-        panelClassName="completion-sentence-sheet"
-        onBackdropClick={() => setIsSentenceOpen(false)}
-      >
-        <div className="completion-sheet-header">
-          <div>
-            <h2>기억에 남는 문장</h2>
-            <p>{currentBook.title}</p>
-          </div>
-          <button
-            type="button"
-            className="completion-close-button"
-            onClick={() => setIsSentenceOpen(false)}
-            aria-label="닫기"
-          >
-            <Icon name="close" className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="completion-sentence-panel">
-          <div className="completion-sentence-panel-header">
-            <label className="completion-sentence-label" htmlFor="sentence">
-              문장 기록
-            </label>
-            <label
-              className="completion-sentence-page-field"
-              htmlFor="sentence-page"
-            >
-              <span>페이지</span>
-              <input
-                id="sentence-page"
-                type="text"
-                inputMode="numeric"
-                min={1}
-                max={currentBook.totalPages ?? undefined}
-                value={sentencePage > 0 ? sentencePage : ""}
-                onChange={(event) =>
-                  updateForm({
-                    sentencePage: parsePageInput(event.target.value),
-                  })
-                }
-              />
-              <span>p</span>
-            </label>
-          </div>
-          <SentenceOcrButton
-            onRecognized={(text) =>
-              updateForm({
-                sentence: sentence.trim()
-                  ? `${sentence.trim()}\n${text}`
-                  : text,
-              })
-            }
-            disabled={isSaving}
-          />
-          <textarea
-            id="sentence"
-            className="completion-sentence-textarea"
-            placeholder="기억하고 싶은 문장을 남겨보세요."
-            value={sentence}
-            onChange={(event) => updateForm({ sentence: event.target.value })}
-          />
-        </div>
-
-        <button
-          type="button"
-          className="completion-sentence-sheet-done"
-          onClick={() => setIsSentenceOpen(false)}
-        >
-          문장 기록 완료
-        </button>
       </BottomSheetModal>
 
     </div>

@@ -43,6 +43,9 @@ type AdventureSceneProps = {
   searchPanelContent?: ReactNode;
   isSearchPanelOpen?: boolean;
   searchCountdownKey?: number;
+  sentencePanelContent?: ReactNode;
+  isSentencePanelOpen?: boolean;
+  sentenceCountdownKey?: number;
   emptyState?: {
     title: string;
     description: string;
@@ -55,6 +58,8 @@ type AdventureSceneProps = {
   onPause: () => void;
   onSearch?: () => void;
   onSearchCountdownComplete?: () => void;
+  onSentence?: () => void;
+  onSentenceCountdownComplete?: () => void;
   onStop: () => void;
 };
 
@@ -719,6 +724,9 @@ export const AdventureScene = ({
   searchPanelContent,
   isSearchPanelOpen = false,
   searchCountdownKey = 0,
+  sentencePanelContent,
+  isSentencePanelOpen = false,
+  sentenceCountdownKey = 0,
   emptyState,
   onChangeMode,
   onSelectPreset,
@@ -726,12 +734,15 @@ export const AdventureScene = ({
   onPause,
   onSearch,
   onSearchCountdownComplete,
+  onSentence,
+  onSentenceCountdownComplete,
   onStop,
 }: AdventureSceneProps) => {
   const [isTimeSettingOpen, setIsTimeSettingOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownTimersRef = useRef<number[]>([]);
   const latestSearchCountdownKeyRef = useRef(searchCountdownKey);
+  const latestSentenceCountdownKeyRef = useRef(sentenceCountdownKey);
   const isPreparing = status === "idle";
   const isCountdownActive = countdown !== null;
   const isMoving = status === "running";
@@ -745,6 +756,7 @@ export const AdventureScene = ({
     isPreparing && memoryLogs.length > 0 && !isTimeSettingOpen;
   const hudStatusLabel =
     status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
+  const isInteractionPanelOpen = isSearchPanelOpen || isSentencePanelOpen;
 
   const clearCountdownTimers = useCallback(() => {
     countdownTimersRef.current.forEach((timerId) =>
@@ -785,6 +797,18 @@ export const AdventureScene = ({
     latestSearchCountdownKeyRef.current = searchCountdownKey;
     runCountdown(() => onSearchCountdownComplete?.());
   }, [onSearchCountdownComplete, runCountdown, searchCountdownKey]);
+
+  useEffect(() => {
+    if (
+      sentenceCountdownKey === 0 ||
+      sentenceCountdownKey === latestSentenceCountdownKeyRef.current
+    ) {
+      return;
+    }
+
+    latestSentenceCountdownKeyRef.current = sentenceCountdownKey;
+    runCountdown(() => onSentenceCountdownComplete?.());
+  }, [onSentenceCountdownComplete, runCountdown, sentenceCountdownKey]);
 
   const startCountdown = () => {
     if (countdown !== null) return;
@@ -865,11 +889,11 @@ export const AdventureScene = ({
               <ActionButton
                 type="button"
                 onClick={status === "running" ? onPause : onStart}
-                disabled={status === "paused" && isSearchPanelOpen}
+                disabled={status === "paused" && isInteractionPanelOpen}
               >
                 {status === "running"
                   ? "PAUSE"
-                  : isSearchPanelOpen
+                  : isInteractionPanelOpen
                     ? "PAUSED"
                     : "RESUME"}
               </ActionButton>
@@ -885,10 +909,22 @@ export const AdventureScene = ({
                   SEARCH
                 </ActionButton>
               )}
+              {onSentence && (
+                <ActionButton
+                  type="button"
+                  onClick={onSentence}
+                  aria-pressed={isSentencePanelOpen}
+                >
+                  QUOTE
+                </ActionButton>
+              )}
             </ActionDock>
           )}
           {isSearchPanelOpen && searchPanelContent ? (
             <SearchLayer>{searchPanelContent}</SearchLayer>
+          ) : null}
+          {isSentencePanelOpen && sentencePanelContent ? (
+            <SearchLayer>{sentencePanelContent}</SearchLayer>
           ) : null}
           {status === "completed" && completionContent ? (
             <CompletionLayer>{completionContent}</CompletionLayer>

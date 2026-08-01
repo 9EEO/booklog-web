@@ -2899,12 +2899,6 @@ button {
   opacity: 0.42;
 }
 
-.completion-sentence-panel .sentence-ocr-control {
-  border-bottom: 1px solid rgba(21, 21, 21, 0.1);
-  background: #ffffff;
-  padding: 8px 10px;
-}
-
 .record-edit-actions {
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;
@@ -6575,9 +6569,7 @@ button {
   font-weight: 900;
 }
 
-.completion-page-field input,
-.completion-sentence-page-field input,
-.completion-sentence-textarea {
+.completion-page-field input {
   border: 1px solid rgba(21, 21, 21, 0.42);
   border-radius: 8px;
   background: #ffffff;
@@ -6592,9 +6584,7 @@ button {
   font-weight: 900;
 }
 
-.completion-page-field input:focus,
-.completion-sentence-page-field input:focus,
-.completion-sentence-textarea:focus {
+.completion-page-field input:focus {
   border-color: var(--sage);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
@@ -6644,58 +6634,6 @@ button {
   border-color: rgba(21, 21, 21, 0.24);
   background: #fafaf8;
   color: rgba(21, 21, 21, 0.72);
-}
-
-.completion-sentence-panel {
-  overflow: hidden;
-  border: 1px solid rgba(21, 21, 21, 0.16);
-  border-radius: 10px;
-  background: #fafaf8;
-}
-
-.completion-sentence-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  border-bottom: 1px solid rgba(21, 21, 21, 0.12);
-  padding: 9px 10px;
-}
-
-.completion-sentence-label,
-.completion-sentence-page-field {
-  color: rgba(21, 21, 21, 0.58);
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.completion-sentence-page-field {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 5px;
-}
-
-.completion-sentence-page-field input {
-  width: 58px;
-  min-height: 30px;
-  padding: 4px 7px;
-  font-size: 11px;
-  font-weight: 900;
-  text-align: right;
-}
-
-.completion-sentence-textarea {
-  width: 100%;
-  min-height: 104px;
-  resize: none;
-  border: 0;
-  border-radius: 0;
-  background: #ffffff;
-  padding: 10px;
-  font-size: 12px;
-  font-weight: 750;
-  line-height: 1.6;
 }
 
 .completion-extension-panel {
@@ -7292,6 +7230,162 @@ button {
   white-space: nowrap;
 }
 
+.session-sentence-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 2px solid #151515;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+  color: #151515;
+}
+
+.session-sentence-panel-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid #151515;
+  padding: 8px;
+}
+
+.session-sentence-panel-header strong {
+  overflow: hidden;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-sentence-panel-header button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: #ffffff;
+  color: #151515;
+}
+
+.session-sentence-panel-body {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.session-sentence-page-field,
+.session-sentence-text-field {
+  display: grid;
+  gap: 5px;
+  color: rgba(21, 21, 21, 0.56);
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.session-sentence-page-field input,
+.session-sentence-text-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 2px solid rgba(21, 21, 21, 0.42);
+  border-radius: 2px;
+  background: #ffffff;
+  color: #151515;
+  padding: 7px 8px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 800;
+  outline: none;
+}
+
+.session-sentence-page-field input:focus,
+.session-sentence-text-field textarea:focus {
+  border-color: #151515;
+  box-shadow: 2px 2px 0 rgba(242, 201, 76, 0.72);
+}
+
+.session-sentence-text-field textarea {
+  min-height: 98px;
+  resize: none;
+  line-height: 1.55;
+}
+
+.session-sentence-panel .sentence-ocr-control {
+  gap: 4px;
+}
+
+.session-sentence-panel .sentence-ocr-button {
+  width: 100%;
+  min-height: 32px;
+  border: 2px dashed rgba(21, 21, 21, 0.48);
+  border-radius: 2px;
+  background: #fffef8;
+  color: #151515;
+  font-family: var(--font-ui);
+  font-size: 10px;
+}
+
+.session-sentence-panel-actions {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 6px;
+  border-top: 1px solid rgba(21, 21, 21, 0.16);
+  padding: 8px;
+}
+
+.session-sentence-panel-actions button {
+  min-height: 32px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.session-sentence-panel-actions button:first-child {
+  background: #ffffff;
+  color: #151515;
+}
+
+.session-sentence-panel-actions button:last-child {
+  background: #151515;
+  color: #f2c94c;
+}
+
+.session-sentence-panel-actions button:disabled {
+  background: rgba(21, 21, 21, 0.16);
+  border-color: rgba(21, 21, 21, 0.28);
+  color: rgba(21, 21, 21, 0.34);
+}
+
+.session-sentence-panel-footer {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid rgba(21, 21, 21, 0.14);
+  padding: 5px 8px;
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 7px;
+  font-weight: 950;
+}
+
+.session-sentence-panel-footer strong {
+  overflow: hidden;
+  color: #d95f45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .session-completion-hud {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -7387,7 +7481,6 @@ button {
   grid-column: 1 / -1;
 }
 
-.session-completion-sentence-button,
 .session-completion-extension,
 .session-completion-actions button {
   min-height: 34px;
@@ -7397,14 +7490,6 @@ button {
   font-family: var(--font-pixel);
   font-size: 8px;
   font-weight: 950;
-}
-
-.session-completion-sentence-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #fffef8;
-  color: #151515;
 }
 
 .session-completion-extension {
@@ -7477,33 +7562,6 @@ button {
 .session-completion-hud button:disabled {
   cursor: not-allowed;
   opacity: 0.42;
-}
-
-.completion-sentence-sheet {
-  border-color: rgba(21, 21, 21, 0.2);
-  background: #ffffff;
-}
-
-.completion-sentence-sheet .completion-sentence-panel {
-  overflow: hidden;
-  border-radius: 8px;
-}
-
-.completion-sentence-sheet .completion-sentence-textarea {
-  min-height: 150px;
-}
-
-.completion-sentence-sheet-done {
-  width: 100%;
-  min-height: 42px;
-  margin-top: 10px;
-  border: 0;
-  border-radius: 8px;
-  background: #2563eb;
-  box-shadow: none;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 950;
 }
 
 /* Book detail owns one visual system. Keep all detail styles in this block. */

@@ -1493,6 +1493,7 @@ function AuthenticatedApp({
           timer={readingTimer}
           onChangeBook={setCurrentBookId}
           onSaveRecord={handleSaveRecord}
+          onAddSentence={handleAddSentence}
           onAddWordNote={handleAddWordNote}
           onAddFirstBook={openFirstBookForm}
         />
