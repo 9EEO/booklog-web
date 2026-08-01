@@ -374,12 +374,14 @@ const SetupBackButton = styled.button`
   font-weight: 950;
 `;
 
-const ActionDock = styled.div`
+const ActionDock = styled.div<{ $withProgress: boolean }>`
   position: absolute;
   z-index: 14;
-  top: 10px;
+  right: 10px;
+  bottom: ${({ $withProgress }) => ($withProgress ? "32px" : "10px")};
   left: 10px;
   display: flex;
+  justify-content: center;
   gap: 4px;
 `;
 
@@ -387,7 +389,8 @@ const SceneHud = styled.time`
   position: absolute;
   z-index: 14;
   top: 9px;
-  right: 11px;
+  left: 50%;
+  transform: translateX(-50%);
   color: #151515;
   font-family: var(--font-pixel);
   font-size: 12px;
@@ -405,7 +408,8 @@ const SceneHudStatus = styled.span`
   position: absolute;
   z-index: 14;
   top: 30px;
-  right: 11px;
+  left: 50%;
+  transform: translateX(-50%);
   border: 2px solid #151515;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.86);
@@ -892,7 +896,7 @@ export const AdventureScene = ({
       ) : (
         <>
           {(status === "running" || status === "paused") && (
-            <ActionDock>
+            <ActionDock $withProgress={shouldShowProgress}>
               <ActionButton
                 type="button"
                 onClick={status === "running" ? onPause : onStart}
