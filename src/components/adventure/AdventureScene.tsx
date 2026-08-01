@@ -388,9 +388,6 @@ const SceneHud = styled.time`
   z-index: 14;
   top: 9px;
   right: 11px;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
   color: #151515;
   font-family: var(--font-pixel);
   font-size: 12px;
@@ -405,10 +402,19 @@ const SceneHud = styled.time`
 `;
 
 const SceneHudStatus = styled.span`
+  position: absolute;
+  z-index: 14;
+  top: 30px;
+  right: 11px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.86);
   color: rgba(21, 21, 21, 0.5);
+  padding: 3px 5px;
+  font-family: var(--font-pixel);
   font-size: 7px;
   font-weight: 950;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
 `;
 
 const ActionButton = styled.button<{ $danger?: boolean }>`
@@ -757,6 +763,7 @@ export const AdventureScene = ({
   const hudStatusLabel =
     status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
   const isInteractionPanelOpen = isSearchPanelOpen || isSentencePanelOpen;
+  const shouldShowProgress = mode === "countdown";
 
   const clearCountdownTimers = useCallback(() => {
     countdownTimersRef.current.forEach((timerId) =>
@@ -830,7 +837,7 @@ export const AdventureScene = ({
         <>
           <SceneHud aria-live="polite">{displayTime}</SceneHud>
           <Character status="idle" />
-          <ProgressBar progress={progress} />
+          {shouldShowProgress && <ProgressBar progress={progress} />}
         </>
       ) : showMemoryLog && memoryLog ? (
         <MemoryOverlay>
@@ -929,12 +936,12 @@ export const AdventureScene = ({
           {status === "completed" && completionContent ? (
             <CompletionLayer>{completionContent}</CompletionLayer>
           ) : (
-            <SceneHud aria-live="polite">
+            <>
+              <SceneHud aria-live="polite">{displayTime}</SceneHud>
               {hudStatusLabel && (
-                <SceneHudStatus>{hudStatusLabel} ·</SceneHudStatus>
+                <SceneHudStatus>{hudStatusLabel}</SceneHudStatus>
               )}
-              {displayTime}
-            </SceneHud>
+            </>
           )}
           <Character status={status} />
           {goalApproachProgress !== null && (
@@ -944,7 +951,7 @@ export const AdventureScene = ({
               aria-hidden="true"
             />
           )}
-          <ProgressBar progress={progress} />
+          {shouldShowProgress && <ProgressBar progress={progress} />}
           {showStartBanner && <StartBanner>ADVENTURE START</StartBanner>}
         </>
       )}
