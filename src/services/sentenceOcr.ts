@@ -3,6 +3,26 @@ import { requireSupabase } from "./supabase";
 const maximumImageBytes = 15 * 1024 * 1024;
 const maximumImageDimension = 1800;
 
+export type OcrLineBoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type RecognizedSentenceLine = {
+  text: string;
+  boundingBox?: OcrLineBoundingBox;
+};
+
+export type RecognizedSentenceImage = {
+  text: string;
+  lines: RecognizedSentenceLine[];
+  imageUrl: string;
+  imageWidth: number;
+  imageHeight: number;
+};
+
 const canvasToBlob = (canvas: HTMLCanvasElement) =>
   new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
@@ -67,27 +87,90 @@ const prepareImage = async (file: File) => {
 
   const blob = await canvasToBlob(canvas);
 
-  return arrayBufferToBase64(await blob.arrayBuffer());
+  return {
+    imageBase64: arrayBufferToBase64(await blob.arrayBuffer()),
+    imageUrl: URL.createObjectURL(blob),
+    imageWidth: canvas.width,
+    imageHeight: canvas.height,
+  };
 };
 
-export const recognizeSentenceImage = async (file: File): Promise<string> => {
-  const imageBase64 = await prepareImage(file);
+const isBoundingBox = (value: unknown): value is OcrLineBoundingBox => {
+  if (typeof value !== "object" || value === null) return false;
+
+  const box = value as Record<string, unknown>;
+
+  return ["x", "y", "width", "height"].every(
+    (key) => typeof box[key] === "number" && Number.isFinite(box[key]),
+  );
+};
+
+const normalizeLines = (value: unknown, fallbackText: string) => {
+  if (Array.isArray(value)) {
+    const lines = value
+      .map((line): RecognizedSentenceLine | null => {
+        if (typeof line !== "object" || line === null) return null;
+
+        const record = line as Record<string, unknown>;
+        const text = typeof record.text === "string" ? record.text.trim() : "";
+        if (!text) return null;
+
+        return {
+          text,
+          boundingBox: isBoundingBox(record.boundingBox)
+            ? record.boundingBox
+            : undefined,
+        };
+      })
+      .filter((line): line is RecognizedSentenceLine => Boolean(line));
+
+    if (lines.length > 0) return lines;
+  }
+
+  return fallbackText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((text) => ({ text }));
+};
+
+export const recognizeSentenceImage = async (
+  file: File,
+): Promise<RecognizedSentenceImage> => {
+  const preparedImage = await prepareImage(file);
   const supabase = requireSupabase();
-  const { data, error } = await supabase.functions.invoke("recognize-sentence", {
-    body: {
-      format: "jpg",
-      imageBase64,
-    },
-  });
 
-  if (error) {
-    throw new Error("사진 속 문장을 인식하지 못했습니다.");
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "recognize-sentence",
+      {
+        body: {
+          format: "jpg",
+          imageBase64: preparedImage.imageBase64,
+          imageWidth: preparedImage.imageWidth,
+          imageHeight: preparedImage.imageHeight,
+        },
+      },
+    );
+
+    if (error) {
+      throw new Error("사진 속 문장을 인식하지 못했습니다.");
+    }
+
+    const text = typeof data?.text === "string" ? data.text.trim() : "";
+    if (!text) {
+      throw new Error("사진에서 읽을 수 있는 문장을 찾지 못했습니다.");
+    }
+
+    return {
+      text,
+      lines: normalizeLines(data?.lines, text),
+      imageUrl: preparedImage.imageUrl,
+      imageWidth: preparedImage.imageWidth,
+      imageHeight: preparedImage.imageHeight,
+    };
+  } catch (error) {
+    URL.revokeObjectURL(preparedImage.imageUrl);
+    throw error;
   }
-
-  const text = typeof data?.text === "string" ? data.text.trim() : "";
-  if (!text) {
-    throw new Error("사진에서 읽을 수 있는 문장을 찾지 못했습니다.");
-  }
-
-  return text;
 };

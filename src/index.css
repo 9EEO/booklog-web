@@ -2774,6 +2774,64 @@ button {
   line-height: 1.45;
 }
 
+.sentence-ocr-image-pages {
+  display: grid;
+  max-height: min(38svh, 360px);
+  gap: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.sentence-ocr-image-page {
+  display: grid;
+  gap: 6px;
+}
+
+.sentence-ocr-image-page figcaption {
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.sentence-ocr-image-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(21, 21, 21, 0.18);
+  border-radius: 10px;
+  background: #f5f3ee;
+}
+
+.sentence-ocr-image-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.sentence-ocr-image-line {
+  position: absolute;
+  display: block;
+  min-width: 14px;
+  min-height: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(37, 99, 235, 0.58);
+  border-radius: 3px;
+  background: rgba(37, 99, 235, 0.18);
+  color: transparent;
+  padding: 0;
+  text-indent: -9999px;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.sentence-ocr-image-line.is-selected {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.36);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
 .sentence-ocr-line-list {
   display: grid;
   max-height: min(38svh, 340px);

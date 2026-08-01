@@ -1,8 +1,18 @@
-import { Fragment, useRef, useState, type ChangeEvent } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import { BottomSheetModal } from "./BottomSheetModal";
 import { Icon } from "./Icon";
-import { recognizeSentenceImage } from "../services/sentenceOcr";
+import {
+  recognizeSentenceImage,
+  type OcrLineBoundingBox,
+} from "../services/sentenceOcr";
 
 type SentenceOcrButtonProps = {
   onRecognized: (text: string) => void;
@@ -12,6 +22,15 @@ type SentenceOcrButtonProps = {
 type RecognizedLine = {
   text: string;
   pageNumber: number;
+  boundingBox?: OcrLineBoundingBox;
+};
+
+type RecognizedPage = {
+  pageNumber: number;
+  imageUrl: string;
+  imageWidth: number;
+  imageHeight: number;
+  lineIndexes: number[];
 };
 
 export const SentenceOcrButton = ({
@@ -19,22 +38,42 @@ export const SentenceOcrButton = ({
   disabled = false,
 }: SentenceOcrButtonProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const recognizedPagesRef = useRef<RecognizedPage[]>([]);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [error, setError] = useState("");
   const [recognizedLines, setRecognizedLines] = useState<RecognizedLine[]>([]);
+  const [recognizedPages, setRecognizedPages] = useState<RecognizedPage[]>([]);
   const [selectedLineIndexes, setSelectedLineIndexes] = useState<Set<number>>(
     new Set(),
   );
   const [selectedText, setSelectedText] = useState("");
   const [recognizedPageCount, setRecognizedPageCount] = useState(0);
 
+  const revokeRecognizedPageImages = (pages: RecognizedPage[]) => {
+    pages.forEach((page) => URL.revokeObjectURL(page.imageUrl));
+  };
+
   const closeSelector = () => {
+    revokeRecognizedPageImages(recognizedPagesRef.current);
+    recognizedPagesRef.current = [];
     setRecognizedLines([]);
+    setRecognizedPages([]);
     setSelectedLineIndexes(new Set());
     setSelectedText("");
     setRecognizedPageCount(0);
     setError("");
   };
+
+  useEffect(() => {
+    recognizedPagesRef.current = recognizedPages;
+  }, [recognizedPages]);
+
+  useEffect(
+    () => () => {
+      revokeRecognizedPageImages(recognizedPagesRef.current);
+    },
+    [],
+  );
 
   const updateSelection = (nextIndexes: Set<number>) => {
     setSelectedLineIndexes(nextIndexes);
@@ -81,21 +120,28 @@ export const SentenceOcrButton = ({
     setError("");
 
     try {
-      const text = await recognizeSentenceImage(file);
-      const lines = text
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
+      const result = await recognizeSentenceImage(file);
+      const nextPageNumber =
+        (recognizedLines.at(-1)?.pageNumber ?? recognizedPageCount) + 1;
+      const firstLineIndex = recognizedLines.length;
+      const nextLines = result.lines.map((line) => ({
+        text: line.text,
+        boundingBox: line.boundingBox,
+        pageNumber: nextPageNumber,
+      }));
+      const lineIndexes = nextLines.map((_, index) => firstLineIndex + index);
 
-      setRecognizedLines((currentLines) => {
-        const nextPageNumber =
-          (currentLines.at(-1)?.pageNumber ?? recognizedPageCount) + 1;
-
-        return [
-          ...currentLines,
-          ...lines.map((line) => ({ text: line, pageNumber: nextPageNumber })),
-        ];
-      });
+      setRecognizedLines((currentLines) => [...currentLines, ...nextLines]);
+      setRecognizedPages((currentPages) => [
+        ...currentPages,
+        {
+          pageNumber: nextPageNumber,
+          imageUrl: result.imageUrl,
+          imageWidth: result.imageWidth,
+          imageHeight: result.imageHeight,
+          lineIndexes,
+        },
+      ]);
       setRecognizedPageCount((currentCount) => currentCount + 1);
     } catch (nextError) {
       setError(
@@ -107,6 +153,16 @@ export const SentenceOcrButton = ({
       setIsRecognizing(false);
     }
   };
+
+  const getOverlayStyle = (
+    boundingBox: OcrLineBoundingBox,
+    page: RecognizedPage,
+  ): CSSProperties => ({
+    left: `${(boundingBox.x / page.imageWidth) * 100}%`,
+    top: `${(boundingBox.y / page.imageHeight) * 100}%`,
+    width: `${(boundingBox.width / page.imageWidth) * 100}%`,
+    height: `${(boundingBox.height / page.imageHeight) * 100}%`,
+  });
 
   return (
     <div className="sentence-ocr-control">
@@ -176,6 +232,48 @@ export const SentenceOcrButton = ({
             </button>
 
             {error && <p className="sentence-ocr-selector-error">{error}</p>}
+
+            {recognizedPages.length > 0 && (
+              <div className="sentence-ocr-image-pages">
+                {recognizedPages.map((page) => (
+                  <figure
+                    key={`${page.pageNumber}-${page.imageUrl}`}
+                    className="sentence-ocr-image-page"
+                  >
+                    <figcaption>
+                      {page.pageNumber === 1
+                        ? "첫 페이지"
+                        : `${page.pageNumber}번째 페이지`}
+                    </figcaption>
+                    <div className="sentence-ocr-image-frame">
+                      <img src={page.imageUrl} alt="" />
+                      {page.lineIndexes.map((lineIndex) => {
+                        const line = recognizedLines[lineIndex];
+                        if (!line?.boundingBox) return null;
+
+                        const isSelected = selectedLineIndexes.has(lineIndex);
+
+                        return (
+                          <button
+                            key={`${page.pageNumber}-${lineIndex}`}
+                            type="button"
+                            className={`sentence-ocr-image-line ${
+                              isSelected ? "is-selected" : ""
+                            }`}
+                            style={getOverlayStyle(line.boundingBox, page)}
+                            onClick={() => toggleLine(lineIndex)}
+                            aria-label={line.text}
+                            aria-pressed={isSelected}
+                          >
+                            <span>{line.text}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </figure>
+                ))}
+              </div>
+            )}
 
             <div className="sentence-ocr-line-list">
               {recognizedLines.map((line, index) => {
