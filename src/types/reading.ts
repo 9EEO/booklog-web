@@ -20,6 +20,25 @@ export type Highlight = {
   recordedAt: string
 }
 
+export type WordNote = {
+  id: string
+  bookId: string
+  word: string
+  definition: string
+  page?: number
+  contextSentence?: string
+  recordedAt: string
+  source: 'woorimalsam'
+  sourceName: string
+  sourceUrl?: string
+  license: string
+  pos?: string
+  category?: string
+  origin?: string
+}
+
+export type WordNoteInput = Omit<WordNote, 'id' | 'bookId' | 'recordedAt'>
+
 export type Book = {
   id: string
   title: string
@@ -38,6 +57,7 @@ export type Book = {
   contents?: string
   libraryReference?: BookLibraryReference
   sentences: Highlight[]
+  wordNotes: WordNote[]
   rounds?: ReadingRound[]
   activeRoundId?: string
   activeRoundNumber?: number

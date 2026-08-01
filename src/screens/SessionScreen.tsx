@@ -14,10 +14,16 @@ import { useBookCoverPalette } from "../hooks/useBookCoverPalette";
 import type { ReadingTimer } from "../hooks/useReadingTimer";
 import { useTimerCompletionSound } from "../hooks/useTimerCompletionSound";
 import { useTimerControlSound } from "../hooks/useTimerControlSound";
+import {
+  searchKoreanWord,
+  type WordDefinition,
+  type WordDictionaryResult,
+} from "../services/wordDictionary";
 import type {
   Book,
   ReadingCompletionInput,
   ReadingRecord,
+  WordNoteInput,
 } from "../types/reading";
 import { formatDuration } from "../utils/formatDuration";
 import {
@@ -43,10 +49,19 @@ type SessionScreenProps = {
   timer: ReadingTimer;
   onChangeBook: (bookId: string) => void;
   onSaveRecord: (input: ReadingCompletionInput) => Promise<void>;
+  onAddWordNote: (bookId: string, input: WordNoteInput) => Promise<void>;
   onAddFirstBook: () => void;
 };
 
 type PakMotion = "idle" | "ejecting" | "out" | "inserting";
+type WordSearchStatus = "idle" | "loading" | "success" | "empty" | "error";
+type SelectedWordDefinition = {
+  result: WordDictionaryResult;
+  definition: WordDefinition;
+  key: string;
+};
+
+type VisibleWordDefinition = SelectedWordDefinition;
 
 const presets = [
   import.meta.env.DEV
@@ -239,12 +254,29 @@ export const SessionScreen = ({
   timer,
   onChangeBook,
   onSaveRecord,
+  onAddWordNote,
   onAddFirstBook,
 }: SessionScreenProps) => {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSentenceOpen, setIsSentenceOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
+  const [wordSearchResumeCountdownKey, setWordSearchResumeCountdownKey] =
+    useState(0);
+  const [wordSearchQuery, setWordSearchQuery] = useState("");
+  const [wordSearchStatus, setWordSearchStatus] =
+    useState<WordSearchStatus>("idle");
+  const [wordSearchError, setWordSearchError] = useState("");
+  const [wordSearchResults, setWordSearchResults] = useState<
+    WordDictionaryResult[]
+  >([]);
+  const [selectedWordDefinition, setSelectedWordDefinition] =
+    useState<SelectedWordDefinition | null>(null);
+  const [wordNotePageInput, setWordNotePageInput] = useState("");
+  const [wordNoteSentence, setWordNoteSentence] = useState("");
+  const [isSavingWordNote, setIsSavingWordNote] = useState(false);
+  const [wordSaveMessage, setWordSaveMessage] = useState("");
   const [pakMotion, setPakMotion] = useState<PakMotion>("idle");
   const [pakInsertionSequence, setPakInsertionSequence] = useState(0);
   const [extensionSeconds, setExtensionSeconds] = useState(
@@ -483,6 +515,7 @@ export const SessionScreen = ({
 
   const openCompletion = () => {
     if (timer.elapsedSeconds === 0) return;
+    setIsWordSearchOpen(false);
     vibrateTimerStop();
     timerControlSound.playStop();
     timerCompletionSound.suppressNextCompletionSound();
@@ -571,6 +604,302 @@ export const SessionScreen = ({
     timer.setMode(mode);
   };
 
+  const openWordSearch = () => {
+    vibrateTimerPause();
+    timerControlSound.playPause();
+    if (timer.status === "running") {
+      timer.pause();
+    }
+    setIsWordSearchOpen(true);
+    setWordSaveMessage("");
+  };
+
+  const clearSelectedWordNoteDraft = () => {
+    setSelectedWordDefinition(null);
+    setWordNotePageInput("");
+    setWordNoteSentence("");
+  };
+
+  const closeWordSearchAndResume = () => {
+    setIsWordSearchOpen(false);
+    setWordSaveMessage("");
+    clearSelectedWordNoteDraft();
+    if (timer.status === "paused" && timer.elapsedSeconds > 0) {
+      setWordSearchResumeCountdownKey((current) => current + 1);
+    }
+  };
+
+  const closeWordSearch = () => {
+    vibrateTap();
+    timerControlSound.playSelect();
+    closeWordSearchAndResume();
+  };
+
+  const getWordDefinitionKey = (
+    result: WordDictionaryResult,
+    definition: WordDefinition,
+    index: number,
+    resultIndex = 0,
+  ) =>
+    `${resultIndex}-${result.word}-${definition.targetCode ?? ""}-${definition.senseNo ?? ""}-${index}`;
+
+  const visibleWordDefinitions = wordSearchResults.flatMap(
+    (result, resultIndex): VisibleWordDefinition[] =>
+      result.definitions
+        .map((definition, index) => ({
+          result,
+          definition,
+          key: getWordDefinitionKey(result, definition, index, resultIndex),
+        }))
+        .filter(
+          (item) =>
+            item.result.word.trim().length > 0 &&
+            item.definition.definition.trim().length > 0,
+        ),
+  );
+
+  const searchWord = async () => {
+    const query = wordSearchQuery.trim();
+    if (!query || wordSearchStatus === "loading") return;
+
+    vibrateSelect();
+    timerControlSound.playSearch();
+    setWordSearchStatus("loading");
+    setWordSearchError("");
+    setWordSaveMessage("");
+    clearSelectedWordNoteDraft();
+
+    try {
+      const response = await searchKoreanWord(query, {
+        method: "include",
+        limit: 10,
+      });
+
+      const hasVisibleResults = response.results.some(
+        (result) =>
+          result.word.trim().length > 0 &&
+          result.definitions.some(
+            (definition) => definition.definition.trim().length > 0,
+          ),
+      );
+
+      setWordSearchResults(response.results);
+      setWordSearchStatus(hasVisibleResults ? "success" : "empty");
+      if (!hasVisibleResults) {
+        timerControlSound.playError();
+      }
+    } catch (error) {
+      setWordSearchResults([]);
+      setWordSearchStatus("error");
+      timerControlSound.playError();
+      setWordSearchError(
+        error instanceof Error
+          ? error.message
+          : "단어를 검색하지 못했습니다.",
+      );
+    }
+  };
+
+  const selectWordDefinition = (selection: VisibleWordDefinition) => {
+    if (selectedWordDefinition?.key === selection.key) return;
+
+    vibrateSelect();
+    timerControlSound.playSelect();
+    setSelectedWordDefinition(selection);
+    setWordNotePageInput("");
+    setWordNoteSentence("");
+    setWordSaveMessage("");
+  };
+
+  const saveSelectedWordDefinition = async () => {
+    if (isSavingWordNote || !selectedWordDefinition) return;
+
+    setIsSavingWordNote(true);
+    setWordSaveMessage("");
+
+    try {
+      const { result, definition } = selectedWordDefinition;
+      const hasPageInput = /\d/.test(wordNotePageInput);
+      const page = hasPageInput
+        ? parsePageInput(wordNotePageInput)
+        : undefined;
+      const contextSentence = wordNoteSentence.trim();
+
+      await onAddWordNote(currentBook.id, {
+        word: result.word,
+        definition: definition.definition,
+        page,
+        contextSentence: contextSentence || undefined,
+        source: result.source,
+        sourceName: result.sourceName,
+        sourceUrl: definition.link ?? result.sourceUrl,
+        license: result.license,
+        pos: definition.pos,
+        category: definition.category,
+        origin: definition.origin,
+      });
+      vibrateSuccess();
+      timerControlSound.playConfirm();
+      clearSelectedWordNoteDraft();
+      closeWordSearchAndResume();
+    } catch (error) {
+      timerControlSound.playError();
+      setWordSaveMessage(
+        error instanceof Error ? error.message : "단어를 저장하지 못했습니다.",
+      );
+    } finally {
+      setIsSavingWordNote(false);
+    }
+  };
+
+  const wordSearchPanel = (
+    <form
+      className="session-word-search-panel"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void searchWord();
+      }}
+    >
+      <div className="session-word-search-form">
+        <input
+          type="search"
+          value={wordSearchQuery}
+          onFocus={() => {
+            if (wordSearchStatus === "loading") return;
+
+            setWordSearchStatus("idle");
+            setWordSearchError("");
+            setWordSearchResults([]);
+            clearSelectedWordNoteDraft();
+            setWordSaveMessage("");
+          }}
+          onChange={(event) => {
+            setWordSearchQuery(event.target.value);
+            clearSelectedWordNoteDraft();
+            setWordSaveMessage("");
+          }}
+          placeholder="단어를 검색해보세요"
+          aria-label="검색할 단어"
+        />
+        <button
+          type="submit"
+          className="session-word-go-button"
+          disabled={
+            wordSearchQuery.trim().length === 0 ||
+            wordSearchStatus === "loading"
+          }
+        >
+          {wordSearchStatus === "loading" ? "..." : "GO"}
+        </button>
+        <button
+          type="button"
+          className="session-word-close-button"
+          onClick={closeWordSearch}
+          aria-label="검색 닫기"
+        >
+          <Icon name="close" className="h-3 w-3" />
+        </button>
+      </div>
+
+      <div className="session-word-search-results" aria-live="polite">
+        {wordSearchStatus === "idle" && (
+          <p className="session-word-search-empty">
+            모르는 단어를 검색하면 독서 시간은 잠시 멈춰요.
+          </p>
+        )}
+        {wordSearchStatus === "loading" && (
+          <p className="session-word-search-empty">검색 중...</p>
+        )}
+        {wordSearchStatus === "empty" && (
+          <p className="session-word-search-empty">검색 결과가 없습니다.</p>
+        )}
+        {wordSearchStatus === "error" && (
+          <p className="session-word-search-error">{wordSearchError}</p>
+        )}
+        {wordSearchStatus === "success" &&
+          visibleWordDefinitions.map(({ result, definition, key }) => {
+            const isSelected = selectedWordDefinition?.key === key;
+            const selection = { result, definition, key };
+
+            return (
+              <article
+                key={key}
+                className={`session-word-result-group ${
+                  isSelected ? "session-word-result-group-selected" : ""
+                }`}
+                aria-selected={isSelected}
+              >
+                <div className="session-word-result-row">
+                  <button
+                    type="button"
+                    className="session-word-result"
+                    onClick={() => selectWordDefinition(selection)}
+                    aria-expanded={isSelected}
+                    aria-pressed={isSelected}
+                  >
+                    <span className="session-word-result-header">
+                      <span>
+                        <strong>{result.word}</strong>
+                        {definition.pos && <em>{definition.pos}</em>}
+                      </span>
+                    </span>
+                    <span className="session-word-result-definition">
+                      {definition.definition}
+                    </span>
+                  </button>
+
+                  {isSelected && (
+                    <button
+                      type="button"
+                      className="session-word-item-save-button"
+                      onClick={() => void saveSelectedWordDefinition()}
+                      disabled={isSavingWordNote}
+                    >
+                      {isSavingWordNote ? "..." : "SAVE"}
+                    </button>
+                  )}
+                </div>
+
+                {isSelected && (
+                  <section className="session-word-note-draft">
+                    <label>
+                      <span>페이지</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={wordNotePageInput}
+                        onChange={(event) =>
+                          setWordNotePageInput(event.target.value)
+                        }
+                        placeholder="비워둘 수 있어요"
+                        aria-label="단어가 나온 페이지"
+                      />
+                    </label>
+                    <label>
+                      <span>문장</span>
+                      <textarea
+                        value={wordNoteSentence}
+                        onChange={(event) =>
+                          setWordNoteSentence(event.target.value)
+                        }
+                        placeholder="단어가 나온 문장을 남겨보세요."
+                        aria-label="단어가 나온 문장"
+                      />
+                    </label>
+                  </section>
+                )}
+              </article>
+            );
+          })}
+      </div>
+
+      <div className="session-word-search-footer">
+        <span>우리말샘</span>
+        {wordSaveMessage && <strong>{wordSaveMessage}</strong>}
+      </div>
+    </form>
+  );
+
   return (
     <div className="session-screen space-y-4">
       {shouldShowReadingGapBanner && (
@@ -604,6 +933,9 @@ export const SessionScreen = ({
               targetSeconds={timer.targetSeconds}
               memoryLogs={memoryLogs}
               memorySeed={`${todayLabel()}-${currentBook.id}`}
+              searchPanelContent={wordSearchPanel}
+              isSearchPanelOpen={isWordSearchOpen}
+              searchCountdownKey={wordSearchResumeCountdownKey}
               completionContent={
                 isCompletionVisible ? (
                   <div className="session-completion-hud">
@@ -729,6 +1061,13 @@ export const SessionScreen = ({
                 vibrateTimerPause();
                 timerControlSound.playPause();
                 timer.pause();
+              }}
+              onSearch={openWordSearch}
+              onSearchCountdownComplete={() => {
+                vibrateTimerStart();
+                timerControlSound.playStart();
+                timerCompletionSound.prepare();
+                timer.start();
               }}
               onStop={openCompletion}
             />

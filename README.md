@@ -22,6 +22,14 @@ SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
+Dictionary lookup uses the National Institute of Korean Language
+Woorimalsam Open API. Keep this value server-only. Do not add a `VITE_`
+prefix.
+
+```env
+WOORIMALSAEM_API_KEY=your_woorimalsam_api_key
+```
+
 After changing `.env.local`, restart the Vite dev server.
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

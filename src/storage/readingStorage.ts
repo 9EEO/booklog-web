@@ -1,4 +1,4 @@
-import type { Book, BookStatus, ReadingRecord, ReadingRound, TabKey } from '../types/reading'
+import type { Book, BookStatus, ReadingRecord, ReadingRound, TabKey, WordNote } from '../types/reading'
 import type { TimerMode, TimerStatus } from '../hooks/useReadingTimer'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
@@ -65,6 +65,12 @@ export type PendingReadingRecordSync = {
   }
 }
 
+export type PendingWordNoteSync = {
+  id: string
+  userId: string
+  note: WordNote
+}
+
 export const defaultDailyGoalSeconds = 20 * 60
 export const defaultWeeklyGoalDays = 5
 
@@ -79,6 +85,7 @@ export const readingStorageKeys = {
   tierBoard: 'booklog-tier-board',
   readingTimer: 'booklog-reading-timer',
   pendingReadingRecordSyncs: 'booklog-pending-reading-record-syncs',
+  pendingWordNoteSyncs: 'booklog-pending-word-note-syncs',
 } as const
 
 const tabKeys: TabKey[] = ['home', 'session', 'records', 'library', 'profile']
@@ -128,6 +135,7 @@ const normalizeStoredBook = (book: Book): Book => {
     status: activeRound.status,
     accumulatedSeconds: activeRound.accumulatedSeconds,
     completedAt: activeRound.completedAt ?? book.completedAt,
+    wordNotes: Array.isArray(book.wordNotes) ? book.wordNotes : [],
     rounds,
     activeRoundId: activeRound.id,
     activeRoundNumber: activeRound.roundNumber,
@@ -264,4 +272,14 @@ export const getPendingReadingRecordSyncs = () => {
 
 export const savePendingReadingRecordSyncs = (pending: PendingReadingRecordSync[]) => {
   writeLocalStorage(readingStorageKeys.pendingReadingRecordSyncs, pending)
+}
+
+export const getPendingWordNoteSyncs = () => {
+  const pending = readLocalStorage<PendingWordNoteSync[]>(readingStorageKeys.pendingWordNoteSyncs, [])
+
+  return Array.isArray(pending) ? pending : []
+}
+
+export const savePendingWordNoteSyncs = (pending: PendingWordNoteSync[]) => {
+  writeLocalStorage(readingStorageKeys.pendingWordNoteSyncs, pending)
 }

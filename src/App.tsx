@@ -23,6 +23,7 @@ import {
   createRemoteHighlight,
   createRemoteReadingRound,
   createRemoteRecord,
+  createRemoteWordNote,
   deleteRemoteBook,
   deleteRemoteHighlight,
   deleteRemoteReadingRound,
@@ -46,7 +47,9 @@ import {
   getInitialTierBoard,
   getInitialWeeklyGoalDays,
   getPendingReadingRecordSyncs,
+  getPendingWordNoteSyncs,
   type PendingReadingRecordSync,
+  type PendingWordNoteSync,
   getStoredDataOwnerUserId,
   saveActiveTab,
   saveDataOwnerUserId,
@@ -55,6 +58,7 @@ import {
   saveDailyGoalSeconds,
   saveRecords,
   savePendingReadingRecordSyncs,
+  savePendingWordNoteSyncs,
   saveTierBoard,
   saveWeeklyGoalDays,
 } from "./storage/readingStorage";
@@ -67,6 +71,8 @@ import type {
   ReadingRecordUpdateInput,
   ReadingRound,
   TabKey,
+  WordNote,
+  WordNoteInput,
 } from "./types/reading";
 import {
   createEmptyTierBoard,
@@ -251,6 +257,10 @@ const syncPendingReadingRecord = async (pending: PendingReadingRecordSync) => {
   }
 };
 
+const syncPendingWordNote = async (pending: PendingWordNoteSync) => {
+  await createRemoteWordNote(pending.userId, pending.note);
+};
+
 function AuthenticatedApp({
   user,
   onSignOut,
@@ -290,24 +300,40 @@ function AuthenticatedApp({
     throw new Error(message);
   };
 
-  const flushPendingReadingRecords = useCallback(async () => {
+  const flushPendingSyncs = useCallback(async () => {
     if (pendingFlushRef.current) return;
     if (typeof navigator !== "undefined" && navigator.onLine === false) return;
 
-    const pendingForUser = getPendingReadingRecordSyncs().filter(
+    const pendingRecordsForUser = getPendingReadingRecordSyncs().filter(
       (pending) => pending.userId === user.id,
     );
-    if (pendingForUser.length === 0) return;
+    const pendingWordNotesForUser = getPendingWordNoteSyncs().filter(
+      (pending) => pending.userId === user.id,
+    );
+    if (
+      pendingRecordsForUser.length === 0 &&
+      pendingWordNotesForUser.length === 0
+    ) {
+      return;
+    }
 
     pendingFlushRef.current = true;
     let didFlush = false;
 
     try {
-      for (const pending of pendingForUser) {
+      for (const pending of pendingRecordsForUser) {
         await syncPendingReadingRecord(pending);
         didFlush = true;
         savePendingReadingRecordSyncs(
           getPendingReadingRecordSyncs().filter((item) => item.id !== pending.id),
+        );
+      }
+
+      for (const pending of pendingWordNotesForUser) {
+        await syncPendingWordNote(pending);
+        didFlush = true;
+        savePendingWordNoteSyncs(
+          getPendingWordNoteSyncs().filter((item) => item.id !== pending.id),
         );
       }
 
@@ -324,7 +350,7 @@ function AuthenticatedApp({
       }
     } catch (error) {
       setSyncError(
-        getErrorMessage(error, "보류 중인 독서 기록을 동기화하지 못했습니다."),
+        getErrorMessage(error, "보류 중인 독서 데이터를 동기화하지 못했습니다."),
       );
     } finally {
       pendingFlushRef.current = false;
@@ -460,15 +486,15 @@ function AuthenticatedApp({
     if (isDataLoading) return;
 
     const flushTimer = window.setTimeout(() => {
-      void flushPendingReadingRecords();
+      void flushPendingSyncs();
     }, 0);
-    window.addEventListener("online", flushPendingReadingRecords);
+    window.addEventListener("online", flushPendingSyncs);
 
     return () => {
       window.clearTimeout(flushTimer);
-      window.removeEventListener("online", flushPendingReadingRecords);
+      window.removeEventListener("online", flushPendingSyncs);
     };
-  }, [flushPendingReadingRecords, isDataLoading]);
+  }, [flushPendingSyncs, isDataLoading]);
 
   useEffect(() => {
     if (isDataLoading) return;
@@ -1093,6 +1119,67 @@ function AuthenticatedApp({
     }
   };
 
+  const handleAddWordNote = async (bookId: string, input: WordNoteInput) => {
+    const targetBook = books.find((book) => book.id === bookId);
+    if (!targetBook) return;
+
+    const word = input.word.trim();
+    const definition = input.definition.trim();
+    const contextSentence = input.contextSentence?.trim();
+    if (!word || !definition) return;
+
+    const newWordNote: WordNote = {
+      ...input,
+      id: createClientId(),
+      bookId,
+      word,
+      definition,
+      page:
+        input.page !== undefined
+          ? clampBookPage(input.page, targetBook.totalPages)
+          : undefined,
+      contextSentence: contextSentence || undefined,
+      recordedAt: todayLabel(),
+    };
+    const pendingSync: PendingWordNoteSync = {
+      id: newWordNote.id,
+      userId: user.id,
+      note: newWordNote,
+    };
+
+    setSyncError(null);
+    savePendingWordNoteSyncs([
+      ...getPendingWordNoteSyncs().filter((item) => item.id !== newWordNote.id),
+      pendingSync,
+    ]);
+    setBooks((current) =>
+      current.map((book) =>
+        book.id === bookId
+          ? {
+              ...book,
+              wordNotes: [newWordNote, ...(book.wordNotes ?? [])],
+            }
+          : book,
+      ),
+    );
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setSyncError("오프라인으로 저장했습니다. 네트워크 연결 시 자동으로 동기화됩니다.");
+      return;
+    }
+
+    void syncPendingWordNote(pendingSync)
+      .then(() => {
+        savePendingWordNoteSyncs(
+          getPendingWordNoteSyncs().filter((item) => item.id !== newWordNote.id),
+        );
+        setSyncError(null);
+      })
+      .catch(() => {
+        setSyncError("오프라인으로 저장했습니다. 네트워크 연결 시 자동으로 동기화됩니다.");
+      });
+  };
+
   const handleUpdateBookPage = async (bookId: string, page: number) => {
     const date = todayLabel();
     const targetBook = books.find((book) => book.id === bookId);
@@ -1406,6 +1493,7 @@ function AuthenticatedApp({
           timer={readingTimer}
           onChangeBook={setCurrentBookId}
           onSaveRecord={handleSaveRecord}
+          onAddWordNote={handleAddWordNote}
           onAddFirstBook={openFirstBookForm}
         />
       )}

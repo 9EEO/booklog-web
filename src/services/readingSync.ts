@@ -1,6 +1,6 @@
 import { defaultDailyGoalSeconds, defaultWeeklyGoalDays } from '../storage/readingStorage'
 import { requireSupabase } from './supabase'
-import type { Book, BookLibraryReference, BookStatus, Highlight, NewBookInput, ReadingRecord, ReadingRound } from '../types/reading'
+import type { Book, BookLibraryReference, BookStatus, Highlight, NewBookInput, ReadingRecord, ReadingRound, WordNote } from '../types/reading'
 import { createEmptyTierBoard, normalizeTierBoard, type TierBoard } from '../types/tier'
 
 type BookRow = {
@@ -30,6 +30,24 @@ type HighlightRow = {
   text: string
   page: number
   recorded_at: string
+}
+
+type WordNoteRow = {
+  id: string
+  user_id: string
+  book_id: string
+  word: string
+  definition: string
+  page: number | null
+  context_sentence: string | null
+  recorded_at: string
+  source: 'woorimalsam'
+  source_name: string
+  source_url: string | null
+  license: string
+  pos: string | null
+  category: string | null
+  origin: string | null
 }
 
 type ReadingRoundRow = {
@@ -87,6 +105,23 @@ const mapHighlightRow = (row: HighlightRow): Highlight => ({
   recordedAt: normalizeDate(row.recorded_at),
 })
 
+const mapWordNoteRow = (row: WordNoteRow): WordNote => ({
+  id: row.id,
+  bookId: row.book_id,
+  word: row.word,
+  definition: row.definition,
+  page: row.page ?? undefined,
+  contextSentence: row.context_sentence ?? undefined,
+  recordedAt: normalizeDate(row.recorded_at),
+  source: row.source,
+  sourceName: row.source_name,
+  sourceUrl: row.source_url ?? undefined,
+  license: row.license,
+  pos: row.pos ?? undefined,
+  category: row.category ?? undefined,
+  origin: row.origin ?? undefined,
+})
+
 const mapRoundRow = (row: ReadingRoundRow): ReadingRound => ({
   id: row.id,
   bookId: row.book_id,
@@ -113,7 +148,7 @@ const pickActiveRound = (rounds: ReadingRound[]) =>
   rounds.find((round) => round.status === 'reading') ??
   [...rounds].sort((left, right) => right.roundNumber - left.roundNumber)[0]
 
-const mapBookRow = (row: BookRow, highlights: Highlight[], rounds: ReadingRound[]): Book => {
+const mapBookRow = (row: BookRow, highlights: Highlight[], wordNotes: WordNote[], rounds: ReadingRound[]): Book => {
   const normalizedRounds = (rounds.length > 0 ? rounds : [createFallbackRound(row)]).sort((left, right) => left.roundNumber - right.roundNumber)
   const activeRound = pickActiveRound(normalizedRounds) ?? createFallbackRound(row)
   const latestCompletedAt =
@@ -139,6 +174,7 @@ const mapBookRow = (row: BookRow, highlights: Highlight[], rounds: ReadingRound[
     contents: row.contents ?? undefined,
     libraryReference: row.library_reference ?? undefined,
     sentences: highlights,
+    wordNotes,
     rounds: normalizedRounds,
     activeRoundId: activeRound.id,
     activeRoundNumber: activeRound.roundNumber,
@@ -166,9 +202,11 @@ const buildSnapshot = (
   rounds: ReadingRoundRow[],
   records: ReadingRecordRow[],
   highlights: HighlightRow[],
+  wordNotes: WordNoteRow[],
   settings: ReadingSettingsRow | null,
 ): ReadingSnapshot => {
   const highlightsByBookId = new Map<string, Highlight[]>()
+  const wordNotesByBookId = new Map<string, WordNote[]>()
   const roundsByBookId = new Map<string, ReadingRound[]>()
   const roundsById = new Map<string, ReadingRound>()
 
@@ -176,6 +214,12 @@ const buildSnapshot = (
     const current = highlightsByBookId.get(row.book_id) ?? []
     current.push(mapHighlightRow(row))
     highlightsByBookId.set(row.book_id, current)
+  })
+
+  wordNotes.forEach((row) => {
+    const current = wordNotesByBookId.get(row.book_id) ?? []
+    current.push(mapWordNoteRow(row))
+    wordNotesByBookId.set(row.book_id, current)
   })
 
   rounds.forEach((row) => {
@@ -188,7 +232,14 @@ const buildSnapshot = (
   })
 
   return {
-    books: books.map((row) => mapBookRow(row, highlightsByBookId.get(row.id) ?? [], roundsByBookId.get(row.id) ?? [])),
+    books: books.map((row) =>
+      mapBookRow(
+        row,
+        highlightsByBookId.get(row.id) ?? [],
+        wordNotesByBookId.get(row.id) ?? [],
+        roundsByBookId.get(row.id) ?? [],
+      ),
+    ),
     records: records.map((row) => mapRecordRow(row, row.round_id ? roundsById.get(row.round_id) : undefined)),
     currentBookId: settings?.current_book_id ?? '',
     dailyGoalSeconds: settings?.daily_goal_seconds ?? defaultDailyGoalSeconds,
@@ -200,11 +251,12 @@ const buildSnapshot = (
 export const fetchReadingSnapshot = async (userId: string): Promise<ReadingSnapshot> => {
   const supabase = requireSupabase()
 
-  const [booksResult, roundsResult, recordsResult, highlightsResult, settingsResult] = await Promise.all([
+  const [booksResult, roundsResult, recordsResult, highlightsResult, wordNotesResult, settingsResult] = await Promise.all([
     supabase.from('books').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.from('reading_rounds').select('*').eq('user_id', userId).order('round_number', { ascending: true }),
     supabase.from('reading_records').select('*').eq('user_id', userId).order('read_date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('highlights').select('*').eq('user_id', userId).order('recorded_at', { ascending: false }).order('created_at', { ascending: false }),
+    supabase.from('word_notes').select('*').eq('user_id', userId).order('recorded_at', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('reading_settings').select('*').eq('user_id', userId).maybeSingle(),
   ])
 
@@ -212,6 +264,7 @@ export const fetchReadingSnapshot = async (userId: string): Promise<ReadingSnaps
   if (roundsResult.error) throw roundsResult.error
   if (recordsResult.error) throw recordsResult.error
   if (highlightsResult.error) throw highlightsResult.error
+  if (wordNotesResult.error) throw wordNotesResult.error
   if (settingsResult.error) throw settingsResult.error
 
   return buildSnapshot(
@@ -219,6 +272,7 @@ export const fetchReadingSnapshot = async (userId: string): Promise<ReadingSnaps
     (roundsResult.data ?? []) as ReadingRoundRow[],
     (recordsResult.data ?? []) as ReadingRecordRow[],
     (highlightsResult.data ?? []) as HighlightRow[],
+    (wordNotesResult.data ?? []) as WordNoteRow[],
     (settingsResult.data as ReadingSettingsRow | null) ?? null,
   )
 }
@@ -294,7 +348,7 @@ export const createRemoteBook = async (
 
   if (roundError) throw roundError
 
-  return mapBookRow(createdBook, [], [mapRoundRow(roundData as ReadingRoundRow)])
+  return mapBookRow(createdBook, [], [], [mapRoundRow(roundData as ReadingRoundRow)])
 }
 
 export const createRemoteReadingRound = async (
@@ -494,6 +548,91 @@ export const deleteRemoteHighlight = async (highlightId: string) => {
   if (error) throw error
 }
 
+export const createRemoteWordNote = async (
+  userId: string,
+  input: {
+    id?: string
+    bookId: string
+    word: string
+    definition: string
+    page?: number
+    contextSentence?: string
+    recordedAt: string
+    source: 'woorimalsam'
+    sourceName: string
+    sourceUrl?: string
+    license: string
+    pos?: string
+    category?: string
+    origin?: string
+  },
+): Promise<WordNote> => {
+  const supabase = requireSupabase()
+  const payload = {
+    ...(input.id ? { id: input.id } : {}),
+    user_id: userId,
+    book_id: input.bookId,
+    word: input.word.trim(),
+    definition: input.definition.trim(),
+    page: input.page ?? null,
+    context_sentence: input.contextSentence?.trim() || null,
+    recorded_at: toDbDate(input.recordedAt),
+    source: input.source,
+    source_name: input.sourceName,
+    source_url: input.sourceUrl ?? null,
+    license: input.license,
+    pos: input.pos ?? null,
+    category: input.category ?? null,
+    origin: input.origin ?? null,
+  }
+  const query = input.id
+    ? supabase.from('word_notes').upsert(payload)
+    : supabase.from('word_notes').insert(payload)
+  const { data, error } = await query.select('*').single()
+
+  if (error) throw error
+
+  return mapWordNoteRow(data as WordNoteRow)
+}
+
+export const updateRemoteWordNote = async (
+  wordNoteId: string,
+  input: Partial<{
+    word: string
+    definition: string
+    page: number | null
+    contextSentence: string | null
+    sourceUrl: string | null
+    license: string
+    pos: string | null
+    category: string | null
+    origin: string | null
+  }>,
+) => {
+  const supabase = requireSupabase()
+  const payload: Record<string, unknown> = {}
+
+  if (input.word !== undefined) payload.word = input.word.trim()
+  if (input.definition !== undefined) payload.definition = input.definition.trim()
+  if (input.page !== undefined) payload.page = input.page
+  if (input.contextSentence !== undefined) payload.context_sentence = input.contextSentence?.trim() || null
+  if (input.sourceUrl !== undefined) payload.source_url = input.sourceUrl
+  if (input.license !== undefined) payload.license = input.license
+  if (input.pos !== undefined) payload.pos = input.pos
+  if (input.category !== undefined) payload.category = input.category
+  if (input.origin !== undefined) payload.origin = input.origin
+  payload.updated_at = new Date().toISOString()
+
+  const { error } = await supabase.from('word_notes').update(payload).eq('id', wordNoteId)
+  if (error) throw error
+}
+
+export const deleteRemoteWordNote = async (wordNoteId: string) => {
+  const supabase = requireSupabase()
+  const { error } = await supabase.from('word_notes').delete().eq('id', wordNoteId)
+  if (error) throw error
+}
+
 export const updateRemoteBook = async (
   bookId: string,
   input: Partial<{
@@ -576,12 +715,13 @@ export const migrateLocalSnapshotToSupabase = async (
       })
     }
 
-    const migratedBook = {
+    const migratedBook: Book = {
       ...createdBook,
       accumulatedSeconds: book.accumulatedSeconds,
       currentPage: book.currentPage,
       status: book.status,
       completedAt: book.completedAt,
+      wordNotes: [],
       rounds: createdBook.rounds?.map((round) => ({
         ...round,
         accumulatedSeconds: book.accumulatedSeconds,
@@ -607,6 +747,26 @@ export const migrateLocalSnapshotToSupabase = async (
       })
 
       migratedBook.sentences = [...migratedBook.sentences, createdHighlight]
+    }
+
+    for (const wordNote of book.wordNotes ?? []) {
+      const createdWordNote = await createRemoteWordNote(userId, {
+        bookId: createdBook.id,
+        word: wordNote.word,
+        definition: wordNote.definition,
+        page: wordNote.page,
+        contextSentence: wordNote.contextSentence,
+        recordedAt: wordNote.recordedAt,
+        source: wordNote.source,
+        sourceName: wordNote.sourceName,
+        sourceUrl: wordNote.sourceUrl,
+        license: wordNote.license,
+        pos: wordNote.pos,
+        category: wordNote.category,
+        origin: wordNote.origin,
+      })
+
+      migratedBook.wordNotes = [...migratedBook.wordNotes, createdWordNote]
     }
   }
 

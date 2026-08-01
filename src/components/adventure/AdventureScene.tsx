@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useCallback,
   useRef,
   useState,
   type CSSProperties,
@@ -39,6 +40,9 @@ type AdventureSceneProps = {
   memoryLogs: MemoryLog[];
   memorySeed: string;
   completionContent?: ReactNode;
+  searchPanelContent?: ReactNode;
+  isSearchPanelOpen?: boolean;
+  searchCountdownKey?: number;
   emptyState?: {
     title: string;
     description: string;
@@ -49,6 +53,8 @@ type AdventureSceneProps = {
   onSelectPreset: (seconds: number) => void;
   onStart: () => void;
   onPause: () => void;
+  onSearch?: () => void;
+  onSearchCountdownComplete?: () => void;
   onStop: () => void;
 };
 
@@ -416,6 +422,10 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
   &:active {
     opacity: 0.68;
   }
+
+  &:disabled {
+    opacity: 0.52;
+  }
 `;
 
 const CharacterWrap = styled.div<{ $status: AdventureStatus }>`
@@ -564,6 +574,15 @@ const CompletionLayer = styled.div`
   font-family: var(--font-pixel);
 `;
 
+const SearchLayer = styled.div`
+  position: absolute;
+  z-index: 15;
+  inset: 8px;
+  display: grid;
+  min-height: 0;
+  font-family: var(--font-pixel);
+`;
+
 export const AdventureBackground = ({
   isMoving,
   isCompleted = false,
@@ -697,16 +716,22 @@ export const AdventureScene = ({
   memoryLogs,
   memorySeed,
   completionContent,
+  searchPanelContent,
+  isSearchPanelOpen = false,
+  searchCountdownKey = 0,
   emptyState,
   onChangeMode,
   onSelectPreset,
   onStart,
   onPause,
+  onSearch,
+  onSearchCountdownComplete,
   onStop,
 }: AdventureSceneProps) => {
   const [isTimeSettingOpen, setIsTimeSettingOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownTimersRef = useRef<number[]>([]);
+  const latestSearchCountdownKeyRef = useRef(searchCountdownKey);
   const isPreparing = status === "idle";
   const isCountdownActive = countdown !== null;
   const isMoving = status === "running";
@@ -721,31 +746,53 @@ export const AdventureScene = ({
   const hudStatusLabel =
     status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
 
-  useEffect(
-    () => () => {
-      countdownTimersRef.current.forEach((timerId) =>
-        window.clearTimeout(timerId),
-      );
+  const clearCountdownTimers = useCallback(() => {
+    countdownTimersRef.current.forEach((timerId) =>
+      window.clearTimeout(timerId),
+    );
+    countdownTimersRef.current = [];
+  }, []);
+
+  useEffect(() => () => clearCountdownTimers(), [clearCountdownTimers]);
+
+  const runCountdown = useCallback(
+    (onComplete: () => void) => {
+      if (countdown !== null) return;
+
+      clearCountdownTimers();
+      setCountdown(3);
+      countdownTimersRef.current = [
+        window.setTimeout(() => setCountdown(2), 1000),
+        window.setTimeout(() => setCountdown(1), 2000),
+        window.setTimeout(() => {
+          setCountdown(null);
+          countdownTimersRef.current = [];
+          onComplete();
+        }, 3000),
+      ];
     },
-    [],
+    [clearCountdownTimers, countdown],
   );
+
+  useEffect(() => {
+    if (
+      searchCountdownKey === 0 ||
+      searchCountdownKey === latestSearchCountdownKeyRef.current
+    ) {
+      return;
+    }
+
+    latestSearchCountdownKeyRef.current = searchCountdownKey;
+    runCountdown(() => onSearchCountdownComplete?.());
+  }, [onSearchCountdownComplete, runCountdown, searchCountdownKey]);
 
   const startCountdown = () => {
     if (countdown !== null) return;
 
-    countdownTimersRef.current.forEach((timerId) =>
-      window.clearTimeout(timerId),
-    );
-    setCountdown(3);
-    countdownTimersRef.current = [
-      window.setTimeout(() => setCountdown(2), 1000),
-      window.setTimeout(() => setCountdown(1), 2000),
-      window.setTimeout(() => {
-        setCountdown(null);
-        setIsTimeSettingOpen(false);
-        onStart();
-      }, 3000),
-    ];
+    runCountdown(() => {
+      setIsTimeSettingOpen(false);
+      onStart();
+    });
   };
 
   return (
@@ -818,14 +865,31 @@ export const AdventureScene = ({
               <ActionButton
                 type="button"
                 onClick={status === "running" ? onPause : onStart}
+                disabled={status === "paused" && isSearchPanelOpen}
               >
-                {status === "running" ? "PAUSE" : "RESUME"}
+                {status === "running"
+                  ? "PAUSE"
+                  : isSearchPanelOpen
+                    ? "PAUSED"
+                    : "RESUME"}
               </ActionButton>
               <ActionButton type="button" $danger onClick={onStop}>
                 STOP
               </ActionButton>
+              {onSearch && (
+                <ActionButton
+                  type="button"
+                  onClick={onSearch}
+                  aria-pressed={isSearchPanelOpen}
+                >
+                  SEARCH
+                </ActionButton>
+              )}
             </ActionDock>
           )}
+          {isSearchPanelOpen && searchPanelContent ? (
+            <SearchLayer>{searchPanelContent}</SearchLayer>
+          ) : null}
           {status === "completed" && completionContent ? (
             <CompletionLayer>{completionContent}</CompletionLayer>
           ) : (

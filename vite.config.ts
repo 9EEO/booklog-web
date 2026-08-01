@@ -183,6 +183,23 @@ const devApiMiddleware = (): Plugin => ({
       }
     })
 
+    server.middlewares.use('/api/word-lookup', async (request, response) => {
+      try {
+        loadLocalEnv()
+        const jsonRequest = request as DevJsonRequest
+        jsonRequest.body = await readJsonBody(request)
+        const { default: wordLookupHandler } = await import('./api/word-lookup.js') as {
+          default: VercelJsonHandler
+        }
+
+        await wordLookupHandler(jsonRequest, withVercelJsonResponse(response))
+      } catch {
+        response.statusCode = 400
+        response.setHeader('Content-Type', 'application/json; charset=utf-8')
+        response.end(JSON.stringify({ error: '단어 검색 요청 형식이 올바르지 않습니다.' }))
+      }
+    })
+
     server.middlewares.use('/api/admin', async (request, response) => {
       try {
         loadLocalEnv()

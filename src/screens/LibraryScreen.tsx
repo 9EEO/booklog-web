@@ -2200,6 +2200,45 @@ export const LibraryScreen = ({
                   )}
                 </section>
 
+                <section className="book-detail-word-section">
+                  <div className="book-detail-section-title">
+                    <h2>단어 기록</h2>
+                    <strong>{selectedBook.wordNotes.length}개</strong>
+                  </div>
+                  {selectedBook.wordNotes.length === 0 ? (
+                    <p className="book-detail-empty-state">
+                      독서 중 검색한 단어가 이곳에 저장됩니다.
+                    </p>
+                  ) : (
+                    <div className="book-detail-word-list">
+                      {selectedBook.wordNotes.map((wordNote) => (
+                        <article
+                          key={wordNote.id}
+                          className="book-detail-word-item"
+                        >
+                          <div className="book-detail-word-heading">
+                            <div>
+                              <strong>{wordNote.word}</strong>
+                              {wordNote.pos && <span>{wordNote.pos}</span>}
+                            </div>
+                            {wordNote.page && <em>{wordNote.page}p</em>}
+                          </div>
+                          <p>{wordNote.definition}</p>
+                          {wordNote.contextSentence && (
+                            <blockquote className="book-detail-word-context">
+                              {wordNote.contextSentence}
+                            </blockquote>
+                          )}
+                          <div className="book-detail-word-meta">
+                            <span>{wordNote.sourceName}</span>
+                            <span>{wordNote.recordedAt}</span>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
                 <section className="book-detail-sentence-section">
                   <div className="book-detail-section-title">
                     <h2>기록한 문장</h2>

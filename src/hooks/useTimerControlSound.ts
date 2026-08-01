@@ -9,6 +9,18 @@ type Tone = {
 
 const soundPatterns = {
   select: [{ frequency: 880, duration: 0.045, volume: 0.09 }],
+  search: [
+    { frequency: 698.46, duration: 0.045, volume: 0.08 },
+    { frequency: 932.33, start: 0.045, duration: 0.06, volume: 0.09 },
+  ],
+  confirm: [
+    { frequency: 783.99, duration: 0.06, volume: 0.09 },
+    { frequency: 1046.5, start: 0.055, duration: 0.09, volume: 0.1 },
+  ],
+  error: [
+    { frequency: 293.66, duration: 0.06, volume: 0.08 },
+    { frequency: 220, start: 0.055, duration: 0.09, volume: 0.08 },
+  ],
   start: [
     { frequency: 523.25, duration: 0.07, volume: 0.1 },
     { frequency: 783.99, start: 0.065, duration: 0.1, volume: 0.12 },
@@ -97,6 +109,9 @@ export const useTimerControlSound = () => {
 
   return {
     playSelect: () => playPattern(soundPatterns.select),
+    playSearch: () => playPattern(soundPatterns.search),
+    playConfirm: () => playPattern(soundPatterns.confirm),
+    playError: () => playPattern(soundPatterns.error),
     playStart: () => playPattern(soundPatterns.start),
     playPause: () => playPattern(soundPatterns.pause),
     playStop: () => playPattern(soundPatterns.stop),

@@ -29,7 +29,12 @@ export const recoverFromBrokenServiceWorker = async () => {
 }
 
 export const ensureServiceWorkerIsHealthy = async () => {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
+  if (!('serviceWorker' in navigator)) return
+
+  if (!import.meta.env.PROD) {
+    await recoverFromBrokenServiceWorker()
+    return
+  }
 
   try {
     const response = await fetch('/sw.js', { cache: 'no-store' })

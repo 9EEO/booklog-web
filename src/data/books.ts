@@ -20,6 +20,7 @@ export const initialBooks: Book[] = [
         recordedAt: '2026.05.04',
       },
     ],
+    wordNotes: [],
   },
   {
     id: 'book-2',
@@ -33,6 +34,7 @@ export const initialBooks: Book[] = [
     coverColor: '#6f7b45',
     accentColor: '#f2d7a0',
     sentences: [],
+    wordNotes: [],
   },
   {
     id: 'book-3',
@@ -54,6 +56,7 @@ export const initialBooks: Book[] = [
         recordedAt: '2026.04.26',
       },
     ],
+    wordNotes: [],
   },
   {
     id: 'book-4',
@@ -67,5 +70,6 @@ export const initialBooks: Book[] = [
     coverColor: '#b5895a',
     accentColor: '#f5e3bd',
     sentences: [],
+    wordNotes: [],
   },
 ]
