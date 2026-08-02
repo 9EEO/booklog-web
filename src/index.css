@@ -4907,9 +4907,9 @@ button {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(92px, 0.6fr) minmax(0, 1fr);
-  grid-template-rows: auto auto;
+  grid-template-rows: minmax(0, 1fr) 31px;
   gap: 9px;
-  align-items: center;
+  align-items: stretch;
   border: 2px solid #151515;
   border-radius: 2px;
   background: #d8d8d0;
@@ -5104,12 +5104,19 @@ button {
   white-space: nowrap;
 }
 
+.session-book-preview-copy {
+  display: grid;
+  min-height: 0;
+  align-self: stretch;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
 .session-book-preview-author {
   overflow: hidden;
   margin-top: 3px;
-  color: rgba(21, 21, 21, 0.52);
-  font-size: 10px;
-  font-weight: 800;
+  color: rgba(21, 21, 21, 0.62);
+  font-size: 9px;
+  font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5117,10 +5124,10 @@ button {
 .session-book-preview-description {
   display: -webkit-box;
   overflow: hidden;
-  margin-top: 8px;
-  color: rgba(21, 21, 21, 0.52);
-  font-size: 10px;
-  font-weight: 800;
+  margin-top: 10px;
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 9px;
+  font-weight: 750;
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
