@@ -1,12 +1,10 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
 } from "react";
 import { AdventureScene } from "../components/adventure/AdventureScene";
-import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
@@ -27,8 +25,6 @@ import type {
 } from "../types/reading";
 import { formatDuration } from "../utils/formatDuration";
 import {
-  vibratePakEject,
-  vibratePakInsert,
   vibrateSelect,
   vibrateSuccess,
   vibrateTap,
@@ -54,7 +50,6 @@ type SessionScreenProps = {
   onAddFirstBook: () => void;
 };
 
-type PakMotion = "idle" | "ejecting" | "out" | "inserting";
 type WordSearchStatus = "idle" | "loading" | "success" | "empty" | "error";
 type SelectedWordDefinition = {
   result: WordDictionaryResult;
@@ -76,8 +71,6 @@ const presets = [
 const extensionStepSeconds = 5 * 60;
 const minimumExtensionSeconds = 5 * 60;
 const maximumExtensionSeconds = 60 * 60;
-const pakProgressDelayMs = 300;
-const pakProgressDurationMs = 720;
 
 const formatFocusTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
@@ -130,54 +123,6 @@ const getDaysSinceLastReading = (book: Book, records: ReadingRecord[]) => {
   if (today === null) return null;
 
   return Math.floor((today - lastReadAt) / 86_400_000);
-};
-
-const useAnimatedPakProgress = (
-  bookId: string,
-  progress: number | null,
-  insertionSequence: number,
-) => {
-  const target = progress !== null && progress > 0 ? Math.round(progress) : null;
-  const [animatedProgress, setAnimatedProgress] = useState<{
-    animationKey: string;
-    value: number;
-  } | null>(null);
-  const animationKey = `${bookId}-${insertionSequence}`;
-  const prefersReducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  useEffect(() => {
-    if (target === null || prefersReducedMotion) return;
-
-    let animationFrame = 0;
-    const startTimer = window.setTimeout(() => {
-      const startedAt = performance.now();
-      const animate = (now: number) => {
-        const elapsed = Math.min((now - startedAt) / pakProgressDurationMs, 1);
-        const eased = 1 - Math.pow(1 - elapsed, 3);
-
-        setAnimatedProgress({
-          animationKey,
-          value: Math.round(target * eased),
-        });
-        if (elapsed < 1) animationFrame = window.requestAnimationFrame(animate);
-      };
-
-      animationFrame = window.requestAnimationFrame(animate);
-    }, pakProgressDelayMs);
-
-    return () => {
-      window.clearTimeout(startTimer);
-      window.cancelAnimationFrame(animationFrame);
-    };
-  }, [animationKey, prefersReducedMotion, target]);
-
-  if (target === null) return null;
-  if (prefersReducedMotion) return target;
-  return animatedProgress?.animationKey === animationKey
-    ? animatedProgress.value
-    : 0;
 };
 
 type BookPickerItemProps = {
@@ -259,7 +204,7 @@ export const SessionScreen = ({
   onAddWordNote,
   onAddFirstBook,
 }: SessionScreenProps) => {
-  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
+  const [hasSelectedSessionBook, setHasSelectedSessionBook] = useState(false);
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
@@ -285,62 +230,15 @@ export const SessionScreen = ({
   const [wordNoteSentence, setWordNoteSentence] = useState("");
   const [isSavingWordNote, setIsSavingWordNote] = useState(false);
   const [wordSaveMessage, setWordSaveMessage] = useState("");
-  const [pakMotion, setPakMotion] = useState<PakMotion>("idle");
-  const [pakInsertionSequence, setPakInsertionSequence] = useState(0);
   const [extensionSeconds, setExtensionSeconds] = useState(
     minimumExtensionSeconds,
   );
-  const pakMotionTimerRef = useRef<number | null>(null);
   const [form, setForm] = useState({
     bookId: currentBook?.id ?? "",
     endPage: 0,
   });
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
-  const packPalette = useBookCoverPalette(
-    currentBook?.id ?? "",
-    currentBook?.thumbnail,
-    currentBook?.coverColor ?? "#ef4548",
-    currentBook?.accentColor ?? "#f2c94c",
-  );
-
-  const clearPakMotionTimer = () => {
-    if (pakMotionTimerRef.current === null) return;
-
-    window.clearTimeout(pakMotionTimerRef.current);
-    pakMotionTimerRef.current = null;
-  };
-
-  const finishPakInsertion = () => {
-    clearPakMotionTimer();
-    vibratePakInsert();
-    timerControlSound.playInsert();
-    setPakMotion("inserting");
-    setPakInsertionSequence((current) => current + 1);
-    pakMotionTimerRef.current = window.setTimeout(() => {
-      setPakMotion("idle");
-      pakMotionTimerRef.current = null;
-    }, 440);
-  };
-
-  const closeBookPicker = () => {
-    setIsBookModalOpen(false);
-    finishPakInsertion();
-  };
-
-  const openBookPicker = () => {
-    if (pakMotion !== "idle") return;
-
-    vibratePakEject();
-    timerControlSound.playEject();
-    clearPakMotionTimer();
-    setPakMotion("ejecting");
-    pakMotionTimerRef.current = window.setTimeout(() => {
-      setPakMotion("out");
-      setIsBookModalOpen(true);
-      pakMotionTimerRef.current = null;
-    }, 300);
-  };
 
   const clearSentenceNoteDraft = () => {
     setSentenceNoteText("");
@@ -374,11 +272,6 @@ export const SessionScreen = ({
     setIsSentenceNoteOpen(true);
   };
 
-  useBackNavigationLayer(
-    isBookModalOpen,
-    closeBookPicker,
-    "session-book-modal",
-  );
   useBackNavigationLayer(
     isCompletionOpen ||
       (timer.status === "completed" && timer.elapsedSeconds > 0),
@@ -443,14 +336,6 @@ export const SessionScreen = ({
   const isCompletionVisible =
     isCompletionOpen ||
     (timer.status === "completed" && timer.elapsedSeconds > 0);
-  const bookProgress = currentBook
-    ? getBookProgress(currentBook.currentPage, currentBook.totalPages)
-    : null;
-  const animatedBookProgress = useAnimatedPakProgress(
-    currentBook?.id ?? "",
-    bookProgress,
-    pakInsertionSequence,
-  );
   const daysSinceLastReading = currentBook
     ? getDaysSinceLastReading(currentBook, records)
     : null;
@@ -458,19 +343,54 @@ export const SessionScreen = ({
     daysSinceLastReading !== null && daysSinceLastReading > 0;
 
   useEffect(() => {
-    return () => clearPakMotionTimer();
-  }, []);
-
-  useEffect(() => {
     if (!currentBook || !isCompletionVisible) return;
 
     vibrateSuccess();
   }, [currentBook, isCompletionVisible]);
 
+  const canShowBookSelectScreen =
+    readingBooks.length > 0 &&
+    (!currentBook ||
+      (!hasSelectedSessionBook &&
+        timer.status === "idle" &&
+        timer.elapsedSeconds === 0));
+
+  const selectSessionBook = (bookId: string) => {
+    vibrateSelect();
+    onChangeBook(bookId);
+    setHasSelectedSessionBook(true);
+    timer.reset();
+  };
+
+  if (canShowBookSelectScreen) {
+    return (
+      <div className="session-screen space-y-4">
+        <section className="session-book-select-stage">
+          <div className="session-book-select-header">
+            <span>GAME SELECT</span>
+            <h1>읽을 책 선택</h1>
+            <p>오늘의 모험에 넣을 책을 골라주세요.</p>
+          </div>
+
+          <div className="bookpick-list session-book-select-list">
+            {readingBooks.map((book) => (
+              <BookPickerItem
+                key={book.id}
+                book={book}
+                isActive={book.id === currentBook?.id}
+                onSelect={() => selectSessionBook(book.id)}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   if (!currentBook) {
     return (
       <div className="session-screen space-y-4">
-        <section className="session-focus-panel">
+        <section className="session-focus-panel session-focus-panel-expanded">
           <div className="focus-timer-card">
             <div className="relative z-10">
               <AdventureScene
@@ -500,16 +420,6 @@ export const SessionScreen = ({
             </div>
           </div>
         </section>
-
-        <div
-          className="session-book-pak-dock session-book-pak-dock-empty"
-          aria-hidden="true"
-        >
-          <div className="session-book-slot-rear" />
-          <div className="session-book-slot-lip">
-            <span />
-          </div>
-        </div>
       </div>
     );
   }
@@ -1036,9 +946,38 @@ export const SessionScreen = ({
         </div>
       )}
 
-      <section
-        className={`session-focus-panel session-focus-panel-${pakMotion}`}
-      >
+      <section className="session-focus-panel session-focus-panel-expanded">
+        {canChangeTimerMode && (
+          <header className="session-timer-book-bar">
+            <div className="session-timer-book-cover" aria-hidden="true">
+              {currentBook.thumbnail ? (
+                <img src={currentBook.thumbnail} alt="" />
+              ) : (
+                <Icon name="book" className="h-4 w-4" />
+              )}
+            </div>
+            <div className="session-timer-book-info">
+              <span>NOW READING</span>
+              <strong>{currentBook.title}</strong>
+              <small>
+                {currentBook.author}
+                {roundLabel && ` · ${roundLabel}`}
+              </small>
+            </div>
+            <button
+              type="button"
+              className="session-timer-book-change"
+              onClick={() => {
+                vibrateTap();
+                timerControlSound.playSelect();
+                setHasSelectedSessionBook(false);
+              }}
+            >
+              책 변경
+            </button>
+          </header>
+        )}
+
         <div className="focus-timer-card">
           <div className="relative z-10">
             <AdventureScene
@@ -1200,119 +1139,7 @@ export const SessionScreen = ({
             />
           </div>
         </div>
-
       </section>
-
-      <div className={`session-book-pak-dock session-book-pak-dock-${pakMotion}`}>
-        <div className="session-book-slot-rear" aria-hidden="true" />
-        <section
-          className="session-book-chip-panel"
-          style={
-            {
-              "--pak-top": packPalette.top,
-              "--pak-bottom": packPalette.bottom,
-            } as CSSProperties
-          }
-        >
-          <header className="session-book-chip-header">
-            <span>INSERTED PAK</span>
-            <button
-              type="button"
-              className="session-book-chip-swap"
-              onClick={openBookPicker}
-              disabled={pakMotion !== "idle"}
-              aria-label="책 변경"
-            >
-              <Icon name="swap" className="h-3 w-3" />
-              <span>EJECT</span>
-            </button>
-          </header>
-
-          <div className="session-book-chip-body">
-            <div className="session-book-chip-cover">
-              {currentBook.thumbnail ? (
-                <img src={currentBook.thumbnail} alt="" />
-              ) : (
-                <span className="session-book-chip-fallback">
-                  <Icon name="book" className="h-5 w-5" />
-                  <strong>{currentBook.title}</strong>
-                </span>
-              )}
-            </div>
-
-            <div className="session-book-chip-progress">
-              <div className="session-book-chip-copy">
-                <h2>{currentBook.title}</h2>
-                <div className="session-book-chip-byline">
-                  <small>{currentBook.author}</small>
-                  {roundLabel && <span>{roundLabel}</span>}
-                </div>
-              </div>
-              <div className="session-book-chip-progress-row">
-                <strong>
-                  {animatedBookProgress !== null
-                    ? `${animatedBookProgress}%`
-                    : "NEW"}
-                </strong>
-                <div className="session-book-chip-track">
-                  <span
-                    key={`${currentBook.id}-${pakInsertionSequence}`}
-                    style={{ width: `${bookProgress ?? 0}%` }}
-                  />
-                </div>
-              </div>
-              <p>
-                {currentBook.currentPage} / {currentBook.totalPages ?? "?"}{" "}
-                PAGES
-              </p>
-            </div>
-          </div>
-        </section>
-        <div className="session-book-slot-lip" aria-hidden="true">
-          <span />
-        </div>
-      </div>
-
-      <BottomSheetModal
-        isOpen={isBookModalOpen}
-        ariaLabel="책 변경"
-        panelClassName="bookpick-sheet"
-        onBackdropClick={closeBookPicker}
-      >
-        <div className="bookpick-header">
-          <h2 className="bookpick-title">읽을 책 선택</h2>
-          <button
-            type="button"
-            className="bookpick-close"
-            onClick={closeBookPicker}
-            aria-label="닫기"
-          >
-            <Icon name="close" className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="bookpick-list">
-          {readingBooks.map((book) => {
-            const isActive = book.id === currentBook.id;
-
-            return (
-              <BookPickerItem
-                key={book.id}
-                book={book}
-                isActive={isActive}
-                onSelect={() => {
-                  vibrateSelect();
-                  onChangeBook(book.id);
-                  setIsBookModalOpen(false);
-                  finishPakInsertion();
-                  timer.reset();
-                }}
-              />
-            );
-          })}
-        </div>
-      </BottomSheetModal>
-
     </div>
   );
 };

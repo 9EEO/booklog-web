@@ -101,7 +101,7 @@ const Scene = styled.section`
   --completion-scene-shift: 84px;
   position: relative;
   width: 100%;
-  height: 320px;
+  height: clamp(420px, calc(100svh - 210px), 620px);
   overflow: hidden;
   border: 2px solid #151515;
   border-radius: 4px;
@@ -120,7 +120,7 @@ const MovingBackground = styled.div<{
   background-color: #ffffff;
   background-image: url(${adventureBackground});
   background-repeat: repeat-x;
-  background-size: 637px 318px;
+  background-size: auto 100%;
   background-position: 0 0;
   animation: ${scrollBackground} 24s linear infinite;
   animation-play-state: ${({ $isMoving }) =>
