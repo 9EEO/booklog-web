@@ -1,8 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { Icon } from "../components/Icon";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
@@ -176,6 +172,7 @@ export const SessionScreen = ({
 }: SessionScreenProps) => {
   const [hasSelectedSessionBook, setHasSelectedSessionBook] = useState(false);
   const [previewBookId, setPreviewBookId] = useState<string | null>(null);
+  const [isBookPreviewGlitching, setIsBookPreviewGlitching] = useState(false);
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
@@ -208,6 +205,7 @@ export const SessionScreen = ({
     bookId: currentBook?.id ?? "",
     endPage: 0,
   });
+  const bookPreviewGlitchTimerRef = useRef<number | null>(null);
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
 
@@ -319,6 +317,15 @@ export const SessionScreen = ({
     vibrateSuccess();
   }, [currentBook, isCompletionVisible]);
 
+  useEffect(
+    () => () => {
+      if (bookPreviewGlitchTimerRef.current === null) return;
+
+      window.clearTimeout(bookPreviewGlitchTimerRef.current);
+    },
+    [],
+  );
+
   const canShowBookSelectScreen =
     readingBooks.length > 0 &&
     (!currentBook ||
@@ -344,13 +351,34 @@ export const SessionScreen = ({
     timer.reset();
   };
 
+  const previewSessionBook = (bookId: string) => {
+    if (bookId === selectedBookPreview?.id) return;
+
+    vibrateSelect();
+    if (bookPreviewGlitchTimerRef.current !== null) {
+      window.clearTimeout(bookPreviewGlitchTimerRef.current);
+    }
+    setIsBookPreviewGlitching(true);
+    setPreviewBookId(bookId);
+    bookPreviewGlitchTimerRef.current = window.setTimeout(() => {
+      setIsBookPreviewGlitching(false);
+      bookPreviewGlitchTimerRef.current = null;
+    }, 260);
+  };
+
   if (canShowBookSelectScreen) {
     return (
       <div className="session-screen space-y-4">
         <section className="session-book-select-stage">
           <div className="session-book-select-console">
             {selectedBookPreview && (
-              <aside className="session-book-preview-panel">
+              <aside
+                className={`session-book-preview-panel ${
+                  isBookPreviewGlitching
+                    ? "session-book-preview-panel-glitching"
+                    : ""
+                }`}
+              >
                 <div className="session-book-preview-screen">
                   <div className="session-book-preview-cover">
                     {selectedBookPreview.thumbnail ? (
@@ -393,10 +421,7 @@ export const SessionScreen = ({
                   book={book}
                   index={index}
                   isActive={book.id === selectedBookPreview?.id}
-                  onSelect={() => {
-                    vibrateSelect();
-                    setPreviewBookId(book.id);
-                  }}
+                  onSelect={() => previewSessionBook(book.id)}
                 />
               ))}
             </div>

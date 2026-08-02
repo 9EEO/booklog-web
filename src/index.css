@@ -4904,6 +4904,7 @@ button {
 }
 
 .session-book-preview-panel {
+  position: relative;
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(92px, 0.6fr) minmax(0, 1fr);
@@ -4917,6 +4918,148 @@ button {
     inset 0 -5px 0 rgba(21, 21, 21, 0.12),
     2px 2px 0 rgba(0, 0, 0, 0.32);
   padding: 10px;
+}
+
+.session-book-preview-panel::before,
+.session-book-preview-panel::after {
+  position: absolute;
+  inset: 8px;
+  z-index: 4;
+  border-radius: 2px;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+.session-book-preview-panel::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.28) 0 1px,
+      transparent 1px 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(21, 21, 21, 0.12) 0 2px,
+      rgba(242, 201, 76, 0.16) 2px 3px,
+      transparent 3px 6px
+    );
+  mix-blend-mode: multiply;
+}
+
+.session-book-preview-panel::after {
+  background:
+    radial-gradient(circle, rgba(21, 21, 21, 0.72) 0 1px, transparent 1px),
+    radial-gradient(circle, rgba(242, 201, 76, 0.5) 0 1px, transparent 1px);
+  background-position:
+    0 0,
+    3px 3px;
+  background-size:
+    6px 6px,
+    7px 7px;
+  mix-blend-mode: overlay;
+}
+
+.session-book-preview-panel-glitching {
+  animation: book-preview-crt-jolt 260ms steps(3, end);
+}
+
+.session-book-preview-panel-glitching::before {
+  animation: book-preview-scanline 260ms steps(5, end);
+}
+
+.session-book-preview-panel-glitching::after {
+  animation: book-preview-dot-noise 260ms steps(5, end);
+}
+
+.session-book-preview-panel-glitching .session-book-preview-cover,
+.session-book-preview-panel-glitching .session-book-preview-copy,
+.session-book-preview-panel-glitching .session-book-preview-stats {
+  animation: book-preview-content-flicker 260ms steps(4, end);
+}
+
+@keyframes book-preview-crt-jolt {
+  0% {
+    filter: brightness(1) contrast(1);
+    transform: translate3d(0, 0, 0);
+  }
+
+  28% {
+    filter: brightness(1.24) contrast(1.22) saturate(0.78);
+    transform: translate3d(-1px, 1px, 0);
+  }
+
+  58% {
+    filter: brightness(0.86) contrast(1.45) saturate(1.28);
+    transform: translate3d(1px, -1px, 0);
+  }
+
+  100% {
+    filter: brightness(1) contrast(1);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes book-preview-scanline {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  15%,
+  72% {
+    opacity: 0.72;
+  }
+
+  46% {
+    opacity: 0.44;
+    transform: translateY(5px);
+  }
+}
+
+@keyframes book-preview-dot-noise {
+  0%,
+  100% {
+    opacity: 0;
+    background-position:
+      0 0,
+      3px 3px;
+  }
+
+  20%,
+  76% {
+    opacity: 0.42;
+  }
+
+  48% {
+    opacity: 0.66;
+    background-position:
+      4px 2px,
+      0 5px;
+  }
+}
+
+@keyframes book-preview-content-flicker {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  30% {
+    opacity: 0.52;
+    transform: translate3d(1px, 0, 0);
+  }
+
+  52% {
+    opacity: 0.9;
+    transform: translate3d(-1px, 0, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .session-book-preview-screen {
