@@ -37,6 +37,7 @@ import type {
 import type { BookChatEvidence, BookChatMessage } from "../types/bookChat";
 import { buildCompletedReadingReport } from "../utils/completedReadingReport";
 import { buildCompletedBookChatContext } from "../utils/completedBookChatContext";
+import { getDisplayBookDescription } from "../utils/bookDescription";
 import { formatDuration } from "../utils/formatDuration";
 import { parsePageInput } from "../utils/pageInput";
 import { buildReadingPattern } from "../utils/readingPattern";
@@ -2075,8 +2076,7 @@ export const LibraryScreen = ({
                       <strong>{selectedBook.libraryReference.source}</strong>
                     </div>
                     <p className="book-library-reference-summary">
-                      {selectedBook.libraryReference.contents ??
-                        selectedBook.libraryReference.summary}
+                      {getDisplayBookDescription(selectedBook)}
                     </p>
                     {selectedBook.libraryReference.recommendedBooks.length >
                       0 && (

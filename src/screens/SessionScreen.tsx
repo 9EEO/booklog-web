@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { Icon } from "../components/Icon";
+import { PixelatedBookCover } from "../components/PixelatedBookCover";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import type { ReadingTimer } from "../hooks/useReadingTimer";
@@ -30,6 +32,7 @@ import {
 } from "../utils/haptics";
 import { parsePageInput } from "../utils/pageInput";
 import { getBookProgress } from "../utils/bookPages";
+import { getDisplayBookDescription } from "../utils/bookDescription";
 
 type SessionScreenProps = {
   books: Book[];
@@ -90,35 +93,6 @@ const todayLabel = () =>
     .replace(/\.\s?/g, ".")
     .replace(/\.$/, "");
 
-const toDateStart = (dateLabel: string) => {
-  const [year, month, day] = dateLabel.split(".").map(Number);
-  const date = new Date(year, month - 1, day);
-
-  return Number.isFinite(date.getTime()) ? date.getTime() : null;
-};
-
-const getDaysSinceLastReading = (book: Book, records: ReadingRecord[]) => {
-  const activeRoundId = book.activeRoundId;
-  const lastReadAt = records.reduce<number | null>((latest, record) => {
-    if (record.bookId !== book.id) return latest;
-    if (activeRoundId && record.roundId && record.roundId !== activeRoundId) {
-      return latest;
-    }
-
-    const recordDate = toDateStart(record.date);
-    if (recordDate === null) return latest;
-
-    return latest === null ? recordDate : Math.max(latest, recordDate);
-  }, null);
-
-  if (lastReadAt === null) return null;
-
-  const today = toDateStart(todayLabel());
-  if (today === null) return null;
-
-  return Math.floor((today - lastReadAt) / 86_400_000);
-};
-
 type BookGameSelectItemProps = {
   book: Book;
   index: number;
@@ -173,6 +147,8 @@ export const SessionScreen = ({
   const [hasSelectedSessionBook, setHasSelectedSessionBook] = useState(false);
   const [previewBookId, setPreviewBookId] = useState<string | null>(null);
   const [isBookPreviewGlitching, setIsBookPreviewGlitching] = useState(false);
+  const [bookDescriptionLineClamp, setBookDescriptionLineClamp] = useState(4);
+  const [timerStartCountdownKey, setTimerStartCountdownKey] = useState(0);
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
@@ -206,6 +182,7 @@ export const SessionScreen = ({
     endPage: 0,
   });
   const bookPreviewGlitchTimerRef = useRef<number | null>(null);
+  const bookDescriptionRef = useRef<HTMLParagraphElement | null>(null);
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
 
@@ -305,12 +282,6 @@ export const SessionScreen = ({
   const isCompletionVisible =
     isCompletionOpen ||
     (timer.status === "completed" && timer.elapsedSeconds > 0);
-  const daysSinceLastReading = currentBook
-    ? getDaysSinceLastReading(currentBook, records)
-    : null;
-  const shouldShowReadingGapBanner =
-    daysSinceLastReading !== null && daysSinceLastReading > 0;
-
   useEffect(() => {
     if (!currentBook || !isCompletionVisible) return;
 
@@ -343,10 +314,46 @@ export const SessionScreen = ({
       )
     : null;
   const selectedBookDescription =
-    selectedBookPreview?.libraryReference?.contents?.trim() ||
-    selectedBookPreview?.libraryReference?.summary?.trim() ||
-    selectedBookPreview?.contents?.trim() ||
-    "아직 책 소개 문구가 없습니다.";
+    getDisplayBookDescription(selectedBookPreview);
+  const bookDescriptionStyle = {
+    "--book-description-lines": bookDescriptionLineClamp,
+  } as CSSProperties;
+
+  useEffect(() => {
+    const descriptionElement = bookDescriptionRef.current;
+
+    if (!descriptionElement || !selectedBookPreview) {
+      return undefined;
+    }
+
+    const updateDescriptionLineClamp = () => {
+      const computedStyle = window.getComputedStyle(descriptionElement);
+      const lineHeight = Number.parseFloat(computedStyle.lineHeight);
+      const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
+      const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
+
+      if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+        return;
+      }
+
+      const availableHeight =
+        descriptionElement.clientHeight - paddingTop - paddingBottom;
+      const nextLineClamp = Math.max(1, Math.floor(availableHeight / lineHeight));
+
+      setBookDescriptionLineClamp((currentLineClamp) =>
+        currentLineClamp === nextLineClamp ? currentLineClamp : nextLineClamp,
+      );
+    };
+
+    updateDescriptionLineClamp();
+
+    const resizeObserver = new ResizeObserver(updateDescriptionLineClamp);
+    resizeObserver.observe(descriptionElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [selectedBookDescription, selectedBookPreview]);
 
   const selectSessionBook = (bookId: string) => {
     vibrateSelect();
@@ -368,7 +375,7 @@ export const SessionScreen = ({
     bookPreviewGlitchTimerRef.current = window.setTimeout(() => {
       setIsBookPreviewGlitching(false);
       bookPreviewGlitchTimerRef.current = null;
-    }, 260);
+    }, 360);
   };
 
   if (canShowBookSelectScreen) {
@@ -387,7 +394,11 @@ export const SessionScreen = ({
                     }`}
                   >
                     {selectedBookPreview.thumbnail ? (
-                      <img src={selectedBookPreview.thumbnail} alt="" />
+                      <PixelatedBookCover
+                        src={selectedBookPreview.thumbnail}
+                        alt=""
+                        className="session-book-preview-pixel-cover"
+                      />
                     ) : (
                       <Icon name="book" className="h-9 w-9" />
                     )}
@@ -398,14 +409,23 @@ export const SessionScreen = ({
                   <p className="session-book-preview-author">
                     {selectedBookPreview.author || "작자 미상"}
                   </p>
-                  <p className="session-book-preview-description">
-                    {selectedBookDescription}
+                  <p
+                    key={`${selectedBookPreview.id}-${selectedBookDescription}`}
+                    ref={bookDescriptionRef}
+                    className="session-book-preview-description"
+                    style={bookDescriptionStyle}
+                  >
+                    <span className="session-book-preview-description-text">
+                      {selectedBookDescription}
+                    </span>
                   </p>
                 </div>
                 <div className="session-book-preview-stats">
                   <span>
-                    PAGE {selectedBookPreview.currentPage}/
-                    {selectedBookPreview.totalPages ?? "?"}
+                    PAGE {selectedBookPreview.currentPage}
+                    {selectedBookPreview.totalPages
+                      ? `/${selectedBookPreview.totalPages}`
+                      : ""}
                   </span>
                   <span className="session-book-preview-progress">
                     <span
@@ -422,29 +442,31 @@ export const SessionScreen = ({
               </aside>
             )}
 
-            <div className="session-book-select-list" role="list">
-              {readingBooks.map((book, index) => (
-                <BookGameSelectItem
-                  key={book.id}
-                  book={book}
-                  index={index}
-                  isActive={book.id === selectedBookPreview?.id}
-                  onSelect={() => previewSessionBook(book.id)}
-                />
-              ))}
-            </div>
-
-            {selectedBookPreview && (
-              <div className="session-book-select-actions">
-                <button
-                  type="button"
-                  className="session-book-preview-select"
-                  onClick={() => selectSessionBook(selectedBookPreview.id)}
-                >
-                  선택
-                </button>
+            <div className="session-book-select-library">
+              <div className="session-book-select-list" role="list">
+                {readingBooks.map((book, index) => (
+                  <BookGameSelectItem
+                    key={book.id}
+                    book={book}
+                    index={index}
+                    isActive={book.id === selectedBookPreview?.id}
+                    onSelect={() => previewSessionBook(book.id)}
+                  />
+                ))}
               </div>
-            )}
+
+              {selectedBookPreview && (
+                <div className="session-book-select-actions">
+                  <button
+                    type="button"
+                    className="session-book-preview-select"
+                    onClick={() => selectSessionBook(selectedBookPreview.id)}
+                  >
+                    선택
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </div>
@@ -489,10 +511,6 @@ export const SessionScreen = ({
   }
   const isFormForCurrentBook = form.bookId === currentBook.id;
   const endPage = isFormForCurrentBook ? form.endPage : 0;
-  const roundLabel =
-    currentBook.activeRoundNumber && currentBook.activeRoundNumber > 1
-      ? `${currentBook.activeRoundNumber}회독`
-      : "";
   const isStopwatchMode = timer.mode === "stopwatch";
   const isReading = timer.status === "running";
   const displaySeconds = isStopwatchMode
@@ -557,13 +575,6 @@ export const SessionScreen = ({
     }
   };
 
-  const closeCompletion = () => {
-    setIsCompletionOpen(false);
-    if (timer.status === "completed") {
-      timer.cancelCompletion();
-    }
-  };
-
   const continueReading = () => {
     vibrateTap();
     timerCompletionSound.prepare();
@@ -598,6 +609,37 @@ export const SessionScreen = ({
     timerControlSound.playSelect();
     timer.setMode(mode);
   };
+
+  const selectTimerPreset = (seconds: number) => {
+    vibrateTimerSelect();
+    timerControlSound.playSelect();
+    timer.setPreset(seconds);
+  };
+
+  const startTimer = () => {
+    vibrateTimerStart();
+    timerControlSound.playStart();
+    timerCompletionSound.prepare();
+    timer.start();
+  };
+
+  const pauseTimer = () => {
+    vibrateTimerPause();
+    timerControlSound.playPause();
+    timer.pause();
+  };
+
+  const requestTimerStart = () => {
+    setTimerStartCountdownKey((current) => current + 1);
+  };
+
+  const openSessionBookSelection = () => {
+    vibrateTap();
+    timerControlSound.playSelect();
+    setPreviewBookId(currentBook?.id ?? null);
+    setHasSelectedSessionBook(false);
+  };
+  const isTimerInteractionPanelOpen = isWordSearchOpen || isSentenceNoteOpen;
 
   const openWordSearch = () => {
     vibrateTimerPause();
@@ -1001,210 +1043,300 @@ export const SessionScreen = ({
 
   return (
     <div className="session-screen space-y-4">
-      {shouldShowReadingGapBanner && (
-        <div className="session-reading-gap-banner" role="status">
-          <Icon name="timer" className="h-4 w-4" />
-          <span>
-            마지막 독서일로부터 {daysSinceLastReading}일이 지났어요
-          </span>
-        </div>
-      )}
-
-      <section className="session-focus-panel session-focus-panel-expanded">
-        {canChangeTimerMode && (
-          <header className="session-timer-book-bar">
-            <div className="session-timer-book-cover" aria-hidden="true">
-              {currentBook.thumbnail ? (
-                <img src={currentBook.thumbnail} alt="" />
-              ) : (
-                <Icon name="book" className="h-4 w-4" />
-              )}
+      {canChangeTimerMode ? (
+        <section className="session-book-select-stage session-ready-stage">
+          <div className="session-book-select-console session-ready-console">
+            <div className="focus-timer-card session-ready-scene-card">
+              <div className="relative z-10 session-ready-scene-shell">
+                <AdventureScene
+                  status={timer.status}
+                  mode={timer.mode}
+                  displayTime={formatFocusTime(displaySeconds)}
+                  progress={adventureProgress}
+                  goalApproachProgress={null}
+                  showStartBanner={false}
+                  presets={presets}
+                  targetSeconds={timer.targetSeconds}
+                  memoryLogs={memoryLogs}
+                  memorySeed={`${todayLabel()}-${currentBook.id}`}
+                  useExternalPrepareControls
+                  startCountdownKey={timerStartCountdownKey}
+                  onChangeMode={changeTimerMode}
+                  onSelectPreset={selectTimerPreset}
+                  onStart={startTimer}
+                  onPause={() => undefined}
+                  onStop={() => undefined}
+                />
+                <div className="session-ready-scene-title">
+                  {currentBook.title}
+                </div>
+              </div>
             </div>
-            <div className="session-timer-book-info">
-              <span>NOW READING</span>
-              <strong>{currentBook.title}</strong>
-              <small>
-                {currentBook.author}
-                {roundLabel && ` · ${roundLabel}`}
-              </small>
+
+            <div className="session-ready-controls">
+              <div className="session-ready-preset-grid" role="list">
+                {presets.map((preset, index) => {
+                  const isActive =
+                    timer.mode === "countdown" &&
+                    timer.targetSeconds === preset.seconds;
+
+                  return (
+                    <button
+                      key={preset.seconds}
+                      type="button"
+                      className={`session-ready-preset-button ${
+                        isActive ? "session-ready-preset-button-active" : ""
+                      }`}
+                      onClick={() => selectTimerPreset(preset.seconds)}
+                    >
+                      <Icon name="chevronRight" />
+                      <strong>{preset.label}</strong>
+                      <span>STAGE {index + 1}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  className={`session-ready-preset-button ${
+                    timer.mode === "stopwatch"
+                      ? "session-ready-preset-button-active"
+                      : ""
+                  }`}
+                  onClick={() => changeTimerMode("stopwatch")}
+                >
+                  <Icon name="chevronRight" />
+                  <strong>FREE JOURNEY</strong>
+                  <span>STOPWATCH</span>
+                </button>
+              </div>
+
+              <div className="session-ready-action-row">
+                <button
+                  type="button"
+                  className="session-ready-book-change"
+                  onClick={openSessionBookSelection}
+                >
+                  책 변경
+                </button>
+                <button
+                  type="button"
+                  className="session-ready-start-button"
+                  onClick={requestTimerStart}
+                >
+                  독서 시작
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              className="session-timer-book-change"
-              onClick={() => {
-                vibrateTap();
-                timerControlSound.playSelect();
-                setPreviewBookId(currentBook.id);
-                setHasSelectedSessionBook(false);
-              }}
-            >
-              책 변경
-            </button>
-          </header>
-        )}
-
-        <div className="focus-timer-card">
-          <div className="relative z-10">
-            <AdventureScene
-              status={timer.status}
-              mode={timer.mode}
-              displayTime={formatFocusTime(displaySeconds)}
-              progress={adventureProgress}
-              goalApproachProgress={
-                !isStopwatchMode &&
-                timer.elapsedSeconds > 0 &&
-                timer.remainingSeconds <= 10
-                  ? (10 - timer.remainingSeconds) / 10
-                  : null
-              }
-              showStartBanner={isReading && timer.elapsedSeconds < 1}
-              presets={presets}
-              targetSeconds={timer.targetSeconds}
-              memoryLogs={memoryLogs}
-              memorySeed={`${todayLabel()}-${currentBook.id}`}
-              searchPanelContent={wordSearchPanel}
-              isSearchPanelOpen={isWordSearchOpen}
-              searchCountdownKey={wordSearchResumeCountdownKey}
-              sentencePanelContent={sentenceNotePanel}
-              isSentencePanelOpen={isSentenceNoteOpen}
-              sentenceCountdownKey={sentenceNoteResumeCountdownKey}
-              completionContent={
-                isCompletionVisible ? (
-                  <div className="session-completion-hud">
-                    <div className="session-completion-time">
-                      <span>SESSION CLEAR</span>
-                      <strong>{formatDuration(timer.elapsedSeconds)}</strong>
-                    </div>
-                  <button
-                    type="button"
-                    className="session-completion-close"
-                    onClick={closeCompletion}
-                    aria-label="닫기"
-                  >
-                    <Icon name="close" className="h-4 w-4" />
-                  </button>
-
-                  <label
-                    className="session-completion-page-field"
-                    htmlFor="end-page"
-                  >
-                    <span>현재 페이지</span>
-                    <span className="session-completion-page-input">
-                      <input
-                        id="end-page"
-                        type="text"
-                        inputMode="numeric"
-                        min={currentBook.currentPage}
-                        max={currentBook.totalPages ?? undefined}
-                        value={endPage > 0 ? endPage : ""}
-                        onChange={(event) =>
-                          updateForm({
-                            endPage: parsePageInput(event.target.value),
-                          })
-                        }
-                      />
-                      <span>PAGE</span>
-                    </span>
-                  </label>
-
-                  {!isStopwatchMode && (
-                    <div className="session-completion-tools">
-                      <div className="session-completion-extension">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            adjustExtension(-extensionStepSeconds)
-                          }
-                          disabled={!canDecreaseExtension}
-                          aria-label="추가 독서 5분 줄이기"
-                        >
-                          -
-                        </button>
-                        <strong aria-live="polite">
-                          +{Math.round(extensionSeconds / 60)}분
-                        </strong>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            adjustExtension(extensionStepSeconds)
-                          }
-                          disabled={!canIncreaseExtension}
-                          aria-label="추가 독서 5분 늘리기"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="session-completion-actions">
-                    <button
-                      type="button"
-                      className="completion-secondary-action"
-                      onClick={continueReading}
-                    >
-                      {isStopwatchMode ? "이어서 측정" : "이어서 독서"}
-                    </button>
-                    <button
-                      type="button"
-                      className="completion-save-action"
-                      onClick={() => {
-                        vibrateSelect();
-                        void saveCompletion();
-                      }}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? "저장 중" : "기록 저장"}
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="session-completion-reset"
-                    onClick={resetCompletion}
-                    disabled={isSaving}
-                  >
-                    기록하지 않고 닫기
-                  </button>
-                  </div>
-                ) : undefined
-              }
-              onChangeMode={changeTimerMode}
-              onSelectPreset={(seconds) => {
-                vibrateTimerSelect();
-                timerControlSound.playSelect();
-                timer.setPreset(seconds);
-              }}
-              onStart={() => {
-                vibrateTimerStart();
-                timerControlSound.playStart();
-                timerCompletionSound.prepare();
-                timer.start();
-              }}
-              onPause={() => {
-                vibrateTimerPause();
-                timerControlSound.playPause();
-                timer.pause();
-              }}
-              onSearch={openWordSearch}
-              onSearchCountdownComplete={() => {
-                vibrateTimerStart();
-                timerControlSound.playStart();
-                timerCompletionSound.prepare();
-                timer.start();
-              }}
-              onSentence={openSentenceNote}
-              onSentenceCountdownComplete={() => {
-                vibrateTimerStart();
-                timerControlSound.playStart();
-                timerCompletionSound.prepare();
-                timer.start();
-              }}
-              onStop={openCompletion}
-            />
           </div>
-        </div>
-      </section>
+        </section>
+      ) : isCompletionVisible ? (
+        <section className="session-book-select-stage session-completion-stage">
+          <div className="session-book-select-console session-completion-console">
+            <div className="focus-timer-card session-ready-scene-card session-completion-scene-card">
+              <div className="relative z-10">
+                <AdventureScene
+                  status={timer.status}
+                  mode={timer.mode}
+                  displayTime={formatFocusTime(displaySeconds)}
+                  progress={adventureProgress}
+                  goalApproachProgress={null}
+                  showStartBanner={false}
+                  presets={presets}
+                  targetSeconds={timer.targetSeconds}
+                  memoryLogs={memoryLogs}
+                  memorySeed={`${todayLabel()}-${currentBook.id}`}
+                  completionContent={
+                    <div className="session-completion-hud session-completion-hud-summary">
+                      <div className="session-completion-time">
+                        <span>SESSION CLEAR</span>
+                        <strong>{formatDuration(timer.elapsedSeconds)}</strong>
+                      </div>
+
+                      <label
+                        className="session-completion-page-field"
+                        htmlFor="end-page"
+                      >
+                        <span>현재 페이지</span>
+                        <span className="session-completion-page-input">
+                          <input
+                            id="end-page"
+                            type="text"
+                            inputMode="numeric"
+                            min={currentBook.currentPage}
+                            max={currentBook.totalPages ?? undefined}
+                            value={endPage > 0 ? endPage : ""}
+                            onChange={(event) =>
+                              updateForm({
+                                endPage: parsePageInput(event.target.value),
+                              })
+                            }
+                          />
+                          <span>PAGE</span>
+                        </span>
+                      </label>
+                    </div>
+                  }
+                  useExternalActionControls
+                  onChangeMode={changeTimerMode}
+                  onSelectPreset={selectTimerPreset}
+                  onStart={startTimer}
+                  onPause={pauseTimer}
+                  onStop={openCompletion}
+                />
+              </div>
+            </div>
+
+            <div className="session-completion-controls">
+              {!isStopwatchMode && (
+                <div className="session-completion-tools">
+                  <div className="session-completion-extension">
+                    <button
+                      type="button"
+                      onClick={() => adjustExtension(-extensionStepSeconds)}
+                      disabled={!canDecreaseExtension}
+                      aria-label="추가 독서 5분 줄이기"
+                    >
+                      -
+                    </button>
+                    <strong aria-live="polite">
+                      +{Math.round(extensionSeconds / 60)}분
+                    </strong>
+                    <button
+                      type="button"
+                      onClick={() => adjustExtension(extensionStepSeconds)}
+                      disabled={!canIncreaseExtension}
+                      aria-label="추가 독서 5분 늘리기"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="session-completion-actions">
+                <button
+                  type="button"
+                  className="completion-secondary-action"
+                  onClick={continueReading}
+                >
+                  {isStopwatchMode ? "이어서 측정" : "이어서 독서"}
+                </button>
+                <button
+                  type="button"
+                  className="completion-save-action"
+                  onClick={() => {
+                    vibrateSelect();
+                    void saveCompletion();
+                  }}
+                  disabled={isSaving}
+                >
+                  {isSaving ? "저장 중" : "기록 저장"}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="session-completion-reset"
+                onClick={resetCompletion}
+                disabled={isSaving}
+              >
+                기록하지 않고 닫기
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="session-book-select-stage session-reading-stage">
+          <div className="session-book-select-console session-reading-console">
+            <div className="focus-timer-card session-ready-scene-card session-reading-scene-card">
+              <div className="relative z-10">
+                <AdventureScene
+                  status={timer.status}
+                  mode={timer.mode}
+                  displayTime={formatFocusTime(displaySeconds)}
+                  progress={adventureProgress}
+                  goalApproachProgress={
+                    !isStopwatchMode &&
+                    timer.elapsedSeconds > 0 &&
+                    timer.remainingSeconds <= 10
+                      ? (10 - timer.remainingSeconds) / 10
+                      : null
+                  }
+                  showStartBanner={isReading && timer.elapsedSeconds < 1}
+                  presets={presets}
+                  targetSeconds={timer.targetSeconds}
+                  memoryLogs={memoryLogs}
+                  memorySeed={`${todayLabel()}-${currentBook.id}`}
+                  searchPanelContent={wordSearchPanel}
+                  isSearchPanelOpen={isWordSearchOpen}
+                  searchCountdownKey={wordSearchResumeCountdownKey}
+                  sentencePanelContent={sentenceNotePanel}
+                  isSentencePanelOpen={isSentenceNoteOpen}
+                  sentenceCountdownKey={sentenceNoteResumeCountdownKey}
+                  useExternalActionControls
+                  onChangeMode={changeTimerMode}
+                  onSelectPreset={selectTimerPreset}
+                  onStart={startTimer}
+                  onPause={pauseTimer}
+                  onSearch={openWordSearch}
+                  onSearchCountdownComplete={startTimer}
+                  onSentence={openSentenceNote}
+                  onSentenceCountdownComplete={startTimer}
+                  onStop={openCompletion}
+                />
+              </div>
+            </div>
+
+            <div className="session-reading-controls" role="group" aria-label="독서 타이머 조작">
+              <button
+                type="button"
+                className="session-reading-control-button"
+                onClick={timer.status === "running" ? pauseTimer : startTimer}
+                disabled={timer.status === "paused" && isTimerInteractionPanelOpen}
+              >
+                <Icon
+                  name={
+                    timer.status === "running" || isTimerInteractionPanelOpen
+                      ? "pause"
+                      : "play"
+                  }
+                />
+                <span>
+                  {timer.status === "running" || isTimerInteractionPanelOpen
+                    ? "일시정지"
+                    : "재생"}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="session-reading-control-button session-reading-control-button-danger"
+                onClick={openCompletion}
+              >
+                <Icon name="stop" />
+                <span>정지</span>
+              </button>
+              <button
+                type="button"
+                className="session-reading-control-button"
+                onClick={openWordSearch}
+                aria-pressed={isWordSearchOpen}
+              >
+                <Icon name="search" />
+                <span>단어검색</span>
+              </button>
+              <button
+                type="button"
+                className="session-reading-control-button"
+                onClick={openSentenceNote}
+                aria-pressed={isSentenceNoteOpen}
+              >
+                <Icon name="edit" />
+                <span>문장저장</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

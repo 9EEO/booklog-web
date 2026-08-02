@@ -1556,8 +1556,14 @@ function AuthenticatedApp({
     <main className="min-h-svh bg-[#F8F8F5] text-stone-900">
       <div className="mx-auto flex min-h-svh max-w-[430px] flex-col bg-[#FCFBF7] shadow-[0_18px_60px_rgba(47,42,38,0.12)]">
         <div
-          className={`min-h-0 flex-1 overflow-y-auto ${
-            shouldHideBottomTabs ? "pb-0" : "px-4 pb-28 pt-5"
+          className={`min-h-0 flex-1 ${
+            shouldHideBottomTabs
+              ? "overflow-y-auto pb-0"
+              : `px-4 pb-28 pt-5 ${
+                  activeTab === "session"
+                    ? "app-content-session"
+                    : "overflow-y-auto"
+                }`
           }`}
         >
           {syncError && (

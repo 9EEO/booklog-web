@@ -47,6 +47,9 @@ type AdventureSceneProps = {
   sentencePanelContent?: ReactNode;
   isSentencePanelOpen?: boolean;
   sentenceCountdownKey?: number;
+  useExternalPrepareControls?: boolean;
+  useExternalActionControls?: boolean;
+  startCountdownKey?: number;
   emptyState?: {
     title: string;
     description: string;
@@ -92,13 +95,20 @@ const countdownPulse = keyframes`
   100% { opacity: 0; transform: scale(0.82); }
 `;
 
+const completionDrop = keyframes`
+  0% { opacity: 0; transform: translate3d(0, -18px, 0) scale(0.985); }
+  62% { opacity: 1; transform: translate3d(0, 2px, 0) scale(1); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+`;
+
 const scrollMemoryQuote = keyframes`
   from { transform: translateY(0); }
   to { transform: translateY(-50%); }
 `;
 
 const Scene = styled.section`
-  --completion-scene-shift: 84px;
+  --scene-ground-y: 70%;
+  --completion-scene-shift: clamp(42px, 20%, 84px);
   position: relative;
   width: 100%;
   height: clamp(420px, calc(100svh - 210px), 620px);
@@ -121,7 +131,7 @@ const MovingBackground = styled.div<{
   background-image: url(${adventureBackground});
   background-repeat: repeat-x;
   background-size: auto 100%;
-  background-position: 0 0;
+  background-position: 0 center;
   animation: ${scrollBackground} 24s linear infinite;
   animation-play-state: ${({ $isMoving }) =>
     $isMoving ? "running" : "paused"};
@@ -129,7 +139,7 @@ const MovingBackground = styled.div<{
     $isCompleted
       ? "translate3d(0, var(--completion-scene-shift), 0)"
       : "translate3d(0, 0, 0)"};
-  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
   image-rendering: pixelated;
   will-change: background-position, transform;
 `;
@@ -274,12 +284,13 @@ const StartButton = styled.button`
   }
 `;
 
-const MemoryOverlay = styled.div`
+const MemoryOverlay = styled.div<{ $hasActions: boolean }>`
   position: absolute;
   z-index: 18;
   inset: 8px;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: ${({ $hasActions }) =>
+    $hasActions ? "minmax(0, 1fr) auto" : "minmax(0, 1fr)"};
   gap: 8px;
   font-family: var(--font-pixel);
 `;
@@ -455,16 +466,24 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
   }
 `;
 
-const CharacterWrap = styled.div<{ $status: AdventureStatus }>`
+const CharacterAnchor = styled.div<{ $status: AdventureStatus }>`
   position: absolute;
   z-index: 7;
   bottom: ${({ $status }) =>
     $status === "completed"
-      ? "calc(108px - var(--completion-scene-shift))"
-      : "108px"};
-  left: 36%;
+      ? "calc(100% - var(--scene-ground-y) - var(--completion-scene-shift))"
+      : "calc(100% - var(--scene-ground-y))"};
+  left: var(--scene-character-x, 50%);
   width: 50px;
   height: 43px;
+  transform: translateX(-50%);
+  transition: bottom 720ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: bottom;
+`;
+
+const CharacterSprite = styled.div<{ $status: AdventureStatus }>`
+  width: 100%;
+  height: 100%;
   animation: ${({ $status }) =>
       $status === "running"
         ? bounceWalk
@@ -476,8 +495,7 @@ const CharacterWrap = styled.div<{ $status: AdventureStatus }>`
   animation-play-state: ${({ $status }) =>
     $status === "paused" ? "paused" : "running"};
   transform-origin: center bottom;
-  transition: bottom 520ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform, bottom;
+  will-change: transform;
 
   img {
     width: 100%;
@@ -522,8 +540,8 @@ const GoalFlag = styled.span<{ $progress: number; $isCompleted: boolean }>`
   z-index: 6;
   bottom: ${({ $isCompleted }) =>
     $isCompleted
-      ? "calc(113px - var(--completion-scene-shift))"
-      : "113px"};
+      ? "calc(100% - var(--scene-ground-y) + 5px - var(--completion-scene-shift))"
+      : "calc(100% - var(--scene-ground-y) + 5px)"};
   left: ${({ $progress }) =>
     `calc(${100 - $progress * 64}% + ${-18 + $progress * 72}px)`};
   width: 3px;
@@ -593,13 +611,20 @@ const CountdownOverlay = styled.div`
   }
 `;
 
-const CompletionLayer = styled.div`
+const CompletionLayer = styled.div<{ $useExternalControls: boolean }>`
   position: absolute;
   z-index: 16;
-  inset: 8px 12px 68px;
+  inset: ${({ $useExternalControls }) =>
+    $useExternalControls ? "8px" : "8px 12px 68px"};
   display: grid;
   place-items: center;
   font-family: var(--font-pixel);
+  animation: ${completionDrop} 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 `;
 
 const SearchLayer = styled.div`
@@ -622,9 +647,11 @@ export const AdventureBackground = ({
 );
 
 export const Character = ({ status }: { status: AdventureStatus }) => (
-  <CharacterWrap $status={status}>
-    <img src={status === "running" ? focusSprout : focusSproutStill} alt="" />
-  </CharacterWrap>
+  <CharacterAnchor $status={status}>
+    <CharacterSprite $status={status}>
+      <img src={status === "running" ? focusSprout : focusSproutStill} alt="" />
+    </CharacterSprite>
+  </CharacterAnchor>
 );
 
 export const ProgressBar = ({ progress }: { progress: number }) => {
@@ -750,6 +777,9 @@ export const AdventureScene = ({
   sentencePanelContent,
   isSentencePanelOpen = false,
   sentenceCountdownKey = 0,
+  useExternalPrepareControls = false,
+  useExternalActionControls = false,
+  startCountdownKey = 0,
   emptyState,
   onChangeMode,
   onSelectPreset,
@@ -766,6 +796,7 @@ export const AdventureScene = ({
   const countdownTimersRef = useRef<number[]>([]);
   const latestSearchCountdownKeyRef = useRef(searchCountdownKey);
   const latestSentenceCountdownKeyRef = useRef(sentenceCountdownKey);
+  const latestStartCountdownKeyRef = useRef(startCountdownKey);
   const isPreparing = status === "idle";
   const isCountdownActive = countdown !== null;
   const isMoving = status === "running";
@@ -833,6 +864,21 @@ export const AdventureScene = ({
     runCountdown(() => onSentenceCountdownComplete?.());
   }, [onSentenceCountdownComplete, runCountdown, sentenceCountdownKey]);
 
+  useEffect(() => {
+    if (
+      startCountdownKey === 0 ||
+      startCountdownKey === latestStartCountdownKeyRef.current
+    ) {
+      return;
+    }
+
+    latestStartCountdownKeyRef.current = startCountdownKey;
+    runCountdown(() => {
+      setIsTimeSettingOpen(false);
+      onStart();
+    });
+  }, [onStart, runCountdown, startCountdownKey]);
+
   const startCountdown = () => {
     if (countdown !== null) return;
 
@@ -881,7 +927,7 @@ export const AdventureScene = ({
           {shouldShowProgress && <ProgressBar progress={progress} />}
         </>
       ) : showMemoryLog && memoryLog ? (
-        <MemoryOverlay>
+        <MemoryOverlay $hasActions={!useExternalPrepareControls}>
           <MemoryPanel>
             <MemoryQuote
               key={memoryLog.id}
@@ -904,19 +950,21 @@ export const AdventureScene = ({
               </div>
             </MemoryQuote>
           </MemoryPanel>
-          <MemoryActions>
-            <MemoryButton
-              type="button"
-              $primary
-              onClick={() => {
-                setIsTimeSettingOpen(true);
-              }}
-            >
-              시간 설정
-            </MemoryButton>
-          </MemoryActions>
+          {!useExternalPrepareControls && (
+            <MemoryActions>
+              <MemoryButton
+                type="button"
+                $primary
+                onClick={() => {
+                  setIsTimeSettingOpen(true);
+                }}
+              >
+                시간 설정
+              </MemoryButton>
+            </MemoryActions>
+          )}
         </MemoryOverlay>
-      ) : isPreparing ? (
+      ) : isPreparing && !useExternalPrepareControls ? (
         <AdventurePrepare
           showBack={memoryLogs.length > 0}
           mode={mode}
@@ -932,7 +980,8 @@ export const AdventureScene = ({
         />
       ) : (
         <>
-          {(status === "running" || status === "paused") && (
+          {(status === "running" || status === "paused") &&
+            !useExternalActionControls && (
             <ActionDock>
               <ActionButton
                 type="button"
@@ -1002,7 +1051,9 @@ export const AdventureScene = ({
             <SearchLayer>{sentencePanelContent}</SearchLayer>
           ) : null}
           {status === "completed" && completionContent ? (
-            <CompletionLayer>{completionContent}</CompletionLayer>
+            <CompletionLayer $useExternalControls={useExternalActionControls}>
+              {completionContent}
+            </CompletionLayer>
           ) : (
             <>
               <SceneHud aria-live="polite">{displayTime}</SceneHud>

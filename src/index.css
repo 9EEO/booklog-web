@@ -3645,7 +3645,27 @@ button {
   --session-blue: #2563eb;
   --session-green: #76b852;
   --session-pink: #ff7eb6;
+  min-height: 0;
   color: var(--session-ink);
+}
+
+.app-content-session {
+  overflow: hidden;
+  padding-bottom: max(92px, calc(84px + env(safe-area-inset-bottom)));
+}
+
+.app-content-session .session-screen {
+  display: flex;
+  height: calc(
+    100svh - 20px - max(92px, calc(84px + env(safe-area-inset-bottom)))
+  );
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.app-content-session .session-screen > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0;
 }
 
 .session-screen .pixel-label {
@@ -4725,7 +4745,14 @@ button {
 
 .session-screen .session-focus-panel-expanded {
   display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-rows: minmax(0, 1fr);
   gap: 10px;
+}
+
+.session-screen .session-focus-panel-with-book-bar {
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .session-screen .session-focus-panel::before {
@@ -4777,7 +4804,9 @@ button {
 
 .session-book-select-stage {
   display: grid;
-  min-height: calc(100svh - 150px);
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
   grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   overflow: hidden;
@@ -4803,6 +4832,7 @@ button {
   align-content: start;
   gap: 7px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 2px solid #151515;
   border-radius: 2px;
   background:
@@ -4816,13 +4846,375 @@ button {
     inset 0 0 18px rgba(21, 21, 21, 0.14),
     2px 2px 0 rgba(0, 0, 0, 0.28);
   padding: 9px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  touch-action: pan-y;
+}
+
+.session-book-select-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .session-book-select-console {
   display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
+}
+
+.session-book-select-library {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.session-ready-stage {
+  gap: 12px;
+}
+
+.session-ready-console {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.session-ready-scene-card,
+.session-ready-scene-card > .relative {
+  height: 100%;
+  min-height: 0;
+}
+
+.session-ready-scene-shell {
+  position: relative;
+}
+
+.session-ready-scene-card [aria-label="독서 모험 화면"] {
+  height: 100%;
+  min-height: 0;
+}
+
+.session-ready-scene-card [aria-label="독서 모험 화면"],
+.session-reading-scene-card [aria-label="독서 모험 화면"],
+.session-completion-scene-card [aria-label="독서 모험 화면"] {
+  --scene-ground-y: 65%;
+}
+
+.session-ready-controls {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  overflow: hidden;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.05) 0 2px,
+      transparent 2px 5px
+    ),
+    #f2f1e8;
+  box-shadow:
+    inset 0 0 18px rgba(21, 21, 21, 0.14),
+    2px 2px 0 rgba(0, 0, 0, 0.28);
+  padding: 9px;
+}
+
+.session-ready-scene-title {
+  position: absolute;
+  z-index: 22;
+  top: 10px;
+  left: 10px;
+  max-width: min(44%, 220px);
+  overflow: hidden;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: rgba(255, 254, 248, 0.92);
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.34);
+  color: #151515;
+  padding: 6px 9px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 1.35;
+  pointer-events: none;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-ready-book-change,
+.session-ready-start-button,
+.session-ready-preset-button {
+  border: 2px solid #151515;
+  border-radius: 2px;
+  font-family: var(--font-pixel);
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.session-ready-book-change {
+  min-height: 34px;
+  background: #fffef8;
+  color: #151515;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
+  padding: 0 10px;
+  font-size: 8px;
+}
+
+.session-ready-preset-grid {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.session-ready-preset-grid::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.session-ready-preset-button {
+  display: grid;
+  min-height: 34px;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #151515;
+  padding: 5px 6px;
+  text-align: left;
+}
+
+.session-ready-preset-button svg {
+  width: 10px;
+  height: 10px;
+  color: rgba(21, 21, 21, 0.32);
+}
+
+.session-ready-preset-button strong {
+  overflow: hidden;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-ready-preset-button span {
+  grid-column: 2;
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.42);
+  font-size: 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-ready-preset-button-active {
+  background: #151515;
+  color: #f2c94c;
+}
+
+.session-ready-preset-button-active svg {
+  color: #f2c94c;
+}
+
+.session-ready-preset-button-active span {
+  color: rgba(255, 254, 248, 0.62);
+}
+
+.session-ready-start-button {
+  min-height: 40px;
+  background: #151515;
+  color: #f2c94c;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
+  font-size: 10px;
+}
+
+.session-ready-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 8px;
+}
+
+.session-ready-book-change:active,
+.session-ready-start-button:active,
+.session-ready-preset-button:active {
+  transform: translateY(1px);
+}
+
+.session-reading-stage {
+  gap: 12px;
+}
+
+.session-reading-console {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.session-reading-scene-card,
+.session-reading-scene-card > .relative {
+  height: 100%;
+  min-height: 0;
+}
+
+.session-reading-scene-card [aria-label="독서 모험 화면"] {
+  height: 100%;
+  min-height: 0;
+}
+
+.session-reading-controls {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 8px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.05) 0 2px,
+      transparent 2px 5px
+    ),
+    #f2f1e8;
+  box-shadow:
+    inset 0 0 18px rgba(21, 21, 21, 0.14),
+    2px 2px 0 rgba(0, 0, 0, 0.28);
+  padding: 9px;
+}
+
+.session-reading-control-button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 40px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: #151515;
+  color: #f2c94c;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
+  padding: 7px 12px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.session-reading-control-button svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.session-reading-control-button span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-reading-control-button-danger {
+  background: #fffef8;
+  color: #151515;
+}
+
+.session-reading-control-button[aria-pressed="true"] {
+  background: #2563eb;
+  color: #fffef8;
+}
+
+.session-reading-control-button:active {
+  transform: translateY(1px);
+}
+
+.session-reading-control-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.session-completion-stage {
+  gap: 12px;
+}
+
+.session-completion-console {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.session-completion-scene-card,
+.session-completion-scene-card > .relative {
+  height: 100%;
+  min-height: 0;
+}
+
+.session-completion-scene-card [aria-label="독서 모험 화면"] {
+  height: 100%;
+  min-height: 0;
+}
+
+.session-completion-controls {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 8px;
+  overflow: hidden;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.05) 0 2px,
+      transparent 2px 5px
+    ),
+    #f2f1e8;
+  box-shadow:
+    inset 0 0 18px rgba(21, 21, 21, 0.14),
+    2px 2px 0 rgba(0, 0, 0, 0.28);
+  padding: 9px;
+}
+
+.session-completion-controls .session-completion-tools,
+.session-completion-controls .session-completion-actions {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.session-completion-controls .session-completion-extension,
+.session-completion-controls .session-completion-actions button,
+.session-completion-controls .session-completion-reset {
+  min-height: 40px;
+  border-width: 2px;
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
+}
+
+.session-completion-controls .session-completion-extension {
+  align-items: stretch;
+}
+
+.session-completion-controls .session-completion-extension button + strong,
+.session-completion-controls .session-completion-extension strong + button {
+  border-left-width: 2px;
+}
+
+.session-completion-controls .session-completion-extension strong {
+  display: grid;
+  place-items: center;
+}
+
+.session-completion-controls button:active {
+  transform: translateY(1px);
+}
+
+.session-completion-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
 }
 
 .book-game-item {
@@ -4854,12 +5246,32 @@ button {
 }
 
 .book-game-cursor {
+  display: inline-block;
   color: transparent;
   font-size: 9px;
+  transform: translateY(0);
 }
 
 .book-game-item-active .book-game-cursor {
   color: #f2c94c;
+  animation: book-game-cursor-float 820ms steps(2, end) infinite;
+}
+
+@keyframes book-game-cursor-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-game-item-active .book-game-cursor {
+    animation: none;
+  }
 }
 
 .book-game-slot {
@@ -4905,11 +5317,12 @@ button {
 
 .session-book-preview-panel {
   display: grid;
+  min-height: 0;
   min-width: 0;
-  grid-template-columns: minmax(92px, 0.6fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) 31px;
-  gap: 9px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(114px, 0.8fr) minmax(0, 0.55fr) 32px;
+  gap: 8px;
+  align-items: center;
   border: 2px solid #151515;
   border-radius: 2px;
   background: #d8d8d0;
@@ -4926,13 +5339,13 @@ button {
   }
 
   28% {
-    filter: brightness(1.24) contrast(1.22) saturate(0.78);
-    transform: translate3d(-1px, 1px, 0);
+    filter: brightness(1.08) contrast(1.06) saturate(0.96);
+    transform: translate3d(-0.35px, 0.35px, 0);
   }
 
   58% {
-    filter: brightness(0.86) contrast(1.45) saturate(1.28);
-    transform: translate3d(1px, -1px, 0);
+    filter: brightness(0.96) contrast(1.12) saturate(1.04);
+    transform: translate3d(0.35px, -0.35px, 0);
   }
 
   100% {
@@ -4950,12 +5363,12 @@ button {
 
   15%,
   72% {
-    opacity: 0.72;
+    opacity: 0.3;
   }
 
   46% {
-    opacity: 0.44;
-    transform: translateY(5px);
+    opacity: 0.2;
+    transform: translateY(3px);
   }
 }
 
@@ -4970,11 +5383,11 @@ button {
 
   20%,
   76% {
-    opacity: 0.42;
+    opacity: 0.2;
   }
 
   48% {
-    opacity: 0.66;
+    opacity: 0.28;
     background-position:
       4px 2px,
       0 5px;
@@ -4988,13 +5401,13 @@ button {
   }
 
   30% {
-    opacity: 0.52;
-    transform: translate3d(1px, 0, 0);
+    opacity: 0.82;
+    transform: translate3d(0.35px, 0, 0);
   }
 
   52% {
-    opacity: 0.9;
-    transform: translate3d(-1px, 0, 0);
+    opacity: 0.95;
+    transform: translate3d(-0.35px, 0, 0);
   }
 
   100% {
@@ -5005,11 +5418,17 @@ button {
 
 .session-book-preview-screen {
   display: grid;
-  min-height: 170px;
-  grid-row: 1 / span 2;
+  height: 100%;
+  min-height: 0;
+  width: auto;
+  max-width: min(56%, 141px);
+  aspect-ratio: 2 / 3;
+  justify-self: center;
+  align-self: center;
+  grid-row: 1;
   place-items: center;
   overflow: hidden;
-  border: 3px solid #151515;
+  border: 1px solid #151515;
   border-radius: 2px;
   background:
     radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.08), transparent 45%),
@@ -5037,7 +5456,6 @@ button {
   inset: 0;
   z-index: 2;
   content: "";
-  opacity: 0;
   pointer-events: none;
 }
 
@@ -5045,98 +5463,211 @@ button {
   background:
     repeating-linear-gradient(
       0deg,
-      rgba(255, 255, 255, 0.28) 0 1px,
+      rgba(255, 254, 248, 0.34) 0 1px,
       transparent 1px 4px
     ),
     repeating-linear-gradient(
       90deg,
-      rgba(21, 21, 21, 0.12) 0 2px,
-      rgba(242, 201, 76, 0.16) 2px 3px,
+      rgba(21, 21, 21, 0.16) 0 2px,
+      rgba(255, 254, 248, 0.2) 2px 3px,
       transparent 3px 6px
     );
   mix-blend-mode: multiply;
+  opacity: 0.3;
 }
 
 .session-book-preview-cover::after {
   background:
-    radial-gradient(circle, rgba(21, 21, 21, 0.72) 0 1px, transparent 1px),
-    radial-gradient(circle, rgba(242, 201, 76, 0.5) 0 1px, transparent 1px);
+    radial-gradient(circle, rgba(21, 21, 21, 0.42) 0 1px, transparent 1px),
+    radial-gradient(circle, rgba(255, 254, 248, 0.22) 0 1px, transparent 1px),
+    linear-gradient(
+      180deg,
+      rgba(255, 254, 248, 0.22),
+      rgba(21, 21, 21, 0.18)
+    );
   background-position:
     0 0,
-    3px 3px;
+    3px 3px,
+    0 0;
   background-size:
     6px 6px,
-    7px 7px;
+    7px 7px,
+    100% 100%;
   mix-blend-mode: overlay;
+  opacity: 0.28;
 }
 
 .session-book-preview-cover-glitching {
-  animation: book-preview-crt-jolt 260ms steps(3, end);
+  animation: book-preview-crt-jolt 360ms ease-out;
 }
 
 .session-book-preview-cover-glitching::before {
-  animation: book-preview-scanline 260ms steps(5, end);
+  animation: book-preview-scanline 360ms ease-out;
 }
 
 .session-book-preview-cover-glitching::after {
-  animation: book-preview-dot-noise 260ms steps(5, end);
+  animation: book-preview-dot-noise 360ms steps(4, end);
 }
 
+.session-book-preview-cover-glitching .session-book-preview-pixel-cover,
 .session-book-preview-cover-glitching img,
 .session-book-preview-cover-glitching svg {
-  animation: book-preview-content-flicker 260ms steps(4, end);
+  animation: book-preview-content-flicker 360ms ease-out;
+}
+
+.session-book-preview-pixel-cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .session-book-preview-cover img {
+  display: block;
   width: 100%;
   height: 100%;
+  filter: grayscale(1) contrast(1.42) brightness(1.08) sepia(0.12);
   object-fit: cover;
 }
 
+.session-book-preview-pixel-cover canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: multiply;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
 .session-book-preview-copy h2 {
-  display: block;
+  display: -webkit-box;
   overflow: hidden;
   color: #151515;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 950;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }
 
 .session-book-preview-copy {
   display: grid;
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
   align-self: stretch;
   grid-template-rows: auto auto minmax(0, 1fr);
+  align-content: stretch;
 }
 
 .session-book-preview-author {
   overflow: hidden;
-  margin-top: 3px;
+  margin-top: 2px;
   color: rgba(21, 21, 21, 0.62);
   font-size: 9px;
   font-weight: 900;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .session-book-preview-description {
-  display: -webkit-box;
+  position: relative;
+  --book-description-line-height: 1.38;
+  --book-description-lines: 4;
+  --book-description-bg: #f4f3ec;
+  box-sizing: border-box;
+  display: block;
+  height: calc(100% - 6px);
+  min-height: 0;
+  max-height: calc(100% - 6px);
   overflow: hidden;
-  margin-top: 10px;
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 9px;
-  font-weight: 750;
-  line-height: 1.45;
+  align-self: stretch;
+  margin-top: 6px;
+  border: 1px solid rgba(21, 21, 21, 0.18);
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(21, 21, 21, 0.025) 0 1px,
+      transparent 1px 7px
+    ),
+    var(--book-description-bg);
+  box-shadow: inset 0 -3px 0 rgba(21, 21, 21, 0.06);
+  color: rgba(21, 21, 21, 0.68);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: var(--book-description-line-height);
+  padding: 6px 8px;
+  isolation: isolate;
+}
+
+.session-book-preview-description-text {
+  position: relative;
+  z-index: 0;
+  display: -webkit-box;
+  max-height: calc(
+    1em * var(--book-description-line-height) *
+      var(--book-description-lines)
+  );
+  overflow: hidden;
+  overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: var(--book-description-lines);
+  line-clamp: var(--book-description-lines);
+}
+
+.session-book-preview-description-text::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  height: calc(1em * var(--book-description-line-height));
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(21, 21, 21, 0.025) 0 1px,
+      transparent 1px 7px
+    ),
+    var(--book-description-bg);
+  content: "";
+  pointer-events: none;
+  transform-origin: right center;
+  animation: book-preview-description-type 640ms steps(18, end) both;
+}
+
+@keyframes book-preview-description-type {
+  from {
+    opacity: 0.86;
+    transform: scaleX(1);
+  }
+
+  to {
+    opacity: 0.86;
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-book-preview-description-text::after {
+    animation: none;
+  }
+
+  .session-book-preview-description-text::after {
+    display: none;
+  }
 }
 
 .session-book-preview-stats {
   display: grid;
+  grid-column: 1 / -1;
   min-height: 31px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 74px minmax(0, 1fr) 28px;
   align-items: center;
   gap: 8px;
   font-family: var(--font-pixel);
@@ -5170,14 +5701,25 @@ button {
 }
 
 .session-book-preview-stats strong {
+  width: 28px;
   color: #151515;
   font-size: 6px;
   font-weight: 950;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.session-book-preview-stats > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-book-preview-progress {
   height: 7px;
   min-width: 0;
+  width: 100%;
   overflow: hidden;
   border: 2px solid #151515;
   border-radius: 1px;
@@ -5211,13 +5753,14 @@ button {
 
 @media (max-width: 520px) {
   .session-book-preview-panel {
-    grid-template-columns: 96px minmax(0, 1fr);
-    grid-template-rows: auto auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(102px, 0.8fr) minmax(0, 0.55fr) 32px;
   }
 
   .session-book-preview-screen {
-    min-height: 128px;
-    grid-row: 1 / span 2;
+    min-height: 0;
+    max-width: min(58%, 128px);
+    grid-row: 1;
   }
 
   .session-book-preview-stats {
