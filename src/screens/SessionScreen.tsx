@@ -398,6 +398,12 @@ export const SessionScreen = ({
                     PAGE {selectedBookPreview.currentPage}/
                     {selectedBookPreview.totalPages ?? "?"}
                   </span>
+                  <span className="session-book-preview-progress">
+                    <span
+                      key={selectedBookPreview.id}
+                      style={{ width: `${selectedBookProgress ?? 0}%` }}
+                    />
+                  </span>
                   <strong>
                     {selectedBookProgress !== null
                       ? `${selectedBookProgress}%`

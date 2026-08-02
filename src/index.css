@@ -5123,10 +5123,10 @@ button {
 }
 
 .session-book-preview-stats {
-  display: flex;
+  display: grid;
   min-height: 31px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   border-top: 2px solid rgba(21, 21, 21, 0.16);
   padding-top: 8px;
@@ -5158,8 +5158,42 @@ button {
 
 .session-book-preview-stats strong {
   color: #151515;
-  font-size: 12px;
+  font-size: 6px;
   font-weight: 950;
+}
+
+.session-book-preview-progress {
+  height: 7px;
+  min-width: 0;
+  overflow: hidden;
+  border: 2px solid #151515;
+  border-radius: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    #fffef8 0 5px,
+    rgba(21, 21, 21, 0.08) 5px 6px
+  );
+}
+
+.session-book-preview-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #151515;
+  transform-origin: left center;
+  animation: book-preview-progress-fill 520ms steps(12, end) both;
+}
+
+@keyframes book-preview-progress-fill {
+  from {
+    transform: scaleX(0);
+    filter: brightness(1.45);
+  }
+
+  to {
+    transform: scaleX(1);
+    filter: brightness(1);
+  }
 }
 
 @media (max-width: 520px) {
