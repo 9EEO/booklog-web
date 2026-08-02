@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 import { keyframes } from "@emotion/react";
@@ -776,8 +777,7 @@ export const AdventureScene = ({
     : 14;
   const showMemoryLog =
     isPreparing && memoryLogs.length > 0 && !isTimeSettingOpen;
-  const hudStatusLabel =
-    status === "paused" ? "PAUSED" : status === "completed" ? "CLEAR" : "";
+  const hudStatusLabel = status === "completed" ? "CLEAR" : "";
   const isInteractionPanelOpen = isSearchPanelOpen || isSentencePanelOpen;
   const shouldShowProgress = mode === "countdown" && status !== "completed";
 
@@ -842,8 +842,33 @@ export const AdventureScene = ({
     });
   };
 
+  const handleSceneTap = (event: MouseEvent<HTMLElement>) => {
+    if (
+      isCountdownActive ||
+      isInteractionPanelOpen ||
+      (status !== "running" && status !== "paused")
+    ) {
+      return;
+    }
+
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("a, button, input, select, textarea")
+    ) {
+      return;
+    }
+
+    if (status === "running") {
+      onPause();
+      return;
+    }
+
+    onStart();
+  };
+
   return (
-    <Scene aria-label="독서 모험 화면">
+    <Scene aria-label="독서 모험 화면" onClick={handleSceneTap}>
       <AdventureBackground
         isMoving={isMoving}
         isCompleted={status === "completed"}
