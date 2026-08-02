@@ -394,11 +394,13 @@ export const SessionScreen = ({
                   </div>
                 </div>
                 <div className="session-book-preview-copy">
-                  <h2>
-                    {selectedBookPreview.title}
-                    <span>{selectedBookPreview.author || "작자 미상"}</span>
-                  </h2>
-                  <p>{selectedBookDescription}</p>
+                  <h2>{selectedBookPreview.title}</h2>
+                  <p className="session-book-preview-author">
+                    {selectedBookPreview.author || "작자 미상"}
+                  </p>
+                  <p className="session-book-preview-description">
+                    {selectedBookDescription}
+                  </p>
                 </div>
                 <div className="session-book-preview-stats">
                   <span>
