@@ -175,6 +175,7 @@ export const SessionScreen = ({
   onAddFirstBook,
 }: SessionScreenProps) => {
   const [hasSelectedSessionBook, setHasSelectedSessionBook] = useState(false);
+  const [previewBookId, setPreviewBookId] = useState<string | null>(null);
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
@@ -325,7 +326,9 @@ export const SessionScreen = ({
         timer.status === "idle" &&
         timer.elapsedSeconds === 0));
   const selectedBookPreview =
-    readingBooks.find((book) => book.id === currentBook?.id) ?? readingBooks[0];
+    readingBooks.find((book) => book.id === previewBookId) ??
+    readingBooks.find((book) => book.id === currentBook?.id) ??
+    readingBooks[0];
   const selectedBookProgress = selectedBookPreview
     ? getBookProgress(
         selectedBookPreview.currentPage,
@@ -336,6 +339,7 @@ export const SessionScreen = ({
   const selectSessionBook = (bookId: string) => {
     vibrateSelect();
     onChangeBook(bookId);
+    setPreviewBookId(bookId);
     setHasSelectedSessionBook(true);
     timer.reset();
   };
@@ -344,25 +348,7 @@ export const SessionScreen = ({
     return (
       <div className="session-screen space-y-4">
         <section className="session-book-select-stage">
-          <div className="session-book-select-header">
-            <span>GAME SELECT</span>
-            <h1>읽을 책 선택</h1>
-            <p>오늘의 모험에 넣을 책을 골라주세요.</p>
-          </div>
-
           <div className="session-book-select-console">
-            <div className="session-book-select-list" role="list">
-              {readingBooks.map((book, index) => (
-                <BookGameSelectItem
-                  key={book.id}
-                  book={book}
-                  index={index}
-                  isActive={book.id === selectedBookPreview?.id}
-                  onSelect={() => selectSessionBook(book.id)}
-                />
-              ))}
-            </div>
-
             {selectedBookPreview && (
               <aside className="session-book-preview-panel">
                 <div className="session-book-preview-screen">
@@ -390,8 +376,30 @@ export const SessionScreen = ({
                       : "NEW"}
                   </strong>
                 </div>
+                <button
+                  type="button"
+                  className="session-book-preview-select"
+                  onClick={() => selectSessionBook(selectedBookPreview.id)}
+                >
+                  선택
+                </button>
               </aside>
             )}
+
+            <div className="session-book-select-list" role="list">
+              {readingBooks.map((book, index) => (
+                <BookGameSelectItem
+                  key={book.id}
+                  book={book}
+                  index={index}
+                  isActive={book.id === selectedBookPreview?.id}
+                  onSelect={() => {
+                    vibrateSelect();
+                    setPreviewBookId(book.id);
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </section>
       </div>
@@ -981,6 +989,7 @@ export const SessionScreen = ({
               onClick={() => {
                 vibrateTap();
                 timerControlSound.playSelect();
+                setPreviewBookId(currentBook.id);
                 setHasSelectedSessionBook(false);
               }}
             >
