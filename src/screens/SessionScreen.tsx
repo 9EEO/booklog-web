@@ -342,6 +342,11 @@ export const SessionScreen = ({
         selectedBookPreview.totalPages,
       )
     : null;
+  const selectedBookDescription =
+    selectedBookPreview?.libraryReference?.contents?.trim() ||
+    selectedBookPreview?.libraryReference?.summary?.trim() ||
+    selectedBookPreview?.contents?.trim() ||
+    "아직 책 소개 문구가 없습니다.";
 
   const selectSessionBook = (bookId: string) => {
     vibrateSelect();
@@ -389,9 +394,11 @@ export const SessionScreen = ({
                   </div>
                 </div>
                 <div className="session-book-preview-copy">
-                  <span>SELECTED QUEST</span>
-                  <h2>{selectedBookPreview.title}</h2>
-                  <p>{selectedBookPreview.author || "작자 미상"}</p>
+                  <h2>
+                    {selectedBookPreview.title}
+                    <span>{selectedBookPreview.author || "작자 미상"}</span>
+                  </h2>
+                  <p>{selectedBookDescription}</p>
                 </div>
                 <div className="session-book-preview-stats">
                   <span>
@@ -410,13 +417,6 @@ export const SessionScreen = ({
                       : "NEW"}
                   </strong>
                 </div>
-                <button
-                  type="button"
-                  className="session-book-preview-select"
-                  onClick={() => selectSessionBook(selectedBookPreview.id)}
-                >
-                  선택
-                </button>
               </aside>
             )}
 
@@ -431,6 +431,18 @@ export const SessionScreen = ({
                 />
               ))}
             </div>
+
+            {selectedBookPreview && (
+              <div className="session-book-select-actions">
+                <button
+                  type="button"
+                  className="session-book-preview-select"
+                  onClick={() => selectSessionBook(selectedBookPreview.id)}
+                >
+                  선택
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </div>

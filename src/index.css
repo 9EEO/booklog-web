@@ -4821,7 +4821,7 @@ button {
 .session-book-select-console {
   display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
 }
 
@@ -4907,7 +4907,7 @@ button {
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(92px, 0.6fr) minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto;
   gap: 9px;
   align-items: center;
   border: 2px solid #151515;
@@ -5006,7 +5006,7 @@ button {
 .session-book-preview-screen {
   display: grid;
   min-height: 170px;
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 2;
   place-items: center;
   overflow: hidden;
   border: 3px solid #151515;
@@ -5093,33 +5093,40 @@ button {
   object-fit: cover;
 }
 
-.session-book-preview-copy span {
-  color: rgba(21, 21, 21, 0.48);
-  font-family: var(--font-pixel);
-  font-size: 6px;
-  font-weight: 950;
-}
-
 .session-book-preview-copy h2 {
-  display: -webkit-box;
+  display: flex;
   overflow: hidden;
-  margin-top: 5px;
+  align-items: baseline;
+  gap: 6px;
   color: #151515;
   font-size: 15px;
   font-weight: 950;
   line-height: 1.25;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.session-book-preview-copy p {
+.session-book-preview-copy h2 span {
+  min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
-  margin-top: 3px;
   color: rgba(21, 21, 21, 0.52);
   font-size: 10px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.session-book-preview-copy p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 8px;
+  color: rgba(21, 21, 21, 0.52);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .session-book-preview-stats {
@@ -5128,9 +5135,11 @@ button {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  border-top: 2px solid rgba(21, 21, 21, 0.16);
-  padding-top: 8px;
   font-family: var(--font-pixel);
+}
+
+.session-book-select-actions {
+  display: grid;
 }
 
 .session-book-preview-select {
@@ -5199,16 +5208,15 @@ button {
 @media (max-width: 520px) {
   .session-book-preview-panel {
     grid-template-columns: 96px minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
   }
 
   .session-book-preview-screen {
     min-height: 128px;
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 2;
   }
 
   .session-book-preview-stats {
-    border-top: 0;
     padding-top: 0;
   }
 }
