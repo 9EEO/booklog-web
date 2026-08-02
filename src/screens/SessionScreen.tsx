@@ -372,15 +372,15 @@ export const SessionScreen = ({
         <section className="session-book-select-stage">
           <div className="session-book-select-console">
             {selectedBookPreview && (
-              <aside
-                className={`session-book-preview-panel ${
-                  isBookPreviewGlitching
-                    ? "session-book-preview-panel-glitching"
-                    : ""
-                }`}
-              >
+              <aside className="session-book-preview-panel">
                 <div className="session-book-preview-screen">
-                  <div className="session-book-preview-cover">
+                  <div
+                    className={`session-book-preview-cover ${
+                      isBookPreviewGlitching
+                        ? "session-book-preview-cover-glitching"
+                        : ""
+                    }`}
+                  >
                     {selectedBookPreview.thumbnail ? (
                       <img src={selectedBookPreview.thumbnail} alt="" />
                     ) : (

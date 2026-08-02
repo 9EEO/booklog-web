@@ -4904,7 +4904,6 @@ button {
 }
 
 .session-book-preview-panel {
-  position: relative;
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(92px, 0.6fr) minmax(0, 1fr);
@@ -4918,64 +4917,6 @@ button {
     inset 0 -5px 0 rgba(21, 21, 21, 0.12),
     2px 2px 0 rgba(0, 0, 0, 0.32);
   padding: 10px;
-}
-
-.session-book-preview-panel::before,
-.session-book-preview-panel::after {
-  position: absolute;
-  inset: 8px;
-  z-index: 4;
-  border-radius: 2px;
-  content: "";
-  opacity: 0;
-  pointer-events: none;
-}
-
-.session-book-preview-panel::before {
-  background:
-    repeating-linear-gradient(
-      0deg,
-      rgba(255, 255, 255, 0.28) 0 1px,
-      transparent 1px 4px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(21, 21, 21, 0.12) 0 2px,
-      rgba(242, 201, 76, 0.16) 2px 3px,
-      transparent 3px 6px
-    );
-  mix-blend-mode: multiply;
-}
-
-.session-book-preview-panel::after {
-  background:
-    radial-gradient(circle, rgba(21, 21, 21, 0.72) 0 1px, transparent 1px),
-    radial-gradient(circle, rgba(242, 201, 76, 0.5) 0 1px, transparent 1px);
-  background-position:
-    0 0,
-    3px 3px;
-  background-size:
-    6px 6px,
-    7px 7px;
-  mix-blend-mode: overlay;
-}
-
-.session-book-preview-panel-glitching {
-  animation: book-preview-crt-jolt 260ms steps(3, end);
-}
-
-.session-book-preview-panel-glitching::before {
-  animation: book-preview-scanline 260ms steps(5, end);
-}
-
-.session-book-preview-panel-glitching::after {
-  animation: book-preview-dot-noise 260ms steps(5, end);
-}
-
-.session-book-preview-panel-glitching .session-book-preview-cover,
-.session-book-preview-panel-glitching .session-book-preview-copy,
-.session-book-preview-panel-glitching .session-book-preview-stats {
-  animation: book-preview-content-flicker 260ms steps(4, end);
 }
 
 @keyframes book-preview-crt-jolt {
@@ -5074,22 +5015,76 @@ button {
     radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.08), transparent 45%),
     #2b322c;
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.72);
-  padding: 14px;
+  padding: 0;
 }
 
 .session-book-preview-cover {
+  position: relative;
   display: grid;
-  width: min(118px, 78%);
-  aspect-ratio: 0.68;
+  width: 100%;
+  height: 100%;
   place-items: center;
   overflow: hidden;
-  border: 2px solid #151515;
-  border-radius: 2px;
+  border: 0;
+  border-radius: 0;
   background: #fffef8;
   color: rgba(21, 21, 21, 0.42);
-  box-shadow:
-    4px 4px 0 rgba(0, 0, 0, 0.34),
-    inset 0 -4px 0 rgba(21, 21, 21, 0.08);
+}
+
+.session-book-preview-cover::before,
+.session-book-preview-cover::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+.session-book-preview-cover::before {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.28) 0 1px,
+      transparent 1px 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(21, 21, 21, 0.12) 0 2px,
+      rgba(242, 201, 76, 0.16) 2px 3px,
+      transparent 3px 6px
+    );
+  mix-blend-mode: multiply;
+}
+
+.session-book-preview-cover::after {
+  background:
+    radial-gradient(circle, rgba(21, 21, 21, 0.72) 0 1px, transparent 1px),
+    radial-gradient(circle, rgba(242, 201, 76, 0.5) 0 1px, transparent 1px);
+  background-position:
+    0 0,
+    3px 3px;
+  background-size:
+    6px 6px,
+    7px 7px;
+  mix-blend-mode: overlay;
+}
+
+.session-book-preview-cover-glitching {
+  animation: book-preview-crt-jolt 260ms steps(3, end);
+}
+
+.session-book-preview-cover-glitching::before {
+  animation: book-preview-scanline 260ms steps(5, end);
+}
+
+.session-book-preview-cover-glitching::after {
+  animation: book-preview-dot-noise 260ms steps(5, end);
+}
+
+.session-book-preview-cover-glitching img,
+.session-book-preview-cover-glitching svg {
+  animation: book-preview-content-flicker 260ms steps(4, end);
 }
 
 .session-book-preview-cover img {
@@ -5176,11 +5171,6 @@ button {
   .session-book-preview-screen {
     min-height: 128px;
     grid-row: 1 / span 3;
-    padding: 10px;
-  }
-
-  .session-book-preview-cover {
-    width: 64px;
   }
 
   .session-book-preview-stats {
