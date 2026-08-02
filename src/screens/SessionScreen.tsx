@@ -2,13 +2,11 @@ import {
   useEffect,
   useMemo,
   useState,
-  type CSSProperties,
 } from "react";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { Icon } from "../components/Icon";
 import { SentenceOcrButton } from "../components/SentenceOcrButton";
 import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
-import { useBookCoverPalette } from "../hooks/useBookCoverPalette";
 import type { ReadingTimer } from "../hooks/useReadingTimer";
 import { useTimerCompletionSound } from "../hooks/useTimerCompletionSound";
 import { useTimerControlSound } from "../hooks/useTimerControlSound";
@@ -125,68 +123,40 @@ const getDaysSinceLastReading = (book: Book, records: ReadingRecord[]) => {
   return Math.floor((today - lastReadAt) / 86_400_000);
 };
 
-type BookPickerItemProps = {
+type BookGameSelectItemProps = {
   book: Book;
+  index: number;
   isActive: boolean;
   onSelect: () => void;
 };
 
-const BookPickerItem = ({
+const BookGameSelectItem = ({
   book,
+  index,
   isActive,
   onSelect,
-}: BookPickerItemProps) => {
+}: BookGameSelectItemProps) => {
   const progress = getBookProgress(book.currentPage, book.totalPages);
-  const palette = useBookCoverPalette(
-    book.id,
-    book.thumbnail,
-    book.coverColor,
-    book.accentColor,
-  );
-  const bookRound =
-    book.activeRoundNumber && book.activeRoundNumber > 1
-      ? `${book.activeRoundNumber}회독`
-      : "";
 
   return (
     <button
       type="button"
-      className={`bookpick-item ${isActive ? "bookpick-item-active" : ""}`}
-      style={
-        {
-          "--bookpick-top": palette.top,
-          "--bookpick-bottom": palette.bottom,
-        } as CSSProperties
-      }
+      className={`book-game-item ${isActive ? "book-game-item-active" : ""}`}
       onClick={onSelect}
+      aria-pressed={isActive}
     >
-      {isActive && <span className="bookpick-flag">현재 읽는 책</span>}
-      <span className="bookpick-body">
-        <span className="bookpick-cover">
-          {book.thumbnail ? (
-            <img src={book.thumbnail} alt="" />
-          ) : (
-            <span className="bookpick-cover-empty" aria-hidden="true" />
-          )}
-        </span>
-        <span className="bookpick-info">
-          <span className="bookpick-name">{book.title}</span>
-          <span className="bookpick-author">
-            {book.author}
-            {bookRound && <span className="bookpick-round"> · {bookRound}</span>}
-          </span>
-          <span className="bookpick-progress">
-            <span className="bookpick-percent">
-              {progress !== null ? `${progress}%` : "NEW"}
-            </span>
-            <span className="bookpick-bar">
-              <span style={{ width: `${progress ?? 0}%` }} />
-            </span>
-          </span>
-          <span className="bookpick-pages">
-            {book.currentPage} / {book.totalPages ?? "?"} PAGES
-          </span>
-        </span>
+      <span className="book-game-cursor" aria-hidden="true">
+        ▶
+      </span>
+      <span className="book-game-slot">
+        {(index + 1).toString().padStart(2, "0")}
+      </span>
+      <span className="book-game-copy">
+        <strong>{book.title}</strong>
+        <small>{book.author || "작자 미상"}</small>
+      </span>
+      <span className="book-game-progress">
+        {progress !== null ? `${progress}%` : "NEW"}
       </span>
     </button>
   );
@@ -354,6 +324,14 @@ export const SessionScreen = ({
       (!hasSelectedSessionBook &&
         timer.status === "idle" &&
         timer.elapsedSeconds === 0));
+  const selectedBookPreview =
+    readingBooks.find((book) => book.id === currentBook?.id) ?? readingBooks[0];
+  const selectedBookProgress = selectedBookPreview
+    ? getBookProgress(
+        selectedBookPreview.currentPage,
+        selectedBookPreview.totalPages,
+      )
+    : null;
 
   const selectSessionBook = (bookId: string) => {
     vibrateSelect();
@@ -372,15 +350,48 @@ export const SessionScreen = ({
             <p>오늘의 모험에 넣을 책을 골라주세요.</p>
           </div>
 
-          <div className="bookpick-list session-book-select-list">
-            {readingBooks.map((book) => (
-              <BookPickerItem
-                key={book.id}
-                book={book}
-                isActive={book.id === currentBook?.id}
-                onSelect={() => selectSessionBook(book.id)}
-              />
-            ))}
+          <div className="session-book-select-console">
+            <div className="session-book-select-list" role="list">
+              {readingBooks.map((book, index) => (
+                <BookGameSelectItem
+                  key={book.id}
+                  book={book}
+                  index={index}
+                  isActive={book.id === selectedBookPreview?.id}
+                  onSelect={() => selectSessionBook(book.id)}
+                />
+              ))}
+            </div>
+
+            {selectedBookPreview && (
+              <aside className="session-book-preview-panel">
+                <div className="session-book-preview-screen">
+                  <div className="session-book-preview-cover">
+                    {selectedBookPreview.thumbnail ? (
+                      <img src={selectedBookPreview.thumbnail} alt="" />
+                    ) : (
+                      <Icon name="book" className="h-9 w-9" />
+                    )}
+                  </div>
+                </div>
+                <div className="session-book-preview-copy">
+                  <span>SELECTED QUEST</span>
+                  <h2>{selectedBookPreview.title}</h2>
+                  <p>{selectedBookPreview.author || "작자 미상"}</p>
+                </div>
+                <div className="session-book-preview-stats">
+                  <span>
+                    PAGE {selectedBookPreview.currentPage}/
+                    {selectedBookPreview.totalPages ?? "?"}
+                  </span>
+                  <strong>
+                    {selectedBookProgress !== null
+                      ? `${selectedBookProgress}%`
+                      : "NEW"}
+                  </strong>
+                </div>
+              </aside>
+            )}
           </div>
         </section>
       </div>
