@@ -29,6 +29,7 @@ import {
   deleteRemoteReadingRound,
   deleteRemoteRecord,
   deleteRemoteRecordsByRound,
+  deleteRemoteWordNote,
   fetchReadingSnapshot,
   migrateLocalSnapshotToSupabase,
   saveReadingSettings,
@@ -1127,6 +1128,15 @@ function AuthenticatedApp({
     const definition = input.definition.trim();
     const contextSentence = input.contextSentence?.trim();
     if (!word || !definition) return;
+    if (
+      targetBook.wordNotes.some(
+        (note) =>
+          note.word.trim().toLowerCase() === word.toLowerCase() &&
+          note.definition.trim().toLowerCase() === definition.toLowerCase(),
+      )
+    ) {
+      throw new Error("이미 저장된 단어입니다.");
+    }
 
     const newWordNote: WordNote = {
       ...input,
@@ -1178,6 +1188,37 @@ function AuthenticatedApp({
       .catch(() => {
         setSyncError("오프라인으로 저장했습니다. 네트워크 연결 시 자동으로 동기화됩니다.");
       });
+  };
+
+  const handleDeleteWordNote = async (bookId: string, wordNoteId: string) => {
+    const pendingWordNotes = getPendingWordNoteSyncs();
+    const isPending = pendingWordNotes.some((item) => item.id === wordNoteId);
+
+    try {
+      setSyncError(null);
+      if (isPending) {
+        savePendingWordNoteSyncs(
+          pendingWordNotes.filter((item) => item.id !== wordNoteId),
+        );
+      } else {
+        await deleteRemoteWordNote(wordNoteId);
+      }
+
+      setBooks((current) =>
+        current.map((book) =>
+          book.id === bookId
+            ? {
+                ...book,
+                wordNotes: (book.wordNotes ?? []).filter(
+                  (note) => note.id !== wordNoteId,
+                ),
+              }
+            : book,
+        ),
+      );
+    } catch (error) {
+      handleSyncFailure(error, "단어를 삭제하지 못했습니다.");
+    }
   };
 
   const handleUpdateBookPage = async (bookId: string, page: number) => {
@@ -1516,6 +1557,7 @@ function AuthenticatedApp({
           onAddSentence={handleAddSentence}
           onUpdateSentence={handleUpdateSentence}
           onDeleteSentence={handleDeleteSentence}
+          onDeleteWordNote={handleDeleteWordNote}
           onDeleteBook={handleDeleteBook}
           onUpdateBookPage={handleUpdateBookPage}
           onUpdateBookTotalPages={handleUpdateBookTotalPages}

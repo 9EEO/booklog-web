@@ -17,6 +17,8 @@ import {
 type SentenceOcrButtonProps = {
   onRecognized: (text: string) => void;
   disabled?: boolean;
+  label?: string;
+  buttonClassName?: string;
 };
 
 type RecognizedLine = {
@@ -49,6 +51,8 @@ const buildSelectedSentenceText = (lines: string[]) =>
 export const SentenceOcrButton = ({
   onRecognized,
   disabled = false,
+  label = "사진으로 담기",
+  buttonClassName = "",
 }: SentenceOcrButtonProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const recognizedPagesRef = useRef<RecognizedPage[]>([]);
@@ -202,12 +206,12 @@ export const SentenceOcrButton = ({
       />
       <button
         type="button"
-        className="sentence-ocr-button"
+        className={`sentence-ocr-button ${buttonClassName}`.trim()}
         onClick={() => inputRef.current?.click()}
         disabled={disabled || isRecognizing}
       >
         <Icon name="camera" className="h-4 w-4" />
-        {isRecognizing ? "문장 인식 중" : "사진으로 담기"}
+        {isRecognizing ? "문장 인식 중" : label}
       </button>
       {error && <p className="sentence-ocr-error">{error}</p>}
       {typeof document !== "undefined" &&

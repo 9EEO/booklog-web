@@ -4885,15 +4885,12 @@ button {
 }
 
 .session-ready-scene-shell {
-  position: relative;
-}
-
-.session-ready-scene-card [aria-label="독서 모험 화면"] {
   height: 100%;
-  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: #fffef8;
 }
 
-.session-ready-scene-card [aria-label="독서 모험 화면"],
 .session-reading-scene-card [aria-label="독서 모험 화면"],
 .session-completion-scene-card [aria-label="독서 모험 화면"] {
   --scene-ground-y: 65%;
@@ -4920,26 +4917,115 @@ button {
   padding: 9px;
 }
 
-.session-ready-scene-title {
+.session-ready-info {
   position: absolute;
   z-index: 22;
-  top: 10px;
-  left: 10px;
-  max-width: min(44%, 220px);
+  display: grid;
+  inset: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
   overflow: hidden;
-  border: 2px solid #151515;
-  border-radius: 2px;
-  background: rgba(255, 254, 248, 0.92);
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.34);
   color: #151515;
-  padding: 6px 9px;
-  font-family: var(--font-pixel);
-  font-size: 7px;
+  padding: 18px 18px 22px;
+  pointer-events: none;
+}
+
+.session-ready-info::before {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(21, 21, 21, 0.025) 0 2px,
+      transparent 2px 7px
+    ),
+    #fffef8;
+  content: "";
+}
+
+.session-ready-book-status {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 7px;
+  width: min(100%, 310px);
+}
+
+.session-ready-book-status > div:first-child {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.session-ready-book-status strong {
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: 15px;
   font-weight: 950;
   letter-spacing: 0;
   line-height: 1.35;
-  pointer-events: none;
   text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-ready-book-status span {
+  flex: 0 0 auto;
+  color: #2563eb;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.session-ready-book-progress {
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(21, 21, 21, 0.42);
+  border-radius: 999px;
+  background: rgba(21, 21, 21, 0.12);
+}
+
+.session-ready-book-progress span {
+  display: block;
+  width: var(--ready-progress);
+  height: 100%;
+  background: #2563eb;
+}
+
+.session-ready-continue {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  display: grid;
+  gap: 7px;
+  width: min(100%, 340px);
+  color: #151515;
+}
+
+.session-ready-continue span {
+  color: rgba(21, 21, 21, 0.5);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.session-ready-continue strong {
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: 24px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-ready-continue p {
+  overflow: hidden;
+  color: rgba(21, 21, 21, 0.62);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5051,7 +5137,42 @@ button {
 }
 
 .session-reading-console {
+  position: relative;
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.session-timer-toast {
+  position: absolute;
+  z-index: 20;
+  top: 20px;
+  left: 50%;
+  display: inline-flex;
+  max-width: calc(100% - 28px);
+  align-items: center;
+  gap: 7px;
+  border: 2px solid #151515;
+  border-radius: 2px;
+  background: #fffef8;
+  color: #151515;
+  box-shadow: 3px 3px 0 rgba(21, 21, 21, 0.24);
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 900;
+  transform: translateX(-50%);
+}
+
+.session-timer-toast svg {
+  width: 15px;
+  height: 15px;
+  color: #2563eb;
+  flex: 0 0 auto;
+}
+
+.session-timer-toast span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-reading-scene-card,
@@ -5140,6 +5261,14 @@ button {
   opacity: 0.52;
 }
 
+.session-reading-controls .sentence-ocr-control {
+  min-width: 0;
+}
+
+.session-reading-controls .sentence-ocr-button {
+  width: 100%;
+}
+
 .session-completion-stage {
   gap: 12px;
 }
@@ -5220,15 +5349,30 @@ button {
 .book-game-item {
   display: grid;
   min-height: 50px;
-  grid-template-columns: 16px 26px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 3fr) minmax(72px, 1fr);
   align-items: center;
-  gap: 7px;
+  gap: 0;
   border: 2px solid transparent;
   border-radius: 2px;
   background: transparent;
   color: rgba(21, 21, 21, 0.62);
-  padding: 6px 7px;
+  overflow: hidden;
+  padding: 0;
   font-family: var(--font-pixel);
+  text-align: left;
+}
+
+.book-game-preview {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 16px 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 6px 7px;
+  font-family: inherit;
   text-align: left;
 }
 
@@ -5241,7 +5385,8 @@ button {
     2px 2px 0 rgba(21, 21, 21, 0.2);
 }
 
-.book-game-item:active {
+.book-game-preview:active,
+.book-game-select-button:active {
   transform: translateY(1px);
 }
 
@@ -5270,6 +5415,10 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .book-game-item-active .book-game-cursor {
+    animation: none;
+  }
+
+  .book-game-select-button {
     animation: none;
   }
 }
@@ -5310,9 +5459,39 @@ button {
 }
 
 .book-game-progress {
+  display: grid;
+  height: 100%;
+  min-height: 46px;
+  place-items: center;
   justify-self: end;
+  width: 100%;
   font-size: 8px;
   font-weight: 950;
+}
+
+.book-game-select-button {
+  align-self: stretch;
+  border: 0;
+  border-left: 2px solid #151515;
+  border-radius: 0;
+  background: #f2c94c;
+  color: #151515;
+  box-shadow: none;
+  padding: 0;
+  animation: book-game-select-reveal 180ms ease-out;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  font-weight: 950;
+}
+
+@keyframes book-game-select-reveal {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .session-book-preview-panel {
@@ -5621,44 +5800,24 @@ button {
   line-clamp: var(--book-description-lines);
 }
 
-.session-book-preview-description-text::after {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1;
-  height: calc(1em * var(--book-description-line-height));
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(21, 21, 21, 0.025) 0 1px,
-      transparent 1px 7px
-    ),
-    var(--book-description-bg);
-  content: "";
-  pointer-events: none;
-  transform-origin: right center;
-  animation: book-preview-description-type 640ms steps(18, end) both;
+.session-book-preview-description-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 1px;
+  background: currentColor;
+  vertical-align: -0.16em;
+  animation: book-preview-description-cursor 620ms steps(2, end) infinite;
 }
 
-@keyframes book-preview-description-type {
-  from {
-    opacity: 0.86;
-    transform: scaleX(1);
-  }
-
-  to {
-    opacity: 0.86;
-    transform: scaleX(0);
+@keyframes book-preview-description-cursor {
+  50% {
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .session-book-preview-description-text::after {
-    animation: none;
-  }
-
-  .session-book-preview-description-text::after {
+  .session-book-preview-description-cursor {
     display: none;
   }
 }
@@ -5671,27 +5830,6 @@ button {
   align-items: center;
   gap: 8px;
   font-family: var(--font-pixel);
-}
-
-.session-book-select-actions {
-  display: grid;
-}
-
-.session-book-preview-select {
-  min-height: 38px;
-  border: 2px solid #151515;
-  border-radius: 2px;
-  background: #151515;
-  color: #f2c94c;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.24);
-  font-family: var(--font-pixel);
-  font-size: 9px;
-  font-weight: 950;
-}
-
-.session-book-preview-select:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
 }
 
 .session-book-preview-stats span {
@@ -8243,8 +8381,15 @@ button {
 }
 
 .session-word-go-button {
+  display: grid;
+  place-items: center;
   background: #151515;
   color: #f2c94c;
+}
+
+.session-word-go-button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .session-word-close-button {
@@ -8346,10 +8491,6 @@ button {
 }
 
 .session-word-result-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 6px;
   min-height: 66px;
   padding: 7px;
 }
@@ -8419,29 +8560,6 @@ button {
   font-size: 10px;
   font-weight: 800;
   line-height: 1.45;
-}
-
-.session-word-item-save-button {
-  flex: 0 0 auto;
-  min-height: 24px;
-  border: 2px solid #151515;
-  border-radius: 2px;
-  background: #2563eb;
-  color: #ffffff;
-  padding: 0 8px;
-  font-family: var(--font-ui);
-  font-size: 9px;
-  font-weight: 950;
-}
-
-.session-word-item-save-button:active {
-  transform: translateY(1px);
-}
-
-.session-word-item-save-button:disabled {
-  background: rgba(21, 21, 21, 0.16);
-  border-color: rgba(21, 21, 21, 0.28);
-  color: rgba(21, 21, 21, 0.34);
 }
 
 .session-word-result-group .session-word-note-draft {
@@ -8573,54 +8691,6 @@ button {
   min-height: 98px;
   resize: none;
   line-height: 1.55;
-}
-
-.session-sentence-panel .sentence-ocr-control {
-  gap: 4px;
-}
-
-.session-sentence-panel .sentence-ocr-button {
-  width: 100%;
-  min-height: 32px;
-  border: 2px dashed rgba(21, 21, 21, 0.48);
-  border-radius: 2px;
-  background: #fffef8;
-  color: #151515;
-  font-family: var(--font-ui);
-  font-size: 10px;
-}
-
-.session-sentence-panel-actions {
-  display: grid;
-  grid-template-columns: 0.85fr 1.15fr;
-  gap: 6px;
-  border-top: 1px solid rgba(21, 21, 21, 0.16);
-  padding: 8px;
-}
-
-.session-sentence-panel-actions button {
-  min-height: 32px;
-  border: 2px solid #151515;
-  border-radius: 2px;
-  font-family: var(--font-pixel);
-  font-size: 8px;
-  font-weight: 950;
-}
-
-.session-sentence-panel-actions button:first-child {
-  background: #ffffff;
-  color: #151515;
-}
-
-.session-sentence-panel-actions button:last-child {
-  background: #151515;
-  color: #f2c94c;
-}
-
-.session-sentence-panel-actions button:disabled {
-  background: rgba(21, 21, 21, 0.16);
-  border-color: rgba(21, 21, 21, 0.28);
-  color: rgba(21, 21, 21, 0.34);
 }
 
 .session-sentence-panel-footer {
@@ -10522,6 +10592,20 @@ button {
   min-width: 0;
   align-items: center;
   gap: 7px;
+}
+
+.book-detail-word-actions {
+  flex: 0 0 auto;
+}
+
+.book-detail-word-actions .mini-icon-button {
+  width: 29px;
+  height: 29px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(217, 95, 69, 0.1);
+  color: var(--detail-red);
+  box-shadow: none;
 }
 
 .book-detail-word-heading strong {

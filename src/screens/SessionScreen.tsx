@@ -98,6 +98,7 @@ type BookGameSelectItemProps = {
   index: number;
   isActive: boolean;
   onSelect: () => void;
+  onConfirm: () => void;
 };
 
 const BookGameSelectItem = ({
@@ -105,31 +106,58 @@ const BookGameSelectItem = ({
   index,
   isActive,
   onSelect,
+  onConfirm,
 }: BookGameSelectItemProps) => {
   const progress = getBookProgress(book.currentPage, book.totalPages);
 
   return (
-    <button
-      type="button"
+    <div
       className={`book-game-item ${isActive ? "book-game-item-active" : ""}`}
-      onClick={onSelect}
-      aria-pressed={isActive}
     >
-      <span className="book-game-cursor" aria-hidden="true">
-        ▶
-      </span>
-      <span className="book-game-slot">
-        {(index + 1).toString().padStart(2, "0")}
-      </span>
-      <span className="book-game-copy">
-        <strong>{book.title}</strong>
-        <small>{book.author || "작자 미상"}</small>
-      </span>
-      <span className="book-game-progress">
-        {progress !== null ? `${progress}%` : "NEW"}
-      </span>
-    </button>
+      <button
+        type="button"
+        className="book-game-preview"
+        onClick={onSelect}
+        aria-pressed={isActive}
+      >
+        <span className="book-game-cursor" aria-hidden="true">
+          ▶
+        </span>
+        <span className="book-game-slot">
+          {(index + 1).toString().padStart(2, "0")}
+        </span>
+        <span className="book-game-copy">
+          <strong>{book.title}</strong>
+          <small>{book.author || "작자 미상"}</small>
+        </span>
+      </button>
+      {isActive ? (
+        <button
+          type="button"
+          className="book-game-select-button"
+          onClick={onConfirm}
+        >
+          선택
+        </button>
+      ) : (
+        <span className="book-game-progress">
+          {progress !== null ? `${progress}%` : "NEW"}
+        </span>
+      )}
+    </div>
   );
+};
+
+const formatReadyDuration = (seconds: number) => {
+  const minutes = Math.max(Math.round(seconds / 60), 1);
+  const hours = Math.floor(minutes / 60);
+  const restMinutes = minutes % 60;
+
+  if (hours > 0) {
+    return restMinutes > 0 ? `${hours}시간 ${restMinutes}분` : `${hours}시간`;
+  }
+
+  return `${minutes}분`;
 };
 
 export const SessionScreen = ({
@@ -148,7 +176,10 @@ export const SessionScreen = ({
   const [previewBookId, setPreviewBookId] = useState<string | null>(null);
   const [isBookPreviewGlitching, setIsBookPreviewGlitching] = useState(false);
   const [bookDescriptionLineClamp, setBookDescriptionLineClamp] = useState(4);
-  const [timerStartCountdownKey, setTimerStartCountdownKey] = useState(0);
+  const [bookDescriptionTyping, setBookDescriptionTyping] = useState({
+    key: "",
+    visibleLength: 0,
+  });
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
@@ -174,6 +205,7 @@ export const SessionScreen = ({
   const [wordNoteSentence, setWordNoteSentence] = useState("");
   const [isSavingWordNote, setIsSavingWordNote] = useState(false);
   const [wordSaveMessage, setWordSaveMessage] = useState("");
+  const [timerToastMessage, setTimerToastMessage] = useState("");
   const [extensionSeconds, setExtensionSeconds] = useState(
     minimumExtensionSeconds,
   );
@@ -216,6 +248,17 @@ export const SessionScreen = ({
     setSentenceNoteMessage("");
     clearSentenceNoteDraft();
     setIsSentenceNoteOpen(true);
+  };
+
+  useEffect(() => {
+    if (!timerToastMessage) return;
+
+    const timeoutId = window.setTimeout(() => setTimerToastMessage(""), 2000);
+    return () => window.clearTimeout(timeoutId);
+  }, [timerToastMessage]);
+
+  const showTimerToast = (message: string) => {
+    setTimerToastMessage(message);
   };
 
   useBackNavigationLayer(
@@ -315,9 +358,61 @@ export const SessionScreen = ({
     : null;
   const selectedBookDescription =
     getDisplayBookDescription(selectedBookPreview);
+  const selectedBookDescriptionKey = `${selectedBookPreview?.id ?? ""}-${selectedBookDescription}`;
+  const selectedBookDescriptionCharacters = useMemo(
+    () => Array.from(selectedBookDescription),
+    [selectedBookDescription],
+  );
+  const visibleBookDescriptionLength =
+    bookDescriptionTyping.key === selectedBookDescriptionKey
+      ? bookDescriptionTyping.visibleLength
+      : 0;
+  const visibleBookDescription = selectedBookDescriptionCharacters
+    .slice(0, visibleBookDescriptionLength)
+    .join("");
+  const isBookDescriptionTyping =
+    visibleBookDescriptionLength < selectedBookDescriptionCharacters.length;
   const bookDescriptionStyle = {
     "--book-description-lines": bookDescriptionLineClamp,
   } as CSSProperties;
+
+  useEffect(() => {
+    const nextDescriptionLength = selectedBookDescriptionCharacters.length;
+
+    if (nextDescriptionLength === 0) {
+      return undefined;
+    }
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const reduceMotionTimer = window.setTimeout(() => {
+        setBookDescriptionTyping({
+          key: selectedBookDescriptionKey,
+          visibleLength: nextDescriptionLength,
+        });
+      }, 0);
+
+      return () => {
+        window.clearTimeout(reduceMotionTimer);
+      };
+    }
+
+    let nextVisibleLength = 0;
+    const typingTimer = window.setInterval(() => {
+      nextVisibleLength += 1;
+      setBookDescriptionTyping({
+        key: selectedBookDescriptionKey,
+        visibleLength: nextVisibleLength,
+      });
+
+      if (nextVisibleLength >= nextDescriptionLength) {
+        window.clearInterval(typingTimer);
+      }
+    }, 24);
+
+    return () => {
+      window.clearInterval(typingTimer);
+    };
+  }, [selectedBookDescriptionCharacters, selectedBookDescriptionKey]);
 
   useEffect(() => {
     const descriptionElement = bookDescriptionRef.current;
@@ -415,8 +510,17 @@ export const SessionScreen = ({
                     className="session-book-preview-description"
                     style={bookDescriptionStyle}
                   >
-                    <span className="session-book-preview-description-text">
-                      {selectedBookDescription}
+                    <span
+                      className="session-book-preview-description-text"
+                      aria-label={selectedBookDescription}
+                    >
+                      {visibleBookDescription}
+                      {isBookDescriptionTyping && (
+                        <span
+                          className="session-book-preview-description-cursor"
+                          aria-hidden="true"
+                        />
+                      )}
                     </span>
                   </p>
                 </div>
@@ -451,21 +555,10 @@ export const SessionScreen = ({
                     index={index}
                     isActive={book.id === selectedBookPreview?.id}
                     onSelect={() => previewSessionBook(book.id)}
+                    onConfirm={() => selectSessionBook(book.id)}
                   />
                 ))}
               </div>
-
-              {selectedBookPreview && (
-                <div className="session-book-select-actions">
-                  <button
-                    type="button"
-                    className="session-book-preview-select"
-                    onClick={() => selectSessionBook(selectedBookPreview.id)}
-                  >
-                    선택
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </section>
@@ -526,6 +619,29 @@ export const SessionScreen = ({
   const canIncreaseExtension = extensionSeconds < maximumExtensionSeconds;
   const canChangeTimerMode =
     timer.status === "idle" && timer.elapsedSeconds === 0;
+  const currentBookRecords = records
+    .filter((record) => record.bookId === currentBook.id)
+    .sort(
+      (left, right) =>
+        `${right.date}-${right.endedAt ?? right.startedAt ?? ""}`.localeCompare(
+          `${left.date}-${left.endedAt ?? left.startedAt ?? ""}`,
+        ),
+    );
+  const latestReadingRecord = currentBookRecords[0];
+  const readyBookProgress = getBookProgress(
+    currentBook.currentPage,
+    currentBook.totalPages,
+  );
+  const readyProgressStyle = {
+    "--ready-progress": `${readyBookProgress ?? 0}%`,
+  } as CSSProperties;
+  const readyMeta = latestReadingRecord
+    ? `지난번 ${formatReadyDuration(
+        latestReadingRecord.durationSeconds,
+      )} 읽음 · 문장 ${
+        latestReadingRecord.sentence?.trim() ? 1 : 0
+      }개 저장`
+    : `아직 독서 기록 없음 · 저장 문장 ${currentBook.sentences.length}개`;
   const updateForm = (patch: Partial<typeof form>) => {
     setForm((current) => ({
       ...current,
@@ -627,10 +743,6 @@ export const SessionScreen = ({
     vibrateTimerPause();
     timerControlSound.playPause();
     timer.pause();
-  };
-
-  const requestTimerStart = () => {
-    setTimerStartCountdownKey((current) => current + 1);
   };
 
   const openSessionBookSelection = () => {
@@ -757,6 +869,20 @@ export const SessionScreen = ({
 
     try {
       const { result, definition } = selectedWordDefinition;
+      const savedWord = result.word.trim().toLowerCase();
+      const savedDefinition = definition.definition.trim().toLowerCase();
+      if (
+        currentBook.wordNotes.some(
+          (note) =>
+            note.word.trim().toLowerCase() === savedWord &&
+            note.definition.trim().toLowerCase() === savedDefinition,
+        )
+      ) {
+        showTimerToast("이미 저장된 단어예요");
+        timerControlSound.playSelect();
+        return;
+      }
+
       const hasPageInput = /\d/.test(wordNotePageInput);
       const page = hasPageInput
         ? parsePageInput(wordNotePageInput)
@@ -778,16 +904,37 @@ export const SessionScreen = ({
       });
       vibrateSuccess();
       timerControlSound.playConfirm();
+      showTimerToast("단어를 저장했어요");
       clearSelectedWordNoteDraft();
       closeWordSearchAndResume();
     } catch (error) {
       timerControlSound.playError();
+      const message =
+        error instanceof Error ? error.message : "단어를 저장하지 못했습니다.";
+      if (message.includes("이미 저장된 단어")) {
+        showTimerToast("이미 저장된 단어예요");
+        return;
+      }
+
       setWordSaveMessage(
-        error instanceof Error ? error.message : "단어를 저장하지 못했습니다.",
+        message,
       );
     } finally {
       setIsSavingWordNote(false);
     }
+  };
+
+  const appendWordNoteSentence = (text: string) => {
+    setWordNoteSentence((current) =>
+      current.trim() ? `${current.trim()}\n${text}` : text,
+    );
+  };
+
+  const appendSentenceNoteText = (text: string) => {
+    setSentenceNoteText((current) =>
+      current.trim() ? `${current.trim()}\n${text}` : text,
+    );
+    setSentenceNoteMessage("");
   };
 
   const saveSentenceNote = async () => {
@@ -804,6 +951,7 @@ export const SessionScreen = ({
       await onAddSentence(currentBook.id, text, page);
       vibrateSuccess();
       timerControlSound.playConfirm();
+      showTimerToast("문장을 저장했어요");
       closeSentenceNoteAndResume();
     } catch (error) {
       timerControlSound.playError();
@@ -843,15 +991,6 @@ export const SessionScreen = ({
           />
         </label>
 
-        <SentenceOcrButton
-          disabled={isSavingSentenceNote}
-          onRecognized={(text) =>
-            setSentenceNoteText((current) =>
-              current.trim() ? `${current.trim()}\n${text}` : text,
-            )
-          }
-        />
-
         <label className="session-sentence-text-field">
           <span>문장</span>
           <textarea
@@ -864,18 +1003,6 @@ export const SessionScreen = ({
             aria-label="저장할 문장"
           />
         </label>
-      </div>
-
-      <div className="session-sentence-panel-actions">
-        <button type="button" onClick={closeSentenceNote}>
-          닫기
-        </button>
-        <button
-          type="submit"
-          disabled={!sentenceNoteText.trim() || isSavingSentenceNote}
-        >
-          {isSavingSentenceNote ? "저장 중" : "저장"}
-        </button>
       </div>
 
       <div className="session-sentence-panel-footer" aria-live="polite">
@@ -917,12 +1044,13 @@ export const SessionScreen = ({
         <button
           type="submit"
           className="session-word-go-button"
+          aria-label="단어 검색"
           disabled={
             wordSearchQuery.trim().length === 0 ||
             wordSearchStatus === "loading"
           }
         >
-          {wordSearchStatus === "loading" ? "..." : "GO"}
+          {wordSearchStatus === "loading" ? "..." : <Icon name="search" />}
         </button>
         <button
           type="button"
@@ -981,16 +1109,6 @@ export const SessionScreen = ({
                     </span>
                   </button>
 
-                  {isSelected && (
-                    <button
-                      type="button"
-                      className="session-word-item-save-button"
-                      onClick={() => void saveSelectedWordDefinition()}
-                      disabled={isSavingWordNote}
-                    >
-                      {isSavingWordNote ? "..." : "SAVE"}
-                    </button>
-                  )}
                 </div>
 
                 {isSelected && (
@@ -1010,14 +1128,6 @@ export const SessionScreen = ({
                     </label>
                     <label>
                       <span>문장</span>
-                      <SentenceOcrButton
-                        disabled={isSavingWordNote}
-                        onRecognized={(text) =>
-                          setWordNoteSentence((current) =>
-                            current.trim() ? `${current.trim()}\n${text}` : text,
-                          )
-                        }
-                      />
                       <textarea
                         value={wordNoteSentence}
                         onChange={(event) =>
@@ -1048,27 +1158,30 @@ export const SessionScreen = ({
           <div className="session-book-select-console session-ready-console">
             <div className="focus-timer-card session-ready-scene-card">
               <div className="relative z-10 session-ready-scene-shell">
-                <AdventureScene
-                  status={timer.status}
-                  mode={timer.mode}
-                  displayTime={formatFocusTime(displaySeconds)}
-                  progress={adventureProgress}
-                  goalApproachProgress={null}
-                  showStartBanner={false}
-                  presets={presets}
-                  targetSeconds={timer.targetSeconds}
-                  memoryLogs={memoryLogs}
-                  memorySeed={`${todayLabel()}-${currentBook.id}`}
-                  useExternalPrepareControls
-                  startCountdownKey={timerStartCountdownKey}
-                  onChangeMode={changeTimerMode}
-                  onSelectPreset={selectTimerPreset}
-                  onStart={startTimer}
-                  onPause={() => undefined}
-                  onStop={() => undefined}
-                />
-                <div className="session-ready-scene-title">
-                  {currentBook.title}
+                <div className="session-ready-info">
+                  <div className="session-ready-book-status">
+                    <div>
+                      <strong>{currentBook.title}</strong>
+                      <span>
+                        {readyBookProgress !== null
+                          ? `${readyBookProgress}%`
+                          : `${currentBook.currentPage}p`}
+                      </span>
+                    </div>
+                    {readyBookProgress !== null && (
+                      <div
+                        className="session-ready-book-progress"
+                        style={readyProgressStyle}
+                      >
+                        <span />
+                      </div>
+                    )}
+                  </div>
+                  <div className="session-ready-continue">
+                    <span>이어가기</span>
+                    <strong>{currentBook.currentPage}p부터 이어 읽기</strong>
+                    <p>{readyMeta}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1121,7 +1234,7 @@ export const SessionScreen = ({
                 <button
                   type="button"
                   className="session-ready-start-button"
-                  onClick={requestTimerStart}
+                  onClick={startTimer}
                 >
                   독서 시작
                 </button>
@@ -1287,53 +1400,130 @@ export const SessionScreen = ({
               </div>
             </div>
 
-            <div className="session-reading-controls" role="group" aria-label="독서 타이머 조작">
-              <button
-                type="button"
-                className="session-reading-control-button"
-                onClick={timer.status === "running" ? pauseTimer : startTimer}
-                disabled={timer.status === "paused" && isTimerInteractionPanelOpen}
+            {timerToastMessage && (
+              <div className="session-timer-toast" role="status">
+                <Icon name="check" />
+                <span>{timerToastMessage}</span>
+              </div>
+            )}
+
+            {isWordSearchOpen ? (
+              <div
+                className="session-reading-controls"
+                role="group"
+                aria-label="단어 검색 조작"
               >
-                <Icon
-                  name={
-                    timer.status === "running" || isTimerInteractionPanelOpen
-                      ? "pause"
-                      : "play"
-                  }
+                <button
+                  type="button"
+                  className="session-reading-control-button"
+                  onClick={() => void saveSelectedWordDefinition()}
+                  disabled={!selectedWordDefinition || isSavingWordNote}
+                >
+                  <Icon name="save" />
+                  <span>
+                    {isSavingWordNote ? "저장 중" : "선택된 단어 저장"}
+                  </span>
+                </button>
+                <SentenceOcrButton
+                  disabled={!selectedWordDefinition || isSavingWordNote}
+                  label="사진으로담기"
+                  buttonClassName="session-reading-control-button"
+                  onRecognized={appendWordNoteSentence}
                 />
-                <span>
-                  {timer.status === "running" || isTimerInteractionPanelOpen
-                    ? "일시정지"
-                    : "재생"}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="session-reading-control-button session-reading-control-button-danger"
-                onClick={openCompletion}
+                <button
+                  type="button"
+                  className="session-reading-control-button session-reading-control-button-danger"
+                  onClick={closeWordSearch}
+                >
+                  <Icon name="close" />
+                  <span>나가기</span>
+                </button>
+              </div>
+            ) : isSentenceNoteOpen ? (
+              <div
+                className="session-reading-controls"
+                role="group"
+                aria-label="문장 추가 조작"
               >
-                <Icon name="stop" />
-                <span>정지</span>
-              </button>
-              <button
-                type="button"
-                className="session-reading-control-button"
-                onClick={openWordSearch}
-                aria-pressed={isWordSearchOpen}
+                <button
+                  type="button"
+                  className="session-reading-control-button"
+                  onClick={() => void saveSentenceNote()}
+                  disabled={!sentenceNoteText.trim() || isSavingSentenceNote}
+                >
+                  <Icon name="save" />
+                  <span>{isSavingSentenceNote ? "저장 중" : "문장 저장"}</span>
+                </button>
+                <SentenceOcrButton
+                  disabled={isSavingSentenceNote}
+                  label="사진으로담기"
+                  buttonClassName="session-reading-control-button"
+                  onRecognized={appendSentenceNoteText}
+                />
+                <button
+                  type="button"
+                  className="session-reading-control-button session-reading-control-button-danger"
+                  onClick={closeSentenceNote}
+                >
+                  <Icon name="close" />
+                  <span>나가기</span>
+                </button>
+              </div>
+            ) : (
+              <div
+                className="session-reading-controls"
+                role="group"
+                aria-label="독서 타이머 조작"
               >
-                <Icon name="search" />
-                <span>단어검색</span>
-              </button>
-              <button
-                type="button"
-                className="session-reading-control-button"
-                onClick={openSentenceNote}
-                aria-pressed={isSentenceNoteOpen}
-              >
-                <Icon name="edit" />
-                <span>문장저장</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className="session-reading-control-button"
+                  onClick={timer.status === "running" ? pauseTimer : startTimer}
+                  disabled={
+                    timer.status === "paused" && isTimerInteractionPanelOpen
+                  }
+                >
+                  <Icon
+                    name={
+                      timer.status === "running" || isTimerInteractionPanelOpen
+                        ? "pause"
+                        : "play"
+                    }
+                  />
+                  <span>
+                    {timer.status === "running" || isTimerInteractionPanelOpen
+                      ? "일시정지"
+                      : "재생"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="session-reading-control-button session-reading-control-button-danger"
+                  onClick={openCompletion}
+                >
+                  <Icon name="stop" />
+                  <span>정지</span>
+                </button>
+                <button
+                  type="button"
+                  className="session-reading-control-button"
+                  onClick={openWordSearch}
+                  aria-pressed={isWordSearchOpen}
+                >
+                  <Icon name="search" />
+                  <span>단어검색</span>
+                </button>
+                <button
+                  type="button"
+                  className="session-reading-control-button"
+                  onClick={openSentenceNote}
+                  aria-pressed={isSentenceNoteOpen}
+                >
+                  <Icon name="edit" />
+                  <span>문장저장</span>
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}

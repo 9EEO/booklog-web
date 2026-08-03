@@ -68,6 +68,7 @@ type LibraryScreenProps = {
     page: number,
   ) => Promise<void>;
   onDeleteSentence: (bookId: string, sentenceId: string) => Promise<void>;
+  onDeleteWordNote: (bookId: string, wordNoteId: string) => Promise<void>;
   onDeleteBook: (bookId: string) => Promise<void>;
   onUpdateBookPage: (bookId: string, page: number) => Promise<void>;
   onUpdateBookTotalPages: (bookId: string, totalPages: number) => Promise<void>;
@@ -612,6 +613,7 @@ export const LibraryScreen = ({
   onAddSentence,
   onUpdateSentence,
   onDeleteSentence,
+  onDeleteWordNote,
   onDeleteBook,
   onUpdateBookPage,
   onUpdateBookTotalPages,
@@ -630,6 +632,7 @@ export const LibraryScreen = ({
     bookFormOpenRequestId > 0,
   );
   const [deleteSentenceId, setDeleteSentenceId] = useState<string | null>(null);
+  const [deleteWordNoteId, setDeleteWordNoteId] = useState<string | null>(null);
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
   const [deleteRoundId, setDeleteRoundId] = useState<string | null>(null);
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null);
@@ -677,6 +680,9 @@ export const LibraryScreen = ({
     : null;
   const deleteSentence = selectedBook?.sentences.find(
     (sentence) => sentence.id === deleteSentenceId,
+  );
+  const deleteWordNote = selectedBook?.wordNotes.find(
+    (wordNote) => wordNote.id === deleteWordNoteId,
   );
   const deleteBook = deleteBookId
     ? books.find((book) => book.id === deleteBookId)
@@ -1121,6 +1127,20 @@ export const LibraryScreen = ({
       if (editingSentenceId === deleteSentenceId) {
         setEditingSentenceId(null);
       }
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const confirmDeleteWordNote = async () => {
+    if (!selectedBook || !deleteWordNoteId) return;
+    if (isMutating) return;
+
+    setIsMutating(true);
+
+    try {
+      await onDeleteWordNote(selectedBook.id, deleteWordNoteId);
+      setDeleteWordNoteId(null);
     } finally {
       setIsMutating(false);
     }
@@ -2221,7 +2241,17 @@ export const LibraryScreen = ({
                               <strong>{wordNote.word}</strong>
                               {wordNote.pos && <span>{wordNote.pos}</span>}
                             </div>
-                            {wordNote.page && <em>{wordNote.page}p</em>}
+                            <div className="book-detail-word-actions">
+                              {wordNote.page && <em>{wordNote.page}p</em>}
+                              <button
+                                type="button"
+                                className="mini-icon-button"
+                                onClick={() => setDeleteWordNoteId(wordNote.id)}
+                                aria-label="단어 삭제"
+                              >
+                                <Icon name="trash" className="h-4 w-4" />
+                              </button>
+                            </div>
                           </div>
                           <p>{wordNote.definition}</p>
                           {wordNote.contextSentence && (
@@ -2658,6 +2688,57 @@ export const LibraryScreen = ({
                   추가
                 </button>
               </div>
+            </div>
+          </>
+        )}
+      </BottomSheetModal>
+
+      <BottomSheetModal
+        isOpen={Boolean(selectedBook && deleteWordNote)}
+        ariaLabel="단어 삭제 확인"
+        role="alertdialog"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="max-w-[360px]"
+      >
+        {deleteWordNote && (
+          <>
+            <div className="mb-3 flex items-center gap-2">
+              <div className="grid h-10 w-10 place-items-center border-2 border-[#2F2A26] bg-[#B58A7A] text-[#FFFDF8]">
+                <Icon name="trash" className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black">단어 삭제</h2>
+                <p className="text-xs font-black text-stone-500">
+                  삭제한 단어 기록은 되돌릴 수 없습니다.
+                </p>
+              </div>
+            </div>
+            <div className="mb-4 max-h-32 overflow-y-auto border-2 border-[#2F2A26] bg-[#FCFBF7] p-3 text-sm font-bold leading-relaxed">
+              <strong className="mb-1 block">{deleteWordNote.word}</strong>
+              <p>{deleteWordNote.definition}</p>
+              {deleteWordNote.page && (
+                <span className="mt-2 block text-xs font-black text-stone-500">
+                  {deleteWordNote.page}p
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setDeleteWordNoteId(null)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={confirmDeleteWordNote}
+                disabled={isMutating}
+              >
+                <Icon name="trash" className="h-5 w-5" />
+                삭제
+              </button>
             </div>
           </>
         )}
