@@ -5030,23 +5030,18 @@ button {
   white-space: nowrap;
 }
 
-.session-ready-book-change,
-.session-ready-start-button,
-.session-ready-preset-button {
-  border: 2px solid #151515;
-  border-radius: 2px;
-  font-family: var(--font-pixel);
-  font-weight: 950;
-  letter-spacing: 0;
-}
-
 .session-ready-book-change {
   min-height: 34px;
+  border: 2px solid #151515;
+  border-radius: 2px;
   background: #fffef8;
   color: #151515;
   box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
   padding: 0 10px;
+  font-family: var(--font-pixel);
   font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0;
 }
 
 .session-ready-preset-grid {
@@ -5065,70 +5060,12 @@ button {
   height: 0;
 }
 
-.session-ready-preset-button {
-  display: grid;
-  min-height: 34px;
-  grid-template-columns: 12px minmax(0, 1fr);
-  align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #151515;
-  padding: 5px 6px;
-  text-align: left;
-}
-
-.session-ready-preset-button svg {
-  width: 10px;
-  height: 10px;
-  color: rgba(21, 21, 21, 0.32);
-}
-
-.session-ready-preset-button strong {
-  overflow: hidden;
-  font-size: 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-ready-preset-button span {
-  grid-column: 2;
-  overflow: hidden;
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-ready-preset-button-active {
-  background: #151515;
-  color: #f2c94c;
-}
-
-.session-ready-preset-button-active svg {
-  color: #f2c94c;
-}
-
-.session-ready-preset-button-active span {
-  color: rgba(255, 254, 248, 0.62);
-}
-
-.session-ready-start-button {
-  min-height: 40px;
-  background: #151515;
-  color: #f2c94c;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
-  font-size: 10px;
-}
-
 .session-ready-action-row {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.session-ready-book-change:active,
-.session-ready-start-button:active,
-.session-ready-preset-button:active {
+.session-ready-book-change:active {
   transform: translateY(1px);
 }
 

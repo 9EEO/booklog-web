@@ -160,6 +160,33 @@ const formatReadyDuration = (seconds: number) => {
   return `${minutes}분`;
 };
 
+const formatDaysSinceReading = (dateLabel: string) => {
+  const [year, month, day] = dateLabel.split(".").map(Number);
+
+  if (!year || !month || !day) {
+    return "마지막 독서일 확인 불가";
+  }
+
+  const today = new Date();
+  const todayStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const readingDate = new Date(year, month - 1, day);
+  const daysSinceReading = Math.max(
+    0,
+    Math.floor(
+      (todayStart.getTime() - readingDate.getTime()) / (1000 * 60 * 60 * 24),
+    ),
+  );
+
+  if (daysSinceReading === 0) return "마지막 독서 오늘";
+  if (daysSinceReading === 1) return "마지막 독서 어제";
+
+  return `마지막 독서 ${daysSinceReading}일 전`;
+};
+
 export const SessionScreen = ({
   books,
   records,
@@ -636,7 +663,7 @@ export const SessionScreen = ({
     "--ready-progress": `${readyBookProgress ?? 0}%`,
   } as CSSProperties;
   const readyMeta = latestReadingRecord
-    ? `지난번 ${formatReadyDuration(
+    ? `${formatDaysSinceReading(latestReadingRecord.date)} · 지난번 ${formatReadyDuration(
         latestReadingRecord.durationSeconds,
       )} 읽음 · 문장 ${
         latestReadingRecord.sentence?.trim() ? 1 : 0
@@ -1194,33 +1221,77 @@ export const SessionScreen = ({
                     timer.targetSeconds === preset.seconds;
 
                   return (
-                    <button
+                    <div
                       key={preset.seconds}
-                      type="button"
-                      className={`session-ready-preset-button ${
-                        isActive ? "session-ready-preset-button-active" : ""
+                      className={`book-game-item session-ready-time-item ${
+                        isActive ? "book-game-item-active" : ""
                       }`}
-                      onClick={() => selectTimerPreset(preset.seconds)}
                     >
-                      <Icon name="chevronRight" />
-                      <strong>{preset.label}</strong>
-                      <span>STAGE {index + 1}</span>
-                    </button>
+                      <button
+                        type="button"
+                        className="book-game-preview"
+                        onClick={() => selectTimerPreset(preset.seconds)}
+                        aria-pressed={isActive}
+                      >
+                        <span className="book-game-cursor" aria-hidden="true">
+                          ▶
+                        </span>
+                        <span className="book-game-slot">
+                          {(index + 1).toString().padStart(2, "0")}
+                        </span>
+                        <span className="book-game-copy">
+                          <strong>{preset.label}</strong>
+                          <small>COUNTDOWN</small>
+                        </span>
+                      </button>
+                      {isActive ? (
+                        <button
+                          type="button"
+                          className="book-game-select-button"
+                          onClick={startTimer}
+                        >
+                          시작
+                        </button>
+                      ) : (
+                        <span className="book-game-progress">TIME</span>
+                      )}
+                    </div>
                   );
                 })}
-                <button
-                  type="button"
-                  className={`session-ready-preset-button ${
-                    timer.mode === "stopwatch"
-                      ? "session-ready-preset-button-active"
-                      : ""
+                <div
+                  className={`book-game-item session-ready-time-item ${
+                    timer.mode === "stopwatch" ? "book-game-item-active" : ""
                   }`}
-                  onClick={() => changeTimerMode("stopwatch")}
                 >
-                  <Icon name="chevronRight" />
-                  <strong>FREE JOURNEY</strong>
-                  <span>STOPWATCH</span>
-                </button>
+                  <button
+                    type="button"
+                    className="book-game-preview"
+                    onClick={() => changeTimerMode("stopwatch")}
+                    aria-pressed={timer.mode === "stopwatch"}
+                  >
+                    <span className="book-game-cursor" aria-hidden="true">
+                      ▶
+                    </span>
+                    <span className="book-game-slot">
+                      {(presets.length + 1).toString().padStart(2, "0")}
+                    </span>
+                    <span className="book-game-copy">
+                      <strong>FREE JOURNEY</strong>
+                      <small>STOPWATCH</small>
+                    </span>
+                  </button>
+                  {timer.mode === "stopwatch" ? (
+                    <button
+                      type="button"
+                      className="book-game-select-button"
+                      onClick={startTimer}
+                    >
+                      시작
+                    </button>
+                  ) : (
+                    <span className="book-game-progress">FREE</span>
+                  )}
+                </div>
               </div>
 
               <div className="session-ready-action-row">
@@ -1230,13 +1301,6 @@ export const SessionScreen = ({
                   onClick={openSessionBookSelection}
                 >
                   책 변경
-                </button>
-                <button
-                  type="button"
-                  className="session-ready-start-button"
-                  onClick={startTimer}
-                >
-                  독서 시작
                 </button>
               </div>
             </div>
