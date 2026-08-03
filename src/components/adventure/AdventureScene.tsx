@@ -406,7 +406,7 @@ const SceneHud = styled.time`
   transform: translateX(-50%);
   color: #151515;
   font-family: var(--font-pixel);
-  font-size: 12px;
+  font-size: clamp(14px, 4.2vw, 18px);
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
@@ -509,12 +509,12 @@ const CharacterSprite = styled.div<{ $status: AdventureStatus }>`
 const ProgressDock = styled.div`
   position: absolute;
   z-index: 14;
-  top: 29px;
+  bottom: 14px;
   left: 50%;
   display: grid;
   width: fit-content;
   transform: translateX(-50%);
-  grid-template-columns: min(168px, calc(100vw - 120px)) auto;
+  grid-template-columns: min(188px, calc(100vw - 104px)) auto;
   align-items: center;
   gap: 4px;
 `;
@@ -1018,7 +1018,7 @@ export const AdventureScene = ({
                 aria-label="종료"
                 title="종료"
               >
-                <Icon name="stop" className="h-4 w-4" />
+                <Icon name="power" className="h-4 w-4" />
               </ActionButton>
               {onSearch && (
                 <ActionButton

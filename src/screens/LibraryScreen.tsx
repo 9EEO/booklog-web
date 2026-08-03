@@ -30,6 +30,7 @@ import { hasKakaoBookApiKey, searchKakaoBooks } from "../services/kakaoBooks";
 import type {
   Book,
   BookSearchResult,
+  Highlight,
   NewBookInput,
   ReadingRecord,
   ReadingRound,
@@ -168,6 +169,22 @@ const supportsViewTransition = () =>
   typeof (document as DocumentWithViewTransition).startViewTransition ===
     "function" &&
   !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const getReadingRecordTime = (record: ReadingRecord) => {
+  const preciseDate = record.endedAt ?? record.startedAt;
+
+  if (preciseDate) {
+    const time = new Date(preciseDate).getTime();
+
+    if (Number.isFinite(time)) return time;
+  }
+
+  const [year, month, day] = record.date.split(".").map(Number);
+
+  if (!year || !month || !day) return 0;
+
+  return new Date(year, month - 1, day).getTime();
+};
 
 const getTransitionCoverElement = (transitionKey: string) =>
   document.querySelector<HTMLElement>(
@@ -632,6 +649,8 @@ export const LibraryScreen = ({
     bookFormOpenRequestId > 0,
   );
   const [deleteSentenceId, setDeleteSentenceId] = useState<string | null>(null);
+  const [deleteSentenceSnapshot, setDeleteSentenceSnapshot] =
+    useState<Highlight | null>(null);
   const [deleteWordNoteId, setDeleteWordNoteId] = useState<string | null>(null);
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
   const [deleteRoundId, setDeleteRoundId] = useState<string | null>(null);
@@ -680,7 +699,7 @@ export const LibraryScreen = ({
     : null;
   const deleteSentence = selectedBook?.sentences.find(
     (sentence) => sentence.id === deleteSentenceId,
-  );
+  ) ?? deleteSentenceSnapshot;
   const deleteWordNote = selectedBook?.wordNotes.find(
     (wordNote) => wordNote.id === deleteWordNoteId,
   );
@@ -695,7 +714,29 @@ export const LibraryScreen = ({
     selectedBook && selectedRoundId
       ? selectedBook.rounds?.find((round) => round.id === selectedRoundId)
       : null;
-  const readingBooks = books.filter((book) => book.status === "reading");
+  const latestRecordTimeByBookId = records.reduce<Record<string, number>>(
+    (latestTimes, record) => {
+      const recordTime = getReadingRecordTime(record);
+
+      latestTimes[record.bookId] = Math.max(
+        latestTimes[record.bookId] ?? 0,
+        recordTime,
+      );
+
+      return latestTimes;
+    },
+    {},
+  );
+  const readingBooks = books
+    .map((book, index) => ({ book, index }))
+    .filter(({ book }) => book.status === "reading")
+    .sort((left, right) => {
+      const leftTime = latestRecordTimeByBookId[left.book.id] ?? 0;
+      const rightTime = latestRecordTimeByBookId[right.book.id] ?? 0;
+
+      return rightTime - leftTime || left.index - right.index;
+    })
+    .map(({ book }) => book);
   const completedBooks = books.filter(hasCompletedRound);
   const activeShelfBooks =
     activeShelfTab === "reading" ? readingBooks : completedBooks;
@@ -829,6 +870,7 @@ export const LibraryScreen = ({
     setIsBookChatLoading(false);
     setBookChatError("");
     setDeleteSentenceId(null);
+    setDeleteSentenceSnapshot(null);
     setDeleteBookId(null);
     setDeleteRoundId(null);
     setSelectedRoundId(null);
@@ -1115,6 +1157,11 @@ export const LibraryScreen = ({
     }
   };
 
+  const closeDeleteSentenceDialog = () => {
+    setDeleteSentenceId(null);
+    setDeleteSentenceSnapshot(null);
+  };
+
   const confirmDelete = async () => {
     if (!selectedBook || !deleteSentenceId) return;
     if (isMutating) return;
@@ -1123,7 +1170,7 @@ export const LibraryScreen = ({
 
     try {
       await onDeleteSentence(selectedBook.id, deleteSentenceId);
-      setDeleteSentenceId(null);
+      closeDeleteSentenceDialog();
       if (editingSentenceId === deleteSentenceId) {
         setEditingSentenceId(null);
       }
@@ -1331,11 +1378,6 @@ export const LibraryScreen = ({
     "library-tier",
   );
   useBackNavigationLayer(Boolean(selectedBook), closeDetail, "library-detail");
-  useBackNavigationLayer(
-    Boolean(selectedBook && deleteSentence),
-    () => setDeleteSentenceId(null),
-    "library-delete-sentence",
-  );
   useBackNavigationLayer(
     Boolean(selectedBook && isAddingSentence),
     cancelDraft,
@@ -2394,9 +2436,10 @@ export const LibraryScreen = ({
                                     <button
                                       type="button"
                                       className="mini-icon-button"
-                                      onClick={() =>
-                                        setDeleteSentenceId(sentence.id)
-                                      }
+                                      onClick={() => {
+                                        setDeleteSentenceSnapshot(sentence);
+                                        setDeleteSentenceId(sentence.id);
+                                      }}
                                       aria-label="문장 삭제"
                                     >
                                       <Icon name="trash" className="h-4 w-4" />
@@ -2745,7 +2788,7 @@ export const LibraryScreen = ({
       </BottomSheetModal>
 
       <BottomSheetModal
-        isOpen={Boolean(selectedBook && deleteSentence)}
+        isOpen={Boolean(selectedBook && deleteSentenceId)}
         ariaLabel="문장 삭제 확인"
         role="alertdialog"
         backdropClassName="modal-backdrop-top"
@@ -2774,7 +2817,7 @@ export const LibraryScreen = ({
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => setDeleteSentenceId(null)}
+                onClick={closeDeleteSentenceDialog}
               >
                 취소
               </button>

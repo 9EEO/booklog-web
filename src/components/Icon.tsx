@@ -9,6 +9,7 @@ export type IconName =
   | "play"
   | "pause"
   | "stop"
+  | "power"
   | "swap"
   | "close"
   | "save"
@@ -96,6 +97,12 @@ const paths: Record<IconName, ReactNode> = {
     <>
       {softCircle}
       <rect x="7" y="7" width="10" height="10" rx="2" />
+    </>
+  ),
+  power: (
+    <>
+      {softCircle}
+      <path d="M12 3a1 1 0 0 1 1 1v7a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Zm-4.8 4.2a1 1 0 0 1 0 1.42 6 6 0 1 0 9.6 0 1 1 0 1 1 1.41-1.42 8 8 0 1 1-12.42 0 1 1 0 0 1 1.41 0Z" />
     </>
   ),
   swap: (

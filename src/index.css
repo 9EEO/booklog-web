@@ -5144,6 +5144,11 @@ button {
   padding: 9px;
 }
 
+.session-reading-controls-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+
 .session-reading-control-button {
   display: inline-flex;
   min-width: 0;
@@ -5165,10 +5170,24 @@ button {
   text-align: left;
 }
 
+.session-reading-controls-grid .session-reading-control-button {
+  min-height: 64px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 6px;
+  text-align: center;
+}
+
 .session-reading-control-button svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+}
+
+.session-reading-controls-grid .session-reading-control-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .session-reading-control-button span {
@@ -5184,9 +5203,37 @@ button {
   color: #151515;
 }
 
+.session-reading-controls-grid .session-reading-control-button-tool {
+  background: #fffef8;
+  color: rgba(21, 21, 21, 0.76);
+  box-shadow: 1px 1px 0 rgba(21, 21, 21, 0.24);
+}
+
+.session-reading-controls-grid .session-reading-control-button-tool svg {
+  color: rgba(21, 21, 21, 0.68);
+}
+
+.session-reading-controls-grid .session-reading-control-button-danger {
+  color: #151515;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
+}
+
 .session-reading-control-button[aria-pressed="true"] {
   background: #2563eb;
   color: #fffef8;
+}
+
+.session-reading-controls-grid
+  .session-reading-control-button-tool[aria-pressed="true"] {
+  background: #151515;
+  color: #f2c94c;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
+}
+
+.session-reading-controls-grid
+  .session-reading-control-button-tool[aria-pressed="true"]
+  svg {
+  color: #f2c94c;
 }
 
 .session-reading-control-button:active {
@@ -5404,6 +5451,10 @@ button {
   width: 100%;
   font-size: 8px;
   font-weight: 950;
+}
+
+.book-game-progress-empty {
+  visibility: hidden;
 }
 
 .book-game-select-button {
@@ -8284,7 +8335,7 @@ button {
 
 .session-word-search-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px 34px;
+  grid-template-columns: minmax(0, 1fr) 40px;
   gap: 6px;
   border-bottom: 2px solid #151515;
   padding: 8px;
@@ -8327,13 +8378,6 @@ button {
 .session-word-go-button svg {
   width: 14px;
   height: 14px;
-}
-
-.session-word-close-button {
-  display: grid;
-  place-items: center;
-  background: #ffffff;
-  color: #151515;
 }
 
 .session-word-search-form button:disabled {
@@ -8544,7 +8588,7 @@ button {
 
 .session-sentence-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -8552,35 +8596,6 @@ button {
   border-radius: 0;
   background: #ffffff;
   box-shadow: none;
-  color: #151515;
-}
-
-.session-sentence-panel-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 2px solid #151515;
-  padding: 8px;
-}
-
-.session-sentence-panel-header strong {
-  overflow: hidden;
-  font-family: var(--font-pixel);
-  font-size: 10px;
-  font-weight: 950;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-sentence-panel-header button {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 2px solid #151515;
-  border-radius: 2px;
-  background: #ffffff;
   color: #151515;
 }
 

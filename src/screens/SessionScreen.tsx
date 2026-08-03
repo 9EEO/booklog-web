@@ -187,6 +187,22 @@ const formatDaysSinceReading = (dateLabel: string) => {
   return `마지막 독서 ${daysSinceReading}일 전`;
 };
 
+const getReadingRecordTime = (record: ReadingRecord) => {
+  const preciseDate = record.endedAt ?? record.startedAt;
+
+  if (preciseDate) {
+    const time = new Date(preciseDate).getTime();
+
+    if (Number.isFinite(time)) return time;
+  }
+
+  const [year, month, day] = record.date.split(".").map(Number);
+
+  if (!year || !month || !day) return 0;
+
+  return new Date(year, month - 1, day).getTime();
+};
+
 export const SessionScreen = ({
   books,
   records,
@@ -242,6 +258,7 @@ export const SessionScreen = ({
   });
   const bookPreviewGlitchTimerRef = useRef<number | null>(null);
   const bookDescriptionRef = useRef<HTMLParagraphElement | null>(null);
+  const completionPageInputRef = useRef<HTMLInputElement | null>(null);
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
 
@@ -306,8 +323,33 @@ export const SessionScreen = ({
   );
 
   const readingBooks = useMemo(
-    () => books.filter((book) => book.status !== "completed"),
-    [books],
+    () => {
+      const latestRecordTimeByBookId = records.reduce<Record<string, number>>(
+        (latestTimes, record) => {
+          const recordTime = getReadingRecordTime(record);
+
+          latestTimes[record.bookId] = Math.max(
+            latestTimes[record.bookId] ?? 0,
+            recordTime,
+          );
+
+          return latestTimes;
+        },
+        {},
+      );
+
+      return books
+        .map((book, index) => ({ book, index }))
+        .filter(({ book }) => book.status !== "completed")
+        .sort((left, right) => {
+          const leftTime = latestRecordTimeByBookId[left.book.id] ?? 0;
+          const rightTime = latestRecordTimeByBookId[right.book.id] ?? 0;
+
+          return rightTime - leftTime || left.index - right.index;
+        })
+        .map(({ book }) => book);
+    },
+    [books, records],
   );
   const memoryLogs = useMemo(() => {
     const bookHighlights = books.flatMap((book) =>
@@ -357,6 +399,19 @@ export const SessionScreen = ({
 
     vibrateSuccess();
   }, [currentBook, isCompletionVisible]);
+
+  useEffect(() => {
+    if (!isCompletionVisible) return undefined;
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      completionPageInputRef.current?.focus();
+      completionPageInputRef.current?.select();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+    };
+  }, [isCompletionVisible]);
 
   useEffect(
     () => () => {
@@ -479,6 +534,7 @@ export const SessionScreen = ({
 
   const selectSessionBook = (bookId: string) => {
     vibrateSelect();
+    timerControlSound.playConfirm();
     onChangeBook(bookId);
     setPreviewBookId(bookId);
     setHasSelectedSessionBook(true);
@@ -489,6 +545,7 @@ export const SessionScreen = ({
     if (bookId === selectedBookPreview?.id) return;
 
     vibrateSelect();
+    timerControlSound.playSelect();
     if (bookPreviewGlitchTimerRef.current !== null) {
       window.clearTimeout(bookPreviewGlitchTimerRef.current);
     }
@@ -662,13 +719,12 @@ export const SessionScreen = ({
   const readyProgressStyle = {
     "--ready-progress": `${readyBookProgress ?? 0}%`,
   } as CSSProperties;
+  const savedSentenceCount = currentBook.sentences.length;
   const readyMeta = latestReadingRecord
     ? `${formatDaysSinceReading(latestReadingRecord.date)} · 지난번 ${formatReadyDuration(
         latestReadingRecord.durationSeconds,
-      )} 읽음 · 문장 ${
-        latestReadingRecord.sentence?.trim() ? 1 : 0
-      }개 저장`
-    : `아직 독서 기록 없음 · 저장 문장 ${currentBook.sentences.length}개`;
+      )} 읽음 · 저장 문장 ${savedSentenceCount}개`
+    : `아직 독서 기록 없음 · 저장 문장 ${savedSentenceCount}개`;
   const updateForm = (patch: Partial<typeof form>) => {
     setForm((current) => ({
       ...current,
@@ -998,13 +1054,6 @@ export const SessionScreen = ({
         void saveSentenceNote();
       }}
     >
-      <div className="session-sentence-panel-header">
-        <strong>문장 추가</strong>
-        <button type="button" onClick={closeSentenceNote} aria-label="닫기">
-          <Icon name="close" className="h-3 w-3" />
-        </button>
-      </div>
-
       <div className="session-sentence-panel-body">
         <label className="session-sentence-page-field">
           <span>페이지</span>
@@ -1078,14 +1127,6 @@ export const SessionScreen = ({
           }
         >
           {wordSearchStatus === "loading" ? "..." : <Icon name="search" />}
-        </button>
-        <button
-          type="button"
-          className="session-word-close-button"
-          onClick={closeWordSearch}
-          aria-label="검색 닫기"
-        >
-          <Icon name="close" className="h-3 w-3" />
         </button>
       </div>
 
@@ -1241,7 +1282,6 @@ export const SessionScreen = ({
                         </span>
                         <span className="book-game-copy">
                           <strong>{preset.label}</strong>
-                          <small>COUNTDOWN</small>
                         </span>
                       </button>
                       {isActive ? (
@@ -1253,7 +1293,10 @@ export const SessionScreen = ({
                           시작
                         </button>
                       ) : (
-                        <span className="book-game-progress">TIME</span>
+                        <span
+                          className="book-game-progress book-game-progress-empty"
+                          aria-hidden="true"
+                        />
                       )}
                     </div>
                   );
@@ -1277,7 +1320,6 @@ export const SessionScreen = ({
                     </span>
                     <span className="book-game-copy">
                       <strong>FREE JOURNEY</strong>
-                      <small>STOPWATCH</small>
                     </span>
                   </button>
                   {timer.mode === "stopwatch" ? (
@@ -1289,7 +1331,10 @@ export const SessionScreen = ({
                       시작
                     </button>
                   ) : (
-                    <span className="book-game-progress">FREE</span>
+                    <span
+                      className="book-game-progress book-game-progress-empty"
+                      aria-hidden="true"
+                    />
                   )}
                 </div>
               </div>
@@ -1336,6 +1381,7 @@ export const SessionScreen = ({
                         <span>현재 페이지</span>
                         <span className="session-completion-page-input">
                           <input
+                            ref={completionPageInputRef}
                             id="end-page"
                             type="text"
                             inputMode="numeric"
@@ -1477,6 +1523,12 @@ export const SessionScreen = ({
                 role="group"
                 aria-label="단어 검색 조작"
               >
+                <SentenceOcrButton
+                  disabled={!selectedWordDefinition || isSavingWordNote}
+                  label="사진으로담기"
+                  buttonClassName="session-reading-control-button"
+                  onRecognized={appendWordNoteSentence}
+                />
                 <button
                   type="button"
                   className="session-reading-control-button"
@@ -1488,12 +1540,6 @@ export const SessionScreen = ({
                     {isSavingWordNote ? "저장 중" : "선택된 단어 저장"}
                   </span>
                 </button>
-                <SentenceOcrButton
-                  disabled={!selectedWordDefinition || isSavingWordNote}
-                  label="사진으로담기"
-                  buttonClassName="session-reading-control-button"
-                  onRecognized={appendWordNoteSentence}
-                />
                 <button
                   type="button"
                   className="session-reading-control-button session-reading-control-button-danger"
@@ -1509,6 +1555,12 @@ export const SessionScreen = ({
                 role="group"
                 aria-label="문장 추가 조작"
               >
+                <SentenceOcrButton
+                  disabled={isSavingSentenceNote}
+                  label="사진으로담기"
+                  buttonClassName="session-reading-control-button"
+                  onRecognized={appendSentenceNoteText}
+                />
                 <button
                   type="button"
                   className="session-reading-control-button"
@@ -1518,12 +1570,6 @@ export const SessionScreen = ({
                   <Icon name="save" />
                   <span>{isSavingSentenceNote ? "저장 중" : "문장 저장"}</span>
                 </button>
-                <SentenceOcrButton
-                  disabled={isSavingSentenceNote}
-                  label="사진으로담기"
-                  buttonClassName="session-reading-control-button"
-                  onRecognized={appendSentenceNoteText}
-                />
                 <button
                   type="button"
                   className="session-reading-control-button session-reading-control-button-danger"
@@ -1535,7 +1581,7 @@ export const SessionScreen = ({
               </div>
             ) : (
               <div
-                className="session-reading-controls"
+                className="session-reading-controls session-reading-controls-grid"
                 role="group"
                 aria-label="독서 타이머 조작"
               >
@@ -1565,12 +1611,12 @@ export const SessionScreen = ({
                   className="session-reading-control-button session-reading-control-button-danger"
                   onClick={openCompletion}
                 >
-                  <Icon name="stop" />
-                  <span>정지</span>
+                  <Icon name="power" />
+                  <span>종료</span>
                 </button>
                 <button
                   type="button"
-                  className="session-reading-control-button"
+                  className="session-reading-control-button session-reading-control-button-tool"
                   onClick={openWordSearch}
                   aria-pressed={isWordSearchOpen}
                 >
@@ -1579,7 +1625,7 @@ export const SessionScreen = ({
                 </button>
                 <button
                   type="button"
-                  className="session-reading-control-button"
+                  className="session-reading-control-button session-reading-control-button-tool"
                   onClick={openSentenceNote}
                   aria-pressed={isSentenceNoteOpen}
                 >
