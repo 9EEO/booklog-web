@@ -14,10 +14,12 @@ import { useAuth } from "./hooks/useAuth";
 import { useReadingTimer } from "./hooks/useReadingTimer";
 import { AdminScreen } from "./screens/AdminScreen";
 import { AuthScreen } from "./screens/AuthScreen";
+import { LandingScreen } from "./screens/LandingScreen";
 import { LibraryScreen } from "./screens/LibraryScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { RecordScreen } from "./screens/RecordScreen";
 import { SessionScreen } from "./screens/SessionScreen";
+import { WebTimerScreen } from "./screens/WebTimerScreen";
 import {
   createRemoteBook,
   createRemoteHighlight,
@@ -1626,7 +1628,10 @@ function AuthenticatedApp({
 
 function BooklogApp() {
   const auth = useAuth();
-  const isAdminPath = window.location.pathname.startsWith("/admin");
+  const pathname = window.location.pathname;
+  const isAdminPath = pathname.startsWith("/admin");
+  const isAuthPath = pathname.startsWith("/login");
+  const isWebTimerPath = pathname.startsWith("/timer");
 
   if (auth.isLoading) {
     return (
@@ -1636,6 +1641,14 @@ function BooklogApp() {
         </div>
       </main>
     );
+  }
+
+  if (isWebTimerPath) {
+    return <WebTimerScreen books={getInitialBooks()} />;
+  }
+
+  if (!auth.user && !isAuthPath && !isAdminPath) {
+    return <LandingScreen />;
   }
 
   if (!auth.user) {
