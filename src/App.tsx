@@ -1601,11 +1601,9 @@ function AuthenticatedApp({
           className={`min-h-0 flex-1 ${
             shouldHideBottomTabs
               ? "overflow-y-auto pb-0"
-              : `px-4 pb-28 pt-5 ${
-                  activeTab === "session"
-                    ? "app-content-session"
-                    : "overflow-y-auto"
-                }`
+              : activeTab === "session"
+                ? "app-content-session px-0 pb-28 pt-1"
+                : "overflow-y-auto px-4 pb-28 pt-5"
           }`}
         >
           {syncError && (

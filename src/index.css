@@ -3657,7 +3657,7 @@ button {
 .app-content-session .session-screen {
   display: flex;
   height: calc(
-    100svh - 20px - max(92px, calc(84px + env(safe-area-inset-bottom)))
+    100svh - 4px - max(92px, calc(84px + env(safe-area-inset-bottom)))
   );
   flex-direction: column;
   gap: 16px;
