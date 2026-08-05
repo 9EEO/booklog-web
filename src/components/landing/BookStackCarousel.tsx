@@ -8,8 +8,10 @@ import {
   type PanInfo,
 } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { WheelEvent } from 'react'
 import { resolveBestBookCover } from '../../services/bookCovers'
 import type { Book } from '../../types/reading'
+import { getBookProgress } from '../../utils/bookPages'
 
 type BookSlide = {
   id: string
@@ -20,6 +22,7 @@ type BookSlide = {
   badge: string
   coverColor: string
   accentColor: string
+  progress: number
 }
 
 type CarouselConfig = {
@@ -44,6 +47,7 @@ const fallbackSlides: BookSlide[] = [
     badge: 'Classic',
     coverColor: '#202124',
     accentColor: '#ff6b2c',
+    progress: 0,
   },
   {
     id: 'sample-night',
@@ -52,6 +56,7 @@ const fallbackSlides: BookSlide[] = [
     badge: 'Notes',
     coverColor: '#1f2937',
     accentColor: '#93c5fd',
+    progress: 0,
   },
   {
     id: 'sample-essay',
@@ -60,6 +65,7 @@ const fallbackSlides: BookSlide[] = [
     badge: 'Essay',
     coverColor: '#3f3f46',
     accentColor: '#facc15',
+    progress: 0,
   },
   {
     id: 'sample-words',
@@ -68,6 +74,7 @@ const fallbackSlides: BookSlide[] = [
     badge: 'Words',
     coverColor: '#27272a',
     accentColor: '#a7f3d0',
+    progress: 0,
   },
   {
     id: 'sample-library',
@@ -76,6 +83,7 @@ const fallbackSlides: BookSlide[] = [
     badge: 'Archive',
     coverColor: '#18181b',
     accentColor: '#fda4af',
+    progress: 0,
   },
 ]
 
@@ -134,6 +142,7 @@ const createSlides = (books: Book[]): BookSlide[] => {
     badge: book.status === 'completed' ? 'Completed' : 'Reading',
     coverColor: book.coverColor,
     accentColor: book.accentColor,
+    progress: getBookProgress(book.currentPage, book.totalPages) ?? 0,
   }))
 
   return bookSlides.length > 0 ? bookSlides : fallbackSlides
@@ -142,12 +151,14 @@ const createSlides = (books: Book[]): BookSlide[] => {
 export const BookStackCarousel = ({ books }: BookStackCarouselProps) => {
   const scrollProgress = useMotionValue(0)
   const startProgress = useRef(0)
+  const [selectedIndex, setSelectedIndex] = useState(0)
   const [windowWidth, setWindowWidth] = useState(() =>
     typeof window === 'undefined' ? 1024 : window.innerWidth,
   )
   const [resolvedCovers, setResolvedCovers] = useState<Record<string, string | undefined>>({})
   const slides = useMemo(() => createSlides(books), [books])
   const total = slides.length
+  const selectedSlide = slides[selectedIndex] ?? slides[0]
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth)
@@ -183,6 +194,16 @@ export const BookStackCarousel = ({ books }: BookStackCarouselProps) => {
     }
   }, [slides])
 
+  useEffect(() => {
+    const updateSelectedIndex = (value: number) => {
+      setSelectedIndex(((Math.round(value) % total) + total) % total)
+    }
+
+    updateSelectedIndex(scrollProgress.get())
+
+    return scrollProgress.on('change', updateSelectedIndex)
+  }, [scrollProgress, total])
+
   const config = useMemo(() => getCarouselConfig(windowWidth), [windowWidth])
 
   const handleDragStart = () => {
@@ -206,14 +227,23 @@ export const BookStackCarousel = ({ books }: BookStackCarouselProps) => {
     })
   }
 
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault()
+
+    const delta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+
+    scrollProgress.set(scrollProgress.get() + delta / config.sensitivity)
+  }
+
   return (
     <section id="book-stack" className="landing-book-stack" aria-label="책 리스트">
       <div className="landing-book-stack-copy">
         <span>BOOK LIST</span>
         <h2>Your reading shelf, stacked.</h2>
         <p>
-          Drag the covers to browse books. Your recent books can become the first
-          web view people meet.
+          Drag or scroll the covers to browse books. Your recent books can become
+          the first web view people meet.
         </p>
       </div>
 
@@ -227,6 +257,7 @@ export const BookStackCarousel = ({ books }: BookStackCarouselProps) => {
             scrollProgress.set(scrollProgress.get() + delta)
           }}
           onDragEnd={handleDragEnd}
+          onWheel={handleWheel}
           className="landing-book-stack-drag"
           aria-hidden="true"
         />
@@ -243,7 +274,43 @@ export const BookStackCarousel = ({ books }: BookStackCarouselProps) => {
           />
         ))}
       </div>
+
+      {selectedSlide && <BookStackProgress slide={selectedSlide} />}
     </section>
+  )
+}
+
+type BookStackProgressProps = {
+  slide: BookSlide
+}
+
+const BookStackProgress = ({ slide }: BookStackProgressProps) => (
+  <div className="landing-book-stack-progress">
+    <div className="landing-book-stack-progress-header">
+      <strong>{slide.title}</strong>
+      <span>{slide.progress}%</span>
+    </div>
+    <XpBar value={slide.progress} />
+  </div>
+)
+
+type XpBarProps = {
+  value: number
+}
+
+const XpBar = ({ value }: XpBarProps) => {
+  const progress = Math.max(0, Math.min(100, value))
+
+  return (
+    <div
+      className="landing-xp-bar"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={progress}
+    >
+      <span style={{ transform: `translateX(-${100 - progress}%)` }} />
+    </div>
   )
 }
 

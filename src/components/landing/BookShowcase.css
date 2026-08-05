@@ -1,0 +1,254 @@
+.landing-book-showcase {
+  display: flex;
+  width: min(100%, 1040px);
+  align-items: flex-start;
+  justify-content: center;
+  gap: 48px;
+  margin: 10px auto 0;
+  padding: 18px 0 54px;
+  user-select: none;
+}
+
+.landing-book-showcase-grid {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 4px 8px;
+  scrollbar-width: none;
+}
+
+.landing-book-showcase-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.landing-book-showcase-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.landing-book-showcase-column-2 {
+  margin-top: 68px;
+}
+
+.landing-book-showcase-column-3 {
+  margin-top: 32px;
+}
+
+.landing-book-showcase-cover {
+  --showcase-cover: #202124;
+  --showcase-accent: #ff6b2c;
+  display: grid;
+  width: 145px;
+  height: 210px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--showcase-accent) 42%, transparent), transparent 46%),
+    var(--showcase-cover);
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0;
+  transition:
+    opacity 300ms ease,
+    transform 300ms ease;
+}
+
+.landing-book-showcase-column-2 .landing-book-showcase-cover {
+  width: 145px;
+  height: 210px;
+}
+
+.landing-book-showcase-column-3 .landing-book-showcase-cover {
+  width: 145px;
+  height: 210px;
+}
+
+.landing-book-showcase-cover:hover,
+.landing-book-showcase-cover:focus-visible {
+  transform: translateY(-3px);
+}
+
+.landing-book-showcase-cover:focus-visible {
+  outline: 2px solid var(--auth-orange);
+  outline-offset: 3px;
+}
+
+.landing-book-showcase-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) brightness(0.77);
+  transition: filter 500ms ease;
+}
+
+.landing-book-showcase-cover:hover img,
+.landing-book-showcase-cover:focus-visible img,
+.landing-book-showcase-cover-active img {
+  filter: grayscale(0) brightness(1);
+}
+
+.landing-book-showcase-cover span {
+  max-width: 78%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.16;
+  text-align: center;
+}
+
+.landing-book-showcase-list {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 360px;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 8px;
+}
+
+.landing-book-showcase-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--auth-ink);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  transition: opacity 300ms ease;
+}
+
+.landing-book-showcase-row:focus-visible {
+  outline: 2px solid var(--auth-orange);
+  outline-offset: 4px;
+}
+
+.landing-book-showcase-marker {
+  width: 5px;
+  height: 5px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: rgba(21, 21, 21, 0.25);
+  transition:
+    width 300ms ease,
+    background 300ms ease;
+}
+
+.landing-book-showcase-row-active .landing-book-showcase-marker,
+.landing-book-showcase-row:hover .landing-book-showcase-marker,
+.landing-book-showcase-row:focus-visible .landing-book-showcase-marker {
+  width: 5px;
+  height: 5px;
+  background: var(--auth-orange);
+}
+
+.landing-book-showcase-row strong {
+  display: block;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landing-book-showcase-row em {
+  display: block;
+  overflow: hidden;
+  margin-top: 6px;
+  color: var(--auth-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.landing-book-showcase-dimmed {
+  opacity: 0.52;
+}
+
+@media (max-width: 900px) {
+  .landing-book-showcase {
+    flex-direction: column;
+    gap: 26px;
+    padding: 8px 0 44px;
+  }
+
+  .landing-book-showcase-grid {
+    width: 100%;
+  }
+
+  .landing-book-showcase-list {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 20px;
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .landing-book-showcase {
+    gap: 22px;
+    padding: 2px 0 36px;
+  }
+
+  .landing-book-showcase-grid {
+    gap: 8px;
+    margin: 0 -16px;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .landing-book-showcase-column {
+    gap: 8px;
+  }
+
+  .landing-book-showcase-column-2 {
+    margin-top: 48px;
+  }
+
+  .landing-book-showcase-column-3 {
+    margin-top: 22px;
+  }
+
+  .landing-book-showcase-cover {
+    width: 110px;
+    height: 120px;
+    border-radius: 10px;
+  }
+
+  .landing-book-showcase-column-2 .landing-book-showcase-cover {
+    width: 122px;
+    height: 132px;
+  }
+
+  .landing-book-showcase-column-3 .landing-book-showcase-cover {
+    width: 115px;
+    height: 125px;
+  }
+
+  .landing-book-showcase-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 15px;
+  }
+
+  .landing-book-showcase-row strong {
+    font-size: 16px;
+  }
+
+  .landing-book-showcase-row em {
+    font-size: 9px;
+  }
+}

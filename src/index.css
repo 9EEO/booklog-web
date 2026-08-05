@@ -4138,6 +4138,69 @@ button {
   -webkit-line-clamp: 2;
 }
 
+.landing-book-stack-progress {
+  display: grid;
+  width: min(100%, 420px);
+  gap: 12px;
+  margin: -8px auto 0;
+  color: var(--auth-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.landing-book-stack-progress-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.landing-book-stack-progress-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landing-book-stack-progress-header span {
+  flex: 0 0 auto;
+}
+
+.landing-xp-bar {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  background: rgba(21, 21, 21, 0.14);
+}
+
+.landing-xp-bar span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #eab308;
+  transition: transform 180ms ease;
+}
+
+.landing-xp-bar::before,
+.landing-xp-bar::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  content: "";
+}
+
+.landing-xp-bar::before {
+  border-top: 4px solid #151515;
+  border-bottom: 4px solid #151515;
+}
+
+.landing-xp-bar::after {
+  border-right: 4px solid #151515;
+  border-left: 4px solid #151515;
+}
+
 .auth-panel {
   width: 100%;
   max-width: 420px;
