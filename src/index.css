@@ -3650,15 +3650,16 @@ button {
 }
 
 .app-content-session {
+  --session-outer-gap: 10px;
+  --session-bottom-space: max(92px, calc(84px + env(safe-area-inset-bottom)));
   overflow: hidden;
-  padding-bottom: max(92px, calc(84px + env(safe-area-inset-bottom)));
+  padding: var(--session-outer-gap) var(--session-outer-gap)
+    var(--session-bottom-space);
 }
 
 .app-content-session .session-screen {
   display: flex;
-  height: calc(
-    100svh - 4px - max(92px, calc(84px + env(safe-area-inset-bottom)))
-  );
+  height: calc(100svh - var(--session-outer-gap) - var(--session-bottom-space));
   flex-direction: column;
   gap: 16px;
   overflow: hidden;
@@ -8709,6 +8710,48 @@ button {
   font-weight: 950;
   line-height: 1;
   text-shadow: 1px 1px 0 #f2c94c;
+}
+
+.session-saved-summary-hud {
+  width: min(100%, 292px);
+  gap: 7px;
+  transform: translateY(-60px);
+}
+
+.session-saved-summary-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgba(21, 21, 21, 0.16);
+}
+
+.session-saved-summary-list div {
+  display: flex;
+  min-height: 25px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid rgba(21, 21, 21, 0.16);
+  padding: 5px 0;
+}
+
+.session-saved-summary-list span {
+  flex: 0 0 auto;
+  color: rgba(21, 21, 21, 0.48);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.session-saved-summary-list strong {
+  overflow: hidden;
+  color: #151515;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  font-weight: 950;
+  line-height: 1.35;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-completion-page-field {

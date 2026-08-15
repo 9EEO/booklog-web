@@ -31,7 +31,7 @@ import {
   vibrateWarning,
 } from "../utils/haptics";
 import { parsePageInput } from "../utils/pageInput";
-import { getBookProgress } from "../utils/bookPages";
+import { clampBookPage, getBookProgress } from "../utils/bookPages";
 import { getDisplayBookDescription } from "../utils/bookDescription";
 
 type SessionScreenProps = {
@@ -41,6 +41,7 @@ type SessionScreenProps = {
   dailyGoalSeconds: number;
   timer: ReadingTimer;
   onChangeBook: (bookId: string) => void;
+  onOpenBookDetail: (bookId: string) => void;
   onSaveRecord: (input: ReadingCompletionInput) => Promise<void>;
   onAddSentence: (bookId: string, text: string, page: number) => Promise<void>;
   onAddWordNote: (bookId: string, input: WordNoteInput) => Promise<void>;
@@ -55,6 +56,24 @@ type SelectedWordDefinition = {
 };
 
 type VisibleWordDefinition = SelectedWordDefinition;
+
+type SessionBaseline = {
+  bookId: string;
+  sentenceCount: number;
+  wordCount: number;
+};
+
+type SavedSessionSummary = {
+  bookId: string;
+  durationSeconds: number;
+  startPage: number;
+  endPage: number;
+  totalPages: number | null;
+  previousProgress: number | null;
+  nextProgress: number | null;
+  savedSentenceCount: number;
+  savedWordCount: number;
+};
 
 const presets = [
   import.meta.env.DEV
@@ -93,10 +112,43 @@ const todayLabel = () =>
     .replace(/\.\s?/g, ".")
     .replace(/\.$/, "");
 
+const scrollItemIntoComfortableView = (
+  containerElement: HTMLElement,
+  itemElement: HTMLElement,
+) => {
+  const containerRect = containerElement.getBoundingClientRect();
+  const itemRect = itemElement.getBoundingClientRect();
+  const comfortableGap = Math.min(
+    28,
+    Math.max(12, containerElement.clientHeight * 0.12),
+  );
+  const targetTopEdge = containerRect.top + comfortableGap;
+  const targetBottomEdge = containerRect.bottom - comfortableGap;
+
+  if (itemRect.top < targetTopEdge) {
+    containerElement.scrollTo({
+      top: Math.max(
+        containerElement.scrollTop + itemRect.top - targetTopEdge,
+        0,
+      ),
+      behavior: "smooth",
+    });
+    return;
+  }
+
+  if (itemRect.bottom > targetBottomEdge) {
+    containerElement.scrollTo({
+      top: containerElement.scrollTop + itemRect.bottom - targetBottomEdge,
+      behavior: "smooth",
+    });
+  }
+};
+
 type BookGameSelectItemProps = {
   book: Book;
   index: number;
   isActive: boolean;
+  itemRef?: (node: HTMLDivElement | null) => void;
   onSelect: () => void;
   onConfirm: () => void;
 };
@@ -105,6 +157,7 @@ const BookGameSelectItem = ({
   book,
   index,
   isActive,
+  itemRef,
   onSelect,
   onConfirm,
 }: BookGameSelectItemProps) => {
@@ -112,6 +165,7 @@ const BookGameSelectItem = ({
 
   return (
     <div
+      ref={itemRef}
       className={`book-game-item ${isActive ? "book-game-item-active" : ""}`}
     >
       <button
@@ -210,6 +264,7 @@ export const SessionScreen = ({
   dailyGoalSeconds,
   timer,
   onChangeBook,
+  onOpenBookDetail,
   onSaveRecord,
   onAddSentence,
   onAddWordNote,
@@ -249,6 +304,10 @@ export const SessionScreen = ({
   const [isSavingWordNote, setIsSavingWordNote] = useState(false);
   const [wordSaveMessage, setWordSaveMessage] = useState("");
   const [timerToastMessage, setTimerToastMessage] = useState("");
+  const [sessionBaseline, setSessionBaseline] =
+    useState<SessionBaseline | null>(null);
+  const [savedSessionSummary, setSavedSessionSummary] =
+    useState<SavedSessionSummary | null>(null);
   const [extensionSeconds, setExtensionSeconds] = useState(
     minimumExtensionSeconds,
   );
@@ -258,6 +317,12 @@ export const SessionScreen = ({
   });
   const bookPreviewGlitchTimerRef = useRef<number | null>(null);
   const bookDescriptionRef = useRef<HTMLParagraphElement | null>(null);
+  const bookSelectListRef = useRef<HTMLDivElement | null>(null);
+  const bookSelectItemRefs = useRef(new Map<string, HTMLDivElement>());
+  const timerPresetListRef = useRef<HTMLDivElement | null>(null);
+  const timerPresetItemRefs = useRef(new Map<string, HTMLDivElement>());
+  const wordResultListRef = useRef<HTMLDivElement | null>(null);
+  const wordResultItemRefs = useRef(new Map<string, HTMLElement>());
   const completionPageInputRef = useRef<HTMLInputElement | null>(null);
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
@@ -394,6 +459,8 @@ export const SessionScreen = ({
   const isCompletionVisible =
     isCompletionOpen ||
     (timer.status === "completed" && timer.elapsedSeconds > 0);
+  const canChangeTimerMode =
+    timer.status === "idle" && timer.elapsedSeconds === 0;
   useEffect(() => {
     if (!currentBook || !isCompletionVisible) return;
 
@@ -423,6 +490,7 @@ export const SessionScreen = ({
   );
 
   const canShowBookSelectScreen =
+    !savedSessionSummary &&
     readingBooks.length > 0 &&
     (!currentBook ||
       (!hasSelectedSessionBook &&
@@ -454,6 +522,58 @@ export const SessionScreen = ({
     .join("");
   const isBookDescriptionTyping =
     visibleBookDescriptionLength < selectedBookDescriptionCharacters.length;
+
+  useEffect(() => {
+    if (!canShowBookSelectScreen || !previewBookId) return undefined;
+
+    const listElement = bookSelectListRef.current;
+    const itemElement = bookSelectItemRefs.current.get(previewBookId);
+    if (!listElement || !itemElement) return undefined;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      scrollItemIntoComfortableView(listElement, itemElement);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [canShowBookSelectScreen, previewBookId]);
+
+  const activeTimerOptionKey =
+    timer.mode === "stopwatch" ? "stopwatch" : `preset-${timer.targetSeconds}`;
+
+  useEffect(() => {
+    if (!canChangeTimerMode) return undefined;
+
+    const listElement = timerPresetListRef.current;
+    const itemElement = timerPresetItemRefs.current.get(activeTimerOptionKey);
+    if (!listElement || !itemElement) return undefined;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      scrollItemIntoComfortableView(listElement, itemElement);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [activeTimerOptionKey, canChangeTimerMode]);
+
+  useEffect(() => {
+    const selectedKey = selectedWordDefinition?.key;
+    if (!isWordSearchOpen || !selectedKey) return undefined;
+
+    const listElement = wordResultListRef.current;
+    const itemElement = wordResultItemRefs.current.get(selectedKey);
+    if (!listElement || !itemElement) return undefined;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      scrollItemIntoComfortableView(listElement, itemElement);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [isWordSearchOpen, selectedWordDefinition?.key]);
   const bookDescriptionStyle = {
     "--book-description-lines": bookDescriptionLineClamp,
   } as CSSProperties;
@@ -631,13 +751,25 @@ export const SessionScreen = ({
             )}
 
             <div className="session-book-select-library">
-              <div className="session-book-select-list" role="list">
+              <div
+                ref={bookSelectListRef}
+                className="session-book-select-list"
+                role="list"
+              >
                 {readingBooks.map((book, index) => (
                   <BookGameSelectItem
                     key={book.id}
                     book={book}
                     index={index}
                     isActive={book.id === selectedBookPreview?.id}
+                    itemRef={(node) => {
+                      if (node) {
+                        bookSelectItemRefs.current.set(book.id, node);
+                        return;
+                      }
+
+                      bookSelectItemRefs.current.delete(book.id);
+                    }}
                     onSelect={() => previewSessionBook(book.id)}
                     onConfirm={() => selectSessionBook(book.id)}
                   />
@@ -701,8 +833,6 @@ export const SessionScreen = ({
     : timer.progress;
   const canDecreaseExtension = extensionSeconds > minimumExtensionSeconds;
   const canIncreaseExtension = extensionSeconds < maximumExtensionSeconds;
-  const canChangeTimerMode =
-    timer.status === "idle" && timer.elapsedSeconds === 0;
   const currentBookRecords = records
     .filter((record) => record.bookId === currentBook.id)
     .sort(
@@ -751,6 +881,35 @@ export const SessionScreen = ({
     setIsSaving(true);
 
     try {
+      const savedEndPage = clampBookPage(
+        endPage,
+        currentBook.totalPages,
+        currentBook.currentPage,
+      );
+      const baseline =
+        sessionBaseline?.bookId === currentBook.id ? sessionBaseline : null;
+      const summary: SavedSessionSummary = {
+        bookId: currentBook.id,
+        durationSeconds: Math.max(timer.elapsedSeconds, 1),
+        startPage: currentBook.currentPage,
+        endPage: savedEndPage,
+        totalPages: currentBook.totalPages,
+        previousProgress: getBookProgress(
+          currentBook.currentPage,
+          currentBook.totalPages,
+        ),
+        nextProgress: getBookProgress(savedEndPage, currentBook.totalPages),
+        savedSentenceCount: Math.max(
+          currentBook.sentences.length -
+            (baseline?.sentenceCount ?? currentBook.sentences.length),
+          0,
+        ),
+        savedWordCount: Math.max(
+          currentBook.wordNotes.length -
+            (baseline?.wordCount ?? currentBook.wordNotes.length),
+          0,
+        ),
+      };
       const endedAt = new Date();
       const startedAt = new Date(
         timer.sessionStartedAt ??
@@ -763,6 +922,8 @@ export const SessionScreen = ({
         endedAt: endedAt.toISOString(),
         endPage,
       });
+      setSavedSessionSummary(summary);
+      setSessionBaseline(null);
       timer.reset();
       setForm({
         bookId: currentBook.id,
@@ -778,6 +939,7 @@ export const SessionScreen = ({
     vibrateTap();
     timerCompletionSound.prepare();
     setIsCompletionOpen(false);
+    setSavedSessionSummary(null);
     timer.extendAndResume(extensionSeconds);
   };
 
@@ -789,6 +951,8 @@ export const SessionScreen = ({
       endPage: 0,
     });
     setIsCompletionOpen(false);
+    setSavedSessionSummary(null);
+    setSessionBaseline(null);
   };
 
   const adjustExtension = (deltaSeconds: number) => {
@@ -819,6 +983,21 @@ export const SessionScreen = ({
     vibrateTimerStart();
     timerControlSound.playStart();
     timerCompletionSound.prepare();
+    setSavedSessionSummary(null);
+    setSessionBaseline((current) => {
+      if (
+        current?.bookId === currentBook.id &&
+        timer.elapsedSeconds > 0
+      ) {
+        return current;
+      }
+
+      return {
+        bookId: currentBook.id,
+        sentenceCount: currentBook.sentences.length,
+        wordCount: currentBook.wordNotes.length,
+      };
+    });
     timer.start();
   };
 
@@ -831,8 +1010,22 @@ export const SessionScreen = ({
   const openSessionBookSelection = () => {
     vibrateTap();
     timerControlSound.playSelect();
+    setSavedSessionSummary(null);
     setPreviewBookId(currentBook?.id ?? null);
     setHasSelectedSessionBook(false);
+  };
+  const closeSavedSessionSummary = () => {
+    vibrateTap();
+    timerControlSound.playSelect();
+    setSavedSessionSummary(null);
+  };
+  const openSavedSessionDetail = () => {
+    if (!savedSessionSummary) return;
+
+    vibrateSelect();
+    timerControlSound.playConfirm();
+    setSavedSessionSummary(null);
+    onOpenBookDetail(savedSessionSummary.bookId);
   };
   const isTimerInteractionPanelOpen = isWordSearchOpen || isSentenceNoteOpen;
 
@@ -1130,7 +1323,11 @@ export const SessionScreen = ({
         </button>
       </div>
 
-      <div className="session-word-search-results" aria-live="polite">
+      <div
+        ref={wordResultListRef}
+        className="session-word-search-results"
+        aria-live="polite"
+      >
         {wordSearchStatus === "idle" && (
           <p className="session-word-search-empty">
             모르는 단어를 검색하면 독서 시간은 잠시 멈춰요.
@@ -1152,6 +1349,14 @@ export const SessionScreen = ({
 
             return (
               <article
+                ref={(node) => {
+                  if (node) {
+                    wordResultItemRefs.current.set(key, node);
+                    return;
+                  }
+
+                  wordResultItemRefs.current.delete(key);
+                }}
                 key={key}
                 className={`session-word-result-group ${
                   isSelected ? "session-word-result-group-selected" : ""
@@ -1218,10 +1423,97 @@ export const SessionScreen = ({
       </div>
     </form>
   );
+  const savedSummaryProgressLabel =
+    savedSessionSummary?.previousProgress !== null &&
+    savedSessionSummary?.previousProgress !== undefined &&
+    savedSessionSummary?.nextProgress !== null &&
+    savedSessionSummary?.nextProgress !== undefined
+      ? `${savedSessionSummary.previousProgress}% → ${savedSessionSummary.nextProgress}%`
+      : "총 페이지 필요";
 
   return (
     <div className="session-screen space-y-4">
-      {canChangeTimerMode ? (
+      {savedSessionSummary ? (
+        <section className="session-book-select-stage session-completion-stage">
+          <div className="session-book-select-console session-completion-console">
+            <div className="focus-timer-card session-ready-scene-card session-completion-scene-card">
+              <div className="relative z-10">
+                <AdventureScene
+                  status="completed"
+                  mode={timer.mode}
+                  displayTime={formatFocusTime(savedSessionSummary.durationSeconds)}
+                  progress={savedSessionSummary.nextProgress ?? adventureProgress}
+                  goalApproachProgress={null}
+                  showStartBanner={false}
+                  presets={presets}
+                  targetSeconds={timer.targetSeconds}
+                  memoryLogs={memoryLogs}
+                  memorySeed={`${todayLabel()}-${savedSessionSummary.bookId}-saved`}
+                  completionContent={
+                    <div className="session-completion-hud session-saved-summary-hud">
+                      <div className="session-completion-time">
+                        <span>RECORD SAVED</span>
+                        <strong>{formatDuration(savedSessionSummary.durationSeconds)}</strong>
+                      </div>
+
+                      <div className="session-saved-summary-list">
+                        <div>
+                          <span>페이지</span>
+                          <strong>
+                            {savedSessionSummary.startPage}p →{" "}
+                            {savedSessionSummary.endPage}p
+                          </strong>
+                        </div>
+                        <div>
+                          <span>진행률</span>
+                          <strong>{savedSummaryProgressLabel}</strong>
+                        </div>
+                        <div>
+                          <span>단어</span>
+                          <strong>
+                            {savedSessionSummary.savedWordCount}개
+                          </strong>
+                        </div>
+                        <div>
+                          <span>문장</span>
+                          <strong>
+                            {savedSessionSummary.savedSentenceCount}개
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                  useExternalActionControls
+                  onChangeMode={changeTimerMode}
+                  onSelectPreset={selectTimerPreset}
+                  onStart={startTimer}
+                  onPause={pauseTimer}
+                  onStop={openCompletion}
+                />
+              </div>
+            </div>
+
+            <div className="session-completion-controls">
+              <div className="session-completion-actions">
+                <button
+                  type="button"
+                  className="completion-secondary-action"
+                  onClick={openSavedSessionDetail}
+                >
+                  상세로 가기
+                </button>
+                <button
+                  type="button"
+                  className="completion-save-action"
+                  onClick={closeSavedSessionSummary}
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : canChangeTimerMode ? (
         <section className="session-book-select-stage session-ready-stage">
           <div className="session-book-select-console session-ready-console">
             <div className="focus-timer-card session-ready-scene-card">
@@ -1255,14 +1547,27 @@ export const SessionScreen = ({
             </div>
 
             <div className="session-ready-controls">
-              <div className="session-ready-preset-grid" role="list">
+              <div
+                ref={timerPresetListRef}
+                className="session-ready-preset-grid"
+                role="list"
+              >
                 {presets.map((preset, index) => {
                   const isActive =
                     timer.mode === "countdown" &&
                     timer.targetSeconds === preset.seconds;
+                  const presetKey = `preset-${preset.seconds}`;
 
                   return (
                     <div
+                      ref={(node) => {
+                        if (node) {
+                          timerPresetItemRefs.current.set(presetKey, node);
+                          return;
+                        }
+
+                        timerPresetItemRefs.current.delete(presetKey);
+                      }}
                       key={preset.seconds}
                       className={`book-game-item session-ready-time-item ${
                         isActive ? "book-game-item-active" : ""
@@ -1302,6 +1607,14 @@ export const SessionScreen = ({
                   );
                 })}
                 <div
+                  ref={(node) => {
+                    if (node) {
+                      timerPresetItemRefs.current.set("stopwatch", node);
+                      return;
+                    }
+
+                    timerPresetItemRefs.current.delete("stopwatch");
+                  }}
                   className={`book-game-item session-ready-time-item ${
                     timer.mode === "stopwatch" ? "book-game-item-active" : ""
                   }`}

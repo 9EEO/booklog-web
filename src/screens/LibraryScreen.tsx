@@ -77,6 +77,8 @@ type LibraryScreenProps = {
   onDeleteRound: (bookId: string, roundId: string) => Promise<void>;
   bookFormOpenRequestId: number;
   onConsumeBookFormOpenRequest: () => void;
+  bookDetailOpenRequest: { id: number; bookId: string } | null;
+  onConsumeBookDetailOpenRequest: () => void;
   onDetailModeChange?: (isDetailMode: boolean) => void;
 };
 
@@ -638,9 +640,16 @@ export const LibraryScreen = ({
   onDeleteRound,
   bookFormOpenRequestId,
   onConsumeBookFormOpenRequest,
+  bookDetailOpenRequest,
+  onConsumeBookDetailOpenRequest,
   onDetailModeChange,
 }: LibraryScreenProps) => {
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const initialDetailBook = bookDetailOpenRequest
+    ? books.find((book) => book.id === bookDetailOpenRequest.bookId)
+    : null;
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(
+    initialDetailBook?.id ?? null,
+  );
   const [editingSentenceId, setEditingSentenceId] = useState<string | null>(
     null,
   );
@@ -672,8 +681,12 @@ export const LibraryScreen = ({
   );
   const [draftSentence, setDraftSentence] = useState("");
   const [draftPage, setDraftPage] = useState(1);
-  const [currentPageDraft, setCurrentPageDraft] = useState(1);
-  const [totalPagesDraft, setTotalPagesDraft] = useState(1);
+  const [currentPageDraft, setCurrentPageDraft] = useState(
+    initialDetailBook?.currentPage ?? 1,
+  );
+  const [totalPagesDraft, setTotalPagesDraft] = useState(
+    initialDetailBook?.totalPages ?? initialDetailBook?.currentPage ?? 1,
+  );
   const [newBook, setNewBook] = useState<NewBookInput>(emptyNewBook);
   const [bookFormStep, setBookFormStep] = useState<BookFormStep>("search");
   const [bookSearchQuery, setBookSearchQuery] = useState("");
@@ -686,10 +699,14 @@ export const LibraryScreen = ({
   const [bookDateError, setBookDateError] = useState("");
   const [isManualBookEntry, setIsManualBookEntry] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
-  const [activeShelfTab, setActiveShelfTab] = useState<ShelfTab>("reading");
+  const [activeShelfTab, setActiveShelfTab] = useState<ShelfTab>(
+    initialDetailBook && hasCompletedRound(initialDetailBook)
+      ? "completed"
+      : "reading",
+  );
   const [libraryView, setLibraryView] = useState<LibraryView>("shelf");
   const [bookTransitionState, setBookTransitionState] =
-    useState<BookTransitionState>("idle");
+    useState<BookTransitionState>(initialDetailBook ? "detail-idle" : "idle");
   const [transitionBookId, setTransitionBookId] = useState<string | null>(null);
   const detailPageRef = useRef<HTMLElement | null>(null);
   const bookButtonRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -1232,6 +1249,15 @@ export const LibraryScreen = ({
 
     onConsumeBookFormOpenRequest();
   }, [bookFormOpenRequestId, onConsumeBookFormOpenRequest]);
+
+  useEffect(() => {
+    if (!bookDetailOpenRequest) return;
+
+    onConsumeBookDetailOpenRequest();
+    window.requestAnimationFrame(() => {
+      detailPageRef.current?.focus({ preventScroll: true });
+    });
+  }, [bookDetailOpenRequest, onConsumeBookDetailOpenRequest]);
 
   const startManualBookEntry = () => {
     setIsManualBookEntry(true);

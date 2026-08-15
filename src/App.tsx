@@ -284,6 +284,10 @@ function AuthenticatedApp({
   const [tierBoard, setTierBoard] = useState<TierBoard>(getInitialTierBoard);
   const [isLibraryDetailMode, setIsLibraryDetailMode] = useState(false);
   const [bookFormOpenRequestId, setBookFormOpenRequestId] = useState(0);
+  const [bookDetailOpenRequest, setBookDetailOpenRequest] = useState<{
+    id: number;
+    bookId: string;
+  } | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
   const pendingFlushRef = useRef(false);
@@ -1523,6 +1527,15 @@ function AuthenticatedApp({
     setBookFormOpenRequestId((current) => current + 1);
   };
 
+  const openLibraryBookDetail = (bookId: string) => {
+    setCurrentBookId(bookId);
+    setBookDetailOpenRequest((current) => ({
+      id: (current?.id ?? 0) + 1,
+      bookId,
+    }));
+    setActiveTab("library");
+  };
+
   const activeScreen = (
     <>
       {activeTab === "session" && (
@@ -1533,6 +1546,7 @@ function AuthenticatedApp({
           dailyGoalSeconds={dailyGoalSeconds}
           timer={readingTimer}
           onChangeBook={setCurrentBookId}
+          onOpenBookDetail={openLibraryBookDetail}
           onSaveRecord={handleSaveRecord}
           onAddSentence={handleAddSentence}
           onAddWordNote={handleAddWordNote}
@@ -1565,6 +1579,10 @@ function AuthenticatedApp({
           onDeleteRound={handleDeleteRound}
           bookFormOpenRequestId={bookFormOpenRequestId}
           onConsumeBookFormOpenRequest={() => setBookFormOpenRequestId(0)}
+          bookDetailOpenRequest={bookDetailOpenRequest}
+          onConsumeBookDetailOpenRequest={() =>
+            setBookDetailOpenRequest(null)
+          }
           onDetailModeChange={setIsLibraryDetailMode}
         />
       )}
