@@ -3697,13 +3697,14 @@ button {
   overflow-x: hidden;
   background: var(--auth-paper);
   box-shadow: 0 18px 60px rgba(47, 42, 38, 0.12);
-  padding: 0 30px;
+  padding: 0 24px;
 }
 
 .auth-panel {
   display: grid;
   min-width: 0;
-  width: 100%;
+  width: min(100%, 340px);
+  margin: 0 auto;
   align-content: center;
   padding: 80px 0 72px;
 }
