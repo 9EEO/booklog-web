@@ -3682,6 +3682,7 @@ button {
   --auth-green: #6fb64b;
   --auth-red: #e76f51;
   min-height: 100svh;
+  overflow-x: hidden;
   background: var(--auth-cream);
   color: var(--auth-ink);
 }
@@ -3689,9 +3690,11 @@ button {
 .auth-shell {
   display: grid;
   min-height: 100svh;
-  width: min(100%, 430px);
+  width: 100%;
+  max-width: 430px;
   margin: 0 auto;
   align-items: stretch;
+  overflow-x: hidden;
   background: var(--auth-paper);
   box-shadow: 0 18px 60px rgba(47, 42, 38, 0.12);
   padding: 0 30px;
@@ -3699,6 +3702,7 @@ button {
 
 .auth-panel {
   display: grid;
+  min-width: 0;
   width: 100%;
   align-content: center;
   padding: 80px 0 72px;
@@ -3736,6 +3740,7 @@ button {
   display: flex;
   align-items: baseline;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 7px;
   color: rgba(21, 21, 21, 0.58);
   font-size: 15px;
@@ -3753,6 +3758,7 @@ button {
 
 .auth-form {
   display: grid;
+  min-width: 0;
   gap: 15px;
 }
 
@@ -3771,7 +3777,9 @@ button {
 
 .auth-input-wrap {
   display: flex;
+  min-width: 0;
   min-height: 64px;
+  width: 100%;
   align-items: center;
   gap: 14px;
   border: 2px solid rgba(21, 21, 21, 0.18);
