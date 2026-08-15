@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import focusSproutStill from '../assets/focus-sprout-still.png'
 import { Icon } from '../components/Icon'
 import { hasSupabaseConfig } from '../services/supabase'
 
@@ -13,7 +12,12 @@ type AuthScreenProps = {
 type AuthMode = 'signIn' | 'signUp'
 type SubmitStatus = 'idle' | 'submitting' | 'notice'
 
-export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthScreenProps) => {
+export const AuthScreen = ({
+  error,
+  onSignIn,
+  onSignUp,
+  onResetPassword,
+}: AuthScreenProps) => {
   const [mode, setMode] = useState<AuthMode>('signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -21,7 +25,11 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
   const [message, setMessage] = useState('')
 
   const trimmedEmail = email.trim()
-  const canSubmit = hasSupabaseConfig && trimmedEmail.length > 0 && password.length >= 6 && status !== 'submitting'
+  const canSubmit =
+    hasSupabaseConfig &&
+    trimmedEmail.length > 0 &&
+    password.length >= 6 &&
+    status !== 'submitting'
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -36,7 +44,9 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
       } else {
         await onSignUp(trimmedEmail, password)
         setStatus('notice')
-        setMessage('가입 확인 메일을 확인해 주세요. 확인 후 같은 비밀번호로 로그인할 수 있습니다.')
+        setMessage(
+          '가입 확인 메일을 확인해 주세요. 확인 후 같은 비밀번호로 로그인할 수 있습니다.',
+        )
       }
     } catch {
       setStatus('idle')
@@ -44,7 +54,13 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
   }
 
   const resetPassword = async () => {
-    if (!hasSupabaseConfig || trimmedEmail.length === 0 || status === 'submitting') return
+    if (
+      !hasSupabaseConfig ||
+      trimmedEmail.length === 0 ||
+      status === 'submitting'
+    ) {
+      return
+    }
 
     setStatus('submitting')
     setMessage('')
@@ -69,49 +85,40 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
       <div className="auth-shell">
         <section className="auth-panel">
           <header className="auth-header">
-            <div className="auth-brand">
+            {/* <div className="auth-brand">
               <Icon name="book" className="h-4 w-4" />
               <span>BOOKLOG</span>
+            </div> */}
+            <h1>
+              {mode === 'signIn' ? 'Login' : 'Sign Up'}
+            </h1>
+            <div className="auth-mode-prompt">
+              <span>
+                {mode === 'signIn'
+                  ? 'Don\'t have an account?'
+                  : 'Already have an account?'}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  switchMode(mode === 'signIn' ? 'signUp' : 'signIn')
+                }
+              >
+                {mode === 'signIn' ? 'Sign Up' : 'Login'}
+              </button>
             </div>
-            <div className="auth-focus-display" aria-hidden="true">
-              <img src={focusSproutStill} alt="" />
-              <span>READY TO READ</span>
-            </div>
-            <h1>{mode === 'signIn' ? '다시, 읽던 곳부터' : '나만의 독서 기록 시작하기'}</h1>
-            <p>{mode === 'signIn' ? '로그인하고 오늘의 독서를 이어가세요.' : '계정을 만들고 독서 시간을 차곡차곡 쌓아보세요.'}</p>
           </header>
-
-          <div className={`auth-mode-switch ${mode === 'signUp' ? 'auth-mode-switch-sign-up' : ''}`} role="tablist" aria-label="계정 인증 방식">
-            <button
-              type="button"
-              className={mode === 'signIn' ? 'auth-mode-option auth-mode-option-active' : 'auth-mode-option'}
-              onClick={() => switchMode('signIn')}
-              role="tab"
-              aria-selected={mode === 'signIn'}
-            >
-              로그인
-            </button>
-            <button
-              type="button"
-              className={mode === 'signUp' ? 'auth-mode-option auth-mode-option-active' : 'auth-mode-option'}
-              onClick={() => switchMode('signUp')}
-              role="tab"
-              aria-selected={mode === 'signUp'}
-            >
-              회원가입
-            </button>
-          </div>
 
           <form className="auth-form" onSubmit={submit}>
             <div className="auth-field">
               <label htmlFor="auth-email">이메일</label>
               <div className="auth-input-wrap">
-                <Icon name="profile" className="h-4 w-4" />
+                <Icon name="mail" className="h-5 w-5" />
                 <input
                   id="auth-email"
                   type="email"
                   autoComplete="email"
-                  placeholder="reader@example.com"
+                  placeholder="Email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                 />
@@ -119,14 +126,16 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
             </div>
 
             <div className="auth-field">
-              <label htmlFor="auth-password">비밀번호</label>
+              <label htmlFor="auth-password">Password</label>
               <div className="auth-input-wrap">
-                <Icon name="save" className="h-4 w-4" />
+                <Icon name="lock" className="h-5 w-5" />
                 <input
                   id="auth-password"
                   type="password"
-                  autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-                  placeholder="6자 이상"
+                  autoComplete={
+                    mode === 'signIn' ? 'current-password' : 'new-password'
+                  }
+                  placeholder="Password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
@@ -134,14 +143,30 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
             </div>
 
             <button type="submit" className="auth-submit" disabled={!canSubmit}>
-              <Icon name={mode === 'signIn' ? 'play' : 'plus'} className="h-5 w-5" />
-              {status === 'submitting' ? '처리 중' : mode === 'signIn' ? '로그인' : '회원가입'}
+              <Icon
+                name={mode === 'signIn' ? 'play' : 'plus'}
+                className="h-5 w-5"
+              />
+              {status === 'submitting'
+                ? 'Processing'
+                : mode === 'signIn'
+                  ? 'Login'
+                  : 'Sign Up'}
             </button>
           </form>
 
           {mode === 'signIn' && (
-            <button type="button" className="auth-reset" onClick={resetPassword} disabled={!hasSupabaseConfig || trimmedEmail.length === 0 || status === 'submitting'}>
-              비밀번호를 잊으셨나요?
+            <button
+              type="button"
+              className="auth-reset"
+              onClick={resetPassword}
+              disabled={
+                !hasSupabaseConfig ||
+                trimmedEmail.length === 0 ||
+                status === 'submitting'
+              }
+            >
+              Forgot your password?
             </button>
           )}
 
@@ -157,7 +182,9 @@ export const AuthScreen = ({ error, onSignIn, onSignUp, onResetPassword }: AuthS
           )}
 
           {error && (
-            <p className="auth-notice auth-notice-error" role="alert">{error}</p>
+            <p className="auth-notice auth-notice-error" role="alert">
+              {error}
+            </p>
           )}
         </section>
       </div>

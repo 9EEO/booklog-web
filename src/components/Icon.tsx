@@ -20,6 +20,8 @@ export type IconName =
   | "search"
   | "check"
   | "book"
+  | "mail"
+  | "lock"
   | "calendar"
   | "chevronLeft"
   | "chevronRight"
@@ -175,6 +177,32 @@ const paths: Record<IconName, ReactNode> = {
         d="M3 4h8a3 3 0 0 1 3 3v14H6a3 3 0 0 1-3-3V4Zm11 3a3 3 0 0 1 3-3h4v14a3 3 0 0 1-3 3h-4V7Z"
       />
       <path d="M4 3h6a5 5 0 0 1 3 1 5 5 0 0 1 3-1h4a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1h-4a3 3 0 0 0-3 3h-2a3 3 0 0 0-3-3H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm1 2v13h3a5 5 0 0 1 3 1V8a3 3 0 0 0-3-3H5Zm11 0a3 3 0 0 0-3 3v11a5 5 0 0 1 3-1h3V5h-3Z" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect
+        className="icon-bulk-soft"
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="3"
+      />
+      <path d="M5 5h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3Zm14 2H5a1 1 0 0 0-.9.56l7.3 5.2a1 1 0 0 0 1.2 0l7.3-5.2A1 1 0 0 0 19 7Zm1 2.82-6.24 4.45a3 3 0 0 1-3.52 0L4 9.82V16a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9.82Z" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect
+        className="icon-bulk-soft"
+        x="4"
+        y="10"
+        width="16"
+        height="11"
+        rx="3"
+      />
+      <path d="M7 9V7a5 5 0 0 1 10 0v2h1a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3h1Zm2 0h6V7a3 3 0 0 0-6 0v2Zm-3 2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1H6Zm6 2.25a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0v-1.5a1 1 0 0 1 1-1Z" />
     </>
   ),
   calendar: (
