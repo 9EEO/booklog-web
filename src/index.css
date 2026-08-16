@@ -140,6 +140,10 @@ body {
   min-height: 100svh;
 }
 
+body:has(.auth-screen) {
+  min-width: 0;
+}
+
 /* Development-only component inventory opened with ?design-system. */
 .design-system-page {
   min-height: 100svh;
@@ -3682,6 +3686,8 @@ button {
   --auth-green: #6fb64b;
   --auth-red: #e76f51;
   min-height: 100svh;
+  width: 100vw;
+  width: 100dvw;
   overflow-x: hidden;
   background: var(--auth-cream);
   color: var(--auth-ink);
@@ -3690,7 +3696,8 @@ button {
 .auth-shell {
   display: grid;
   min-height: 100svh;
-  width: 100%;
+  width: min(100vw, 430px);
+  width: min(100dvw, 430px);
   max-width: 430px;
   margin: 0 auto;
   align-items: stretch;
@@ -3703,7 +3710,8 @@ button {
 .auth-panel {
   display: grid;
   min-width: 0;
-  width: min(100%, 340px);
+  width: min(100%, calc(100vw - 48px), 340px);
+  width: min(100%, calc(100dvw - 48px), 340px);
   margin: 0 auto;
   align-content: center;
   padding: 80px 0 72px;
