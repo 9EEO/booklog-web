@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { hasSupabaseConfig } from '../services/supabase'
 
@@ -30,6 +30,14 @@ export const AuthScreen = ({
     trimmedEmail.length > 0 &&
     password.length >= 6 &&
     status !== 'submitting'
+
+  useEffect(() => {
+    document.body.classList.add('auth-page-body')
+
+    return () => {
+      document.body.classList.remove('auth-page-body')
+    }
+  }, [])
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()

@@ -140,8 +140,10 @@ body {
   min-height: 100svh;
 }
 
+body.auth-page-body,
 body:has(.auth-screen) {
   min-width: 0;
+  overflow-x: hidden;
 }
 
 /* Development-only component inventory opened with ?design-system. */
@@ -3686,8 +3688,7 @@ button {
   --auth-green: #6fb64b;
   --auth-red: #e76f51;
   min-height: 100svh;
-  width: 100vw;
-  width: 100dvw;
+  width: 100%;
   overflow-x: hidden;
   background: var(--auth-cream);
   color: var(--auth-ink);
@@ -3696,22 +3697,20 @@ button {
 .auth-shell {
   display: grid;
   min-height: 100svh;
-  width: min(100vw, 430px);
-  width: min(100dvw, 430px);
+  width: 100%;
   max-width: 430px;
   margin: 0 auto;
   align-items: stretch;
   overflow-x: hidden;
   background: var(--auth-paper);
   box-shadow: 0 18px 60px rgba(47, 42, 38, 0.12);
-  padding: 0 24px;
+  padding: 0 clamp(24px, calc((100% - 340px) / 2), 45px);
 }
 
 .auth-panel {
   display: grid;
   min-width: 0;
-  width: min(100%, calc(100vw - 48px), 340px);
-  width: min(100%, calc(100dvw - 48px), 340px);
+  width: 100%;
   margin: 0 auto;
   align-content: center;
   padding: 80px 0 72px;
