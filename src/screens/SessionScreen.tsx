@@ -1139,6 +1139,7 @@ export const SessionScreen = ({
                                     ? "session-book-add-status-option session-book-add-status-option-active"
                                     : "session-book-add-status-option"
                                 }
+                                aria-pressed={newBook.status === status}
                                 onClick={() => {
                                   timerControlSound.playSelect();
                                   setBookDateError("");
@@ -1164,7 +1165,9 @@ export const SessionScreen = ({
                                   }));
                                 }}
                               >
-                                {status === "reading" ? "미완독" : "완독"}
+                                <span>
+                                  {status === "reading" ? "미완독" : "완독"}
+                                </span>
                               </button>
                             ),
                           )}
@@ -1233,18 +1236,27 @@ export const SessionScreen = ({
                                         return {
                                           ...current,
                                           totalPages,
-                                          currentPage: Math.min(
-                                            current.currentPage,
-                                            totalPages,
-                                          ),
                                         };
                                       })
+                                    }
+                                    onBlur={() =>
+                                      setNewBook((current) =>
+                                        current.totalPages
+                                          ? {
+                                              ...current,
+                                              currentPage: clampBookPage(
+                                                current.currentPage,
+                                                current.totalPages,
+                                              ),
+                                            }
+                                          : current,
+                                      )
                                     }
                                   />
                                 </div>
                               </div>
                               <p className="book-total-pages-hint">
-                                비워두면 책 상세에서 나중에 입력할 수 있어요.
+                                책 상세에서 나중에 입력할 수 있어요.
                               </p>
                             </>
                           ) : (
@@ -1287,7 +1299,7 @@ export const SessionScreen = ({
                                 }
                               />
                               <p className="book-total-pages-hint">
-                                비워두면 책 상세에서 나중에 입력할 수 있어요.
+                                책 상세에서 나중에 입력할 수 있어요.
                               </p>
                             </div>
                           )}

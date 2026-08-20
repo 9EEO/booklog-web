@@ -5344,26 +5344,73 @@ button {
 .session-book-add-status-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  border: 2px solid var(--session-ink);
+  border-radius: 2px;
+  background: var(--session-ink);
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.28);
+  overflow: hidden;
 }
 
 .session-book-add-status-option {
+  position: relative;
   min-height: 40px;
-  border: 2px solid rgba(21, 21, 21, 0.2);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.68);
-  color: rgba(21, 21, 21, 0.58);
+  border: 0;
+  border-radius: 0;
+  background: var(--session-ink);
+  color: rgba(242, 201, 76, 0.64);
   font-family: var(--font-pixel);
   font-size: 8px;
   font-weight: 950;
   letter-spacing: 0;
+  overflow: hidden;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 120ms ease;
+}
+
+.session-book-add-status-option + .session-book-add-status-option {
+  border-left: 2px solid rgba(242, 201, 76, 0.26);
+}
+
+.session-book-add-status-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--session-yellow);
+  opacity: 0;
+  transform: scaleX(0);
+  transition:
+    opacity 120ms ease,
+    transform 220ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.session-book-add-status-option:first-child::before {
+  transform-origin: right;
+}
+
+.session-book-add-status-option:last-child::before {
+  transform-origin: left;
+}
+
+.session-book-add-status-option:active {
+  transform: translateY(1px);
+}
+
+.session-book-add-status-option span {
+  position: relative;
+  z-index: 1;
 }
 
 .session-book-add-status-option-active {
-  border-color: var(--session-ink);
-  background: #151515;
-  color: var(--session-yellow);
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.34);
+  color: var(--session-ink);
+}
+
+.session-book-add-status-option-active::before {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .session-book-add-panel .book-form-label {
