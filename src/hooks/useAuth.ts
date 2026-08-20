@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase } from '../services/supabase'
+import { getAuthRedirectUrl, supabase } from '../services/supabase'
 
 type AuthState = {
   user: User | null
   isLoading: boolean
   error: string | null
   signIn: (email: string, password: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
   resetPassword: (email: string) => Promise<void>
   signOut: () => Promise<void>
@@ -77,6 +78,26 @@ export const useAuth = (): AuthState => {
     }
   }
 
+  const signInWithGoogle = async () => {
+    if (!supabase) {
+      setError('Supabase 환경변수가 설정되지 않았습니다.')
+      return
+    }
+
+    setError(null)
+    const { error: googleSignInError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: getAuthRedirectUrl(),
+      },
+    })
+
+    if (googleSignInError) {
+      setError(googleSignInError.message)
+      throw googleSignInError
+    }
+  }
+
   const signUp = async (email: string, password: string) => {
     if (!supabase) {
       setError('Supabase 환경변수가 설정되지 않았습니다.')
@@ -88,7 +109,7 @@ export const useAuth = (): AuthState => {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: getAuthRedirectUrl(),
       },
     })
 
@@ -106,7 +127,7 @@ export const useAuth = (): AuthState => {
 
     setError(null)
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: getAuthRedirectUrl(),
     })
 
     if (resetError) {
@@ -132,6 +153,7 @@ export const useAuth = (): AuthState => {
     isLoading,
     error,
     signIn,
+    signInWithGoogle,
     signUp,
     resetPassword,
     signOut,

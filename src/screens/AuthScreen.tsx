@@ -5,6 +5,7 @@ import { hasSupabaseConfig } from '../services/supabase'
 type AuthScreenProps = {
   error: string | null
   onSignIn: (email: string, password: string) => Promise<void>
+  onSignInWithGoogle: () => Promise<void>
   onSignUp: (email: string, password: string) => Promise<void>
   onResetPassword: (email: string) => Promise<void>
 }
@@ -15,21 +16,30 @@ type SubmitStatus = 'idle' | 'submitting' | 'notice'
 export const AuthScreen = ({
   error,
   onSignIn,
+  onSignInWithGoogle,
   onSignUp,
   onResetPassword,
 }: AuthScreenProps) => {
   const [mode, setMode] = useState<AuthMode>('signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [status, setStatus] = useState<SubmitStatus>('idle')
   const [message, setMessage] = useState('')
 
   const trimmedEmail = email.trim()
+  const hasPasswordMismatch =
+    mode === 'signUp' &&
+    passwordConfirm.length > 0 &&
+    password !== passwordConfirm
   const canSubmit =
     hasSupabaseConfig &&
     trimmedEmail.length > 0 &&
     password.length >= 6 &&
+    (mode === 'signIn' ||
+      (passwordConfirm.length >= 6 && password === passwordConfirm)) &&
     status !== 'submitting'
+  const canUseGoogleSignIn = hasSupabaseConfig && status !== 'submitting'
 
   useEffect(() => {
     document.body.classList.add('auth-page-body')
@@ -82,8 +92,22 @@ export const AuthScreen = ({
     }
   }
 
+  const signInWithGoogle = async () => {
+    if (!canUseGoogleSignIn) return
+
+    setStatus('submitting')
+    setMessage('')
+
+    try {
+      await onSignInWithGoogle()
+    } catch {
+      setStatus('idle')
+    }
+  }
+
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode)
+    setPasswordConfirm('')
     setStatus('idle')
     setMessage('')
   }
@@ -117,6 +141,24 @@ export const AuthScreen = ({
             </div>
           </header>
 
+          <button
+            type="button"
+            className="auth-google"
+            onClick={signInWithGoogle}
+            disabled={!canUseGoogleSignIn}
+          >
+            <span className="auth-google-icon" aria-hidden="true">
+              G
+            </span>
+            Continue with Google
+          </button>
+
+          <div className="auth-divider" aria-hidden="true">
+            <span />
+            <b>or</b>
+            <span />
+          </div>
+
           <form className="auth-form" onSubmit={submit}>
             <div className="auth-field">
               <label htmlFor="auth-email">이메일</label>
@@ -149,6 +191,26 @@ export const AuthScreen = ({
                 />
               </div>
             </div>
+
+            {mode === 'signUp' && (
+              <div className="auth-field">
+                <label htmlFor="auth-password-confirm">Confirm Password</label>
+                <div className="auth-input-wrap">
+                  <Icon name="lock" className="h-5 w-5" />
+                  <input
+                    id="auth-password-confirm"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Confirm Password"
+                    value={passwordConfirm}
+                    onChange={(event) => setPasswordConfirm(event.target.value)}
+                  />
+                </div>
+                {hasPasswordMismatch && (
+                  <p className="auth-field-hint">비밀번호가 일치하지 않습니다.</p>
+                )}
+              </div>
+            )}
 
             <button type="submit" className="auth-submit" disabled={!canSubmit}>
               <Icon

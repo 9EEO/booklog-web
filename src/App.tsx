@@ -1655,6 +1655,7 @@ function BooklogApp() {
       <AuthScreen
         error={auth.error}
         onSignIn={auth.signIn}
+        onSignInWithGoogle={auth.signInWithGoogle}
         onSignUp={auth.signUp}
         onResetPassword={auth.resetPassword}
       />
