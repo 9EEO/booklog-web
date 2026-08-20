@@ -8,6 +8,9 @@ import { useBackNavigationLayer } from "../hooks/useBackNavigationLayer";
 import type { ReadingTimer } from "../hooks/useReadingTimer";
 import { useTimerCompletionSound } from "../hooks/useTimerCompletionSound";
 import { useTimerControlSound } from "../hooks/useTimerControlSound";
+import { fetchBookLibraryReference } from "../services/bookLibraryReference";
+import { resolveBestBookCover } from "../services/bookCovers";
+import { hasKakaoBookApiKey, searchKakaoBooks } from "../services/kakaoBooks";
 import {
   searchKoreanWord,
   type WordDefinition,
@@ -15,6 +18,8 @@ import {
 } from "../services/wordDictionary";
 import type {
   Book,
+  BookSearchResult,
+  NewBookInput,
   ReadingCompletionInput,
   ReadingRecord,
   WordNoteInput,
@@ -43,11 +48,15 @@ type SessionScreenProps = {
   onChangeBook: (bookId: string) => void;
   onOpenBookDetail: (bookId: string) => void;
   onSaveRecord: (input: ReadingCompletionInput) => Promise<void>;
+  onAddBook: (input: NewBookInput) => Promise<string>;
   onAddSentence: (bookId: string, text: string, page: number) => Promise<void>;
   onAddWordNote: (bookId: string, input: WordNoteInput) => Promise<void>;
-  onAddFirstBook: () => void;
+  bookAddOpenRequestId: number;
+  onConsumeBookAddOpenRequest: () => void;
 };
 
+type BookAddStep = "search" | "details";
+type BookSearchStatus = "idle" | "loading" | "success" | "empty" | "error";
 type WordSearchStatus = "idle" | "loading" | "success" | "empty" | "error";
 type SelectedWordDefinition = {
   result: WordDictionaryResult;
@@ -87,6 +96,13 @@ const presets = [
 const extensionStepSeconds = 5 * 60;
 const minimumExtensionSeconds = 5 * 60;
 const maximumExtensionSeconds = 60 * 60;
+const emptySessionBook: NewBookInput = {
+  title: "",
+  author: "",
+  totalPages: null,
+  currentPage: 1,
+  status: "reading",
+};
 
 const formatFocusTime = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
@@ -111,6 +127,37 @@ const todayLabel = () =>
     .format(new Date())
     .replace(/\.\s?/g, ".")
     .replace(/\.$/, "");
+
+const parseReadingDate = (value: string) => {
+  const matched = value
+    .trim()
+    .match(/^(\d{4})(?:[.-]?)(\d{2})(?:[.-]?)(\d{2})$/);
+
+  if (!matched) return null;
+
+  const [, yearText, monthText, dayText] = matched;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const date = new Date(year, month - 1, day);
+  const isValid =
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day;
+
+  if (!isValid) return null;
+
+  return `${yearText}.${monthText}.${dayText}`;
+};
+
+const toDateInputValue = (value: string) =>
+  parseReadingDate(value)?.replace(/\./g, "-") ?? "";
+
+const toDateTime = (dateLabel: string) => {
+  const [year, month, day] = dateLabel.split(".").map(Number);
+
+  return new Date(year, month - 1, day).getTime();
+};
 
 const scrollItemIntoComfortableView = (
   containerElement: HTMLElement,
@@ -266,12 +313,30 @@ export const SessionScreen = ({
   onChangeBook,
   onOpenBookDetail,
   onSaveRecord,
+  onAddBook,
   onAddSentence,
   onAddWordNote,
-  onAddFirstBook,
+  bookAddOpenRequestId,
+  onConsumeBookAddOpenRequest,
 }: SessionScreenProps) => {
   const [hasSelectedSessionBook, setHasSelectedSessionBook] = useState(false);
   const [previewBookId, setPreviewBookId] = useState<string | null>(null);
+  const [isBookAddListItemActive, setIsBookAddListItemActive] = useState(false);
+  const [isBookAddOpen, setIsBookAddOpen] = useState(false);
+  const [bookAddStep, setBookAddStep] = useState<BookAddStep>("search");
+  const [bookSearchQuery, setBookSearchQuery] = useState("");
+  const [bookSearchStatus, setBookSearchStatus] =
+    useState<BookSearchStatus>("idle");
+  const [bookSearchMessage, setBookSearchMessage] = useState("");
+  const [bookSearchResults, setBookSearchResults] = useState<
+    BookSearchResult[]
+  >([]);
+  const [selectedBookSearchResult, setSelectedBookSearchResult] =
+    useState<BookSearchResult | null>(null);
+  const [newBook, setNewBook] = useState<NewBookInput>(emptySessionBook);
+  const [bookDateError, setBookDateError] = useState("");
+  const [isManualBookEntry, setIsManualBookEntry] = useState(false);
+  const [isSavingBook, setIsSavingBook] = useState(false);
   const [isBookPreviewGlitching, setIsBookPreviewGlitching] = useState(false);
   const [bookDescriptionLineClamp, setBookDescriptionLineClamp] = useState(4);
   const [bookDescriptionTyping, setBookDescriptionTyping] = useState({
@@ -324,6 +389,7 @@ export const SessionScreen = ({
   const wordResultListRef = useRef<HTMLDivElement | null>(null);
   const wordResultItemRefs = useRef(new Map<string, HTMLElement>());
   const completionPageInputRef = useRef<HTMLInputElement | null>(null);
+  const isBookAddOpeningRef = useRef(false);
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
 
@@ -489,10 +555,244 @@ export const SessionScreen = ({
     [],
   );
 
+  const closeBookAddFlow = () => {
+    isBookAddOpeningRef.current = false;
+    setIsBookAddOpen(false);
+    setBookAddStep("search");
+    setBookSearchQuery("");
+    setBookSearchStatus("idle");
+    setBookSearchMessage("");
+    setBookSearchResults([]);
+    setSelectedBookSearchResult(null);
+    setNewBook(emptySessionBook);
+    setBookDateError("");
+    setIsManualBookEntry(false);
+  };
+
+  const openBookAddFlow = () => {
+    if (isBookAddOpen || isBookAddOpeningRef.current) return;
+
+    isBookAddOpeningRef.current = true;
+    timerControlSound.playSelect();
+    setSavedSessionSummary(null);
+    setIsBookAddOpen(true);
+    setBookAddStep("search");
+  };
+
+  const openBookSearchStep = () => {
+    setBookAddStep("search");
+  };
+
+  useEffect(() => {
+    if (bookAddOpenRequestId === 0) return;
+
+    onConsumeBookAddOpenRequest();
+    const animationFrame = window.requestAnimationFrame(() => {
+      timerControlSound.playSelect();
+      setSavedSessionSummary(null);
+      setIsBookAddOpen(true);
+      setBookAddStep("search");
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [bookAddOpenRequestId, onConsumeBookAddOpenRequest, timerControlSound]);
+
+  const startManualBookEntry = () => {
+    timerControlSound.playSelect();
+    setSelectedBookSearchResult(null);
+    setIsManualBookEntry(true);
+    setNewBook({
+      ...emptySessionBook,
+      title: bookSearchQuery.trim(),
+    });
+    setBookDateError("");
+    setBookAddStep("details");
+  };
+
+  const submitBookSearch = async () => {
+    setSelectedBookSearchResult(null);
+
+    if (!hasKakaoBookApiKey) {
+      setBookSearchStatus("error");
+      setBookSearchMessage(
+        ".env에 VITE_KAKAO_REST_API_KEY를 설정하면 검색을 사용할 수 있습니다.",
+      );
+      return;
+    }
+
+    if (bookSearchQuery.trim().length === 0) {
+      setBookSearchStatus("error");
+      setBookSearchMessage("검색어를 입력해 주세요.");
+      return;
+    }
+
+    setBookSearchStatus("loading");
+    setBookSearchMessage("");
+
+    try {
+      const results = await searchKakaoBooks(bookSearchQuery);
+      setBookSearchResults(results);
+      setBookSearchStatus(results.length > 0 ? "success" : "empty");
+      setBookSearchMessage(results.length > 0 ? "" : "검색 결과가 없습니다.");
+    } catch {
+      setBookSearchResults([]);
+      setBookSearchStatus("error");
+      setBookSearchMessage(
+        "책 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    }
+  };
+
+  const resetBookSearch = () => {
+    timerControlSound.playSelect();
+    setBookSearchQuery("");
+    setBookSearchStatus("idle");
+    setBookSearchMessage("");
+    setBookSearchResults([]);
+    setSelectedBookSearchResult(null);
+  };
+
+  const selectSearchResult = (book: BookSearchResult) => {
+    timerControlSound.playSelect();
+    setSelectedBookSearchResult(book);
+  };
+
+  const continueWithSelectedSearchResult = () => {
+    if (!selectedBookSearchResult) return;
+
+    const book = selectedBookSearchResult;
+
+    timerControlSound.playSelect();
+    setIsManualBookEntry(false);
+    setNewBook((current) => ({
+      ...current,
+      title: book.title,
+      author: book.authors.join(", ") || current.author,
+      thumbnail: book.thumbnail,
+      isbn: book.isbn,
+      publisher: book.publisher,
+      contents: book.contents,
+      status: "reading",
+    }));
+    setBookDateError("");
+    setBookAddStep("details");
+
+    void resolveBestBookCover({
+      isbn: book.isbn,
+      fallbackThumbnail: book.thumbnail,
+    }).then((resolvedThumbnail) => {
+      if (!resolvedThumbnail || resolvedThumbnail === book.thumbnail) return;
+
+      setNewBook((current) => {
+        if (current.isbn !== book.isbn) return current;
+
+        return {
+          ...current,
+          thumbnail: resolvedThumbnail,
+        };
+      });
+    });
+  };
+
+  const saveBook = async () => {
+    if (newBook.title.trim().length === 0) return;
+    if (isSavingBook) return;
+
+    const totalPages = newBook.totalPages
+      ? Math.max(Math.floor(newBook.totalPages), 1)
+      : null;
+    const currentPage =
+      newBook.status === "completed" && totalPages
+        ? totalPages
+        : clampBookPage(newBook.currentPage, totalPages);
+    const startedAt = newBook.startedAt?.trim()
+      ? parseReadingDate(newBook.startedAt)
+      : undefined;
+    const completedAt =
+      newBook.status === "completed"
+        ? parseReadingDate(newBook.completedAt?.trim() ?? "")
+        : undefined;
+
+    if (newBook.startedAt?.trim() && !startedAt) {
+      setBookDateError("시작일을 올바른 날짜로 선택해 주세요.");
+      return;
+    }
+
+    if (newBook.status === "completed" && !completedAt) {
+      setBookDateError("완독일을 올바른 날짜로 선택해 주세요.");
+      return;
+    }
+
+    if (
+      startedAt &&
+      completedAt &&
+      toDateTime(startedAt) > toDateTime(completedAt)
+    ) {
+      setBookDateError("시작일은 완독일보다 늦을 수 없습니다.");
+      return;
+    }
+
+    setIsSavingBook(true);
+
+    try {
+      const [resolvedThumbnail, libraryReference] = await Promise.all([
+        resolveBestBookCover({
+          isbn: newBook.isbn,
+          fallbackThumbnail: newBook.thumbnail,
+        }),
+        fetchBookLibraryReference(newBook.isbn, newBook.title),
+      ]);
+      const newBookId = await onAddBook({
+        ...newBook,
+        totalPages,
+        currentPage,
+        startedAt: startedAt ?? undefined,
+        completedAt: completedAt ?? undefined,
+        thumbnail: resolvedThumbnail,
+        libraryReference,
+      });
+
+      if (newBook.status === "completed") {
+        const nextReadingBook = readingBooks[0] ?? null;
+
+        onChangeBook(nextReadingBook?.id ?? "");
+        setPreviewBookId(nextReadingBook?.id ?? null);
+        setIsBookAddListItemActive(false);
+        setHasSelectedSessionBook(false);
+      } else {
+        onChangeBook(newBookId);
+        setHasSelectedSessionBook(true);
+      }
+
+      timer.reset();
+      closeBookAddFlow();
+      timerControlSound.playConfirm();
+    } finally {
+      setIsSavingBook(false);
+    }
+  };
+
+  useBackNavigationLayer(
+    isBookAddOpen,
+    () => {
+      if (bookAddStep === "details") {
+        openBookSearchStep();
+        return;
+      }
+
+      closeBookAddFlow();
+    },
+    "session-book-add",
+  );
+
   const canShowBookSelectScreen =
+    !isBookAddOpen &&
     !savedSessionSummary &&
     readingBooks.length > 0 &&
     (!currentBook ||
+      currentBook.status === "completed" ||
       (!hasSelectedSessionBook &&
         timer.status === "idle" &&
         timer.elapsedSeconds === 0));
@@ -657,15 +957,17 @@ export const SessionScreen = ({
     timerControlSound.playConfirm();
     onChangeBook(bookId);
     setPreviewBookId(bookId);
+    setIsBookAddListItemActive(false);
     setHasSelectedSessionBook(true);
     timer.reset();
   };
 
   const previewSessionBook = (bookId: string) => {
-    if (bookId === selectedBookPreview?.id) return;
+    if (!isBookAddListItemActive && bookId === selectedBookPreview?.id) return;
 
     vibrateSelect();
     timerControlSound.playSelect();
+    setIsBookAddListItemActive(false);
     if (bookPreviewGlitchTimerRef.current !== null) {
       window.clearTimeout(bookPreviewGlitchTimerRef.current);
     }
@@ -676,6 +978,482 @@ export const SessionScreen = ({
       bookPreviewGlitchTimerRef.current = null;
     }, 360);
   };
+
+  const previewBookAddListItem = () => {
+    if (isBookAddListItemActive) return;
+
+    vibrateSelect();
+    timerControlSound.playSelect();
+    setIsBookAddListItemActive(true);
+  };
+
+  if (isBookAddOpen) {
+    return (
+      <div className="session-screen space-y-4">
+        <section className="session-book-select-stage session-ready-stage session-book-add-stage">
+          <div className="session-book-select-console session-ready-console session-book-add-console">
+            <div className="focus-timer-card session-ready-scene-card">
+              <div className="relative z-10 session-ready-scene-shell">
+                <div
+                  className={
+                    bookAddStep === "search"
+                      ? "session-book-add-panel session-book-add-panel-search"
+                      : "session-book-add-panel session-book-add-panel-details"
+                  }
+                >
+                  {bookAddStep === "search" ? (
+                    <form
+                      className="session-book-add-search"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void submitBookSearch();
+                      }}
+                    >
+                      <div className="session-word-search-form session-book-add-search-form">
+                        <input
+                          type="search"
+                          id="session-book-search-query"
+                          aria-label="책 검색어"
+                          placeholder="제목, 저자, ISBN으로 검색"
+                          value={bookSearchQuery}
+                          onChange={(event) => {
+                            setBookSearchQuery(event.target.value);
+                            setSelectedBookSearchResult(null);
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          className="session-word-go-button"
+                          aria-label="책 검색"
+                          disabled={bookSearchStatus === "loading"}
+                        >
+                          {bookSearchStatus === "loading" ? (
+                            "..."
+                          ) : (
+                            <Icon name="search" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="session-book-add-search-messages">
+                        {!hasKakaoBookApiKey && (
+                          <p className="session-book-add-message">
+                            `.env`에 `VITE_KAKAO_REST_API_KEY`를 추가하면 검색을
+                            사용할 수 있습니다.
+                          </p>
+                        )}
+                        {bookSearchMessage && (
+                          <p className="session-book-add-message">
+                            {bookSearchMessage}
+                          </p>
+                        )}
+                      </div>
+                      {bookSearchResults.length > 0 && (
+                        <div
+                          className="session-book-add-results"
+                          role="list"
+                        >
+                          {bookSearchResults.map((book, index) => (
+                            <button
+                              key={book.id}
+                              type="button"
+                              className={
+                                selectedBookSearchResult?.id === book.id
+                                  ? "session-book-search-card session-book-search-card-active"
+                                  : "session-book-search-card"
+                              }
+                              aria-pressed={
+                                selectedBookSearchResult?.id === book.id
+                              }
+                              onClick={() => selectSearchResult(book)}
+                            >
+                              <span className="session-book-search-index">
+                                {(index + 1).toString().padStart(2, "0")}
+                              </span>
+                              {book.thumbnail ? (
+                                <img
+                                  className="session-book-search-cover"
+                                  src={book.thumbnail}
+                                  alt=""
+                                />
+                              ) : (
+                                <span className="session-book-search-cover session-book-search-cover-empty">
+                                  <Icon name="book" className="h-5 w-5" />
+                                </span>
+                              )}
+                              <span className="session-book-search-copy">
+                                <strong>{book.title}</strong>
+                                <small>
+                                  {book.authors.join(", ") || "저자 정보 없음"}
+                                </small>
+                                <em>{book.publisher || "출판사 정보 없음"}</em>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </form>
+                  ) : (
+                    <div className="session-book-add-details">
+                      <div className="session-book-search-card session-book-add-preview">
+                        <span className="session-book-search-index">01</span>
+                        {newBook.thumbnail ? (
+                          <img
+                            className="session-book-search-cover"
+                            src={newBook.thumbnail}
+                            alt=""
+                          />
+                        ) : (
+                          <div className="session-book-search-cover session-book-search-cover-empty">
+                            <Icon name="book" className="h-6 w-6" />
+                          </div>
+                        )}
+                        <span className="session-book-search-copy">
+                          <strong>
+                            {newBook.title.trim() || "책 제목을 입력해 주세요"}
+                          </strong>
+                          <small>{newBook.author.trim() || "저자 정보 없음"}</small>
+                          <em>{newBook.publisher || "출판사 정보 없음"}</em>
+                        </span>
+                      </div>
+
+                      <div className="book-form-fields session-book-add-fields">
+                        {isManualBookEntry && (
+                          <>
+                            <label
+                              className="book-form-label"
+                              htmlFor="session-new-book-title"
+                            >
+                              책 제목
+                            </label>
+                            <input
+                              id="session-new-book-title"
+                              className="book-form-input"
+                              value={newBook.title}
+                              onChange={(event) =>
+                                setNewBook((current) => ({
+                                  ...current,
+                                  title: event.target.value,
+                                }))
+                              }
+                            />
+
+                            <label
+                              className="book-form-label"
+                              htmlFor="session-new-book-author"
+                            >
+                              저자
+                            </label>
+                            <input
+                              id="session-new-book-author"
+                              className="book-form-input"
+                              value={newBook.author}
+                              onChange={(event) =>
+                                setNewBook((current) => ({
+                                  ...current,
+                                  author: event.target.value,
+                                }))
+                              }
+                            />
+                          </>
+                        )}
+
+                        <div
+                          className="session-book-add-status-switch"
+                          role="group"
+                          aria-label="등록 상태"
+                        >
+                          {(["reading", "completed"] as const).map(
+                            (status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                className={
+                                  newBook.status === status
+                                    ? "session-book-add-status-option session-book-add-status-option-active"
+                                    : "session-book-add-status-option"
+                                }
+                                onClick={() => {
+                                  timerControlSound.playSelect();
+                                  setBookDateError("");
+                                  setNewBook((current) => ({
+                                    ...current,
+                                    status,
+                                    currentPage:
+                                      status === "completed" &&
+                                      current.totalPages
+                                        ? current.totalPages
+                                        : clampBookPage(
+                                            current.currentPage,
+                                            current.totalPages,
+                                          ),
+                                    startedAt:
+                                      status === "completed"
+                                        ? current.startedAt
+                                        : undefined,
+                                    completedAt:
+                                      status === "completed"
+                                        ? current.completedAt
+                                        : undefined,
+                                  }));
+                                }}
+                              >
+                                {status === "reading" ? "미완독" : "완독"}
+                              </button>
+                            ),
+                          )}
+                        </div>
+
+                        <div className="book-form-pages-fields">
+                          {newBook.status === "reading" ? (
+                            <>
+                              <div className="session-book-add-page-row">
+                                <div>
+                                  <label
+                                    className="book-form-label"
+                                    htmlFor="session-new-book-current"
+                                  >
+                                    현재 페이지
+                                  </label>
+                                  <input
+                                    id="session-new-book-current"
+                                    className="book-form-input"
+                                    type="text"
+                                    inputMode="numeric"
+                                    min={1}
+                                    max={newBook.totalPages ?? undefined}
+                                    value={newBook.currentPage}
+                                    onChange={(event) =>
+                                      setNewBook((current) => ({
+                                        ...current,
+                                        currentPage: parsePageInput(
+                                          event.target.value,
+                                        ),
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="book-total-pages-section">
+                                  <label
+                                    className="book-form-label"
+                                    htmlFor="session-new-book-total"
+                                  >
+                                    전체 페이지
+                                  </label>
+                                  <input
+                                    id="session-new-book-total"
+                                    className="book-form-input"
+                                    type="text"
+                                    inputMode="numeric"
+                                    min={1}
+                                    placeholder="선택 사항"
+                                    value={newBook.totalPages ?? ""}
+                                    onChange={(event) =>
+                                      setNewBook((current) => {
+                                        const rawValue =
+                                          event.target.value.trim();
+                                        if (rawValue.length === 0) {
+                                          return {
+                                            ...current,
+                                            totalPages: null,
+                                          };
+                                        }
+
+                                        const totalPages = Math.max(
+                                          parsePageInput(rawValue),
+                                          1,
+                                        );
+
+                                        return {
+                                          ...current,
+                                          totalPages,
+                                          currentPage: Math.min(
+                                            current.currentPage,
+                                            totalPages,
+                                          ),
+                                        };
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+                              <p className="book-total-pages-hint">
+                                비워두면 책 상세에서 나중에 입력할 수 있어요.
+                              </p>
+                            </>
+                          ) : (
+                            <div className="book-total-pages-section">
+                              <label
+                                className="book-form-label"
+                                htmlFor="session-new-book-total"
+                              >
+                                전체 페이지
+                              </label>
+                              <input
+                                id="session-new-book-total"
+                                className="book-form-input"
+                                type="text"
+                                inputMode="numeric"
+                                min={1}
+                                placeholder="선택 사항"
+                                value={newBook.totalPages ?? ""}
+                                onChange={(event) =>
+                                  setNewBook((current) => {
+                                    const rawValue = event.target.value.trim();
+                                    if (rawValue.length === 0) {
+                                      return {
+                                        ...current,
+                                        totalPages: null,
+                                      };
+                                    }
+
+                                    const totalPages = Math.max(
+                                      parsePageInput(rawValue),
+                                      1,
+                                    );
+
+                                    return {
+                                      ...current,
+                                      totalPages,
+                                      currentPage: totalPages,
+                                    };
+                                  })
+                                }
+                              />
+                              <p className="book-total-pages-hint">
+                                비워두면 책 상세에서 나중에 입력할 수 있어요.
+                              </p>
+                            </div>
+                          )}
+
+                          {newBook.status === "completed" && (
+                            <>
+                              <div className="session-book-add-date-row">
+                                <div>
+                                  <label
+                                    className="book-form-label"
+                                    htmlFor="session-new-book-started-at"
+                                  >
+                                    시작일
+                                  </label>
+                                  <input
+                                    id="session-new-book-started-at"
+                                    className="book-form-input"
+                                    type="date"
+                                    value={toDateInputValue(
+                                      newBook.startedAt ?? "",
+                                    )}
+                                    onChange={(event) => {
+                                      setBookDateError("");
+                                      setNewBook((current) => ({
+                                        ...current,
+                                        startedAt: event.target.value,
+                                      }));
+                                    }}
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    className="book-form-label"
+                                    htmlFor="session-new-book-completed-at"
+                                  >
+                                    완독일
+                                  </label>
+                                  <input
+                                    id="session-new-book-completed-at"
+                                    className="book-form-input"
+                                    type="date"
+                                    value={toDateInputValue(
+                                      newBook.completedAt ?? "",
+                                    )}
+                                    onChange={(event) => {
+                                      setBookDateError("");
+                                      setNewBook((current) => ({
+                                        ...current,
+                                        completedAt: event.target.value,
+                                      }));
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              {bookDateError && (
+                                <p className="book-form-error">
+                                  {bookDateError}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="session-ready-controls session-book-add-controls">
+              {bookAddStep === "search" ? (
+                <div className="session-book-add-simple-actions">
+                  {selectedBookSearchResult ? (
+                    <>
+                      <button
+                        type="button"
+                        className="session-book-add-action session-book-add-action-primary"
+                        onClick={continueWithSelectedSearchResult}
+                      >
+                        선택
+                      </button>
+                      <button
+                        type="button"
+                        className="session-book-add-action"
+                        onClick={resetBookSearch}
+                      >
+                        초기화
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="session-book-add-action"
+                        onClick={startManualBookEntry}
+                      >
+                        직접 입력
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="session-book-add-action"
+                    onClick={closeBookAddFlow}
+                  >
+                    이전
+                  </button>
+                </div>
+              ) : (
+                <div className="session-book-add-simple-actions">
+                  <button
+                    type="button"
+                    className="session-book-add-action session-book-add-action-primary"
+                    onClick={() => void saveBook()}
+                    disabled={isSavingBook || newBook.title.trim().length === 0}
+                  >
+                    {isSavingBook ? "저장 중" : "추가하기"}
+                  </button>
+                  <button
+                    type="button"
+                    className="session-book-add-action"
+                    onClick={openBookSearchStep}
+                  >
+                    이전
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (canShowBookSelectScreen) {
     return (
@@ -756,12 +1534,49 @@ export const SessionScreen = ({
                 className="session-book-select-list"
                 role="list"
               >
+                <div
+                  className={
+                    isBookAddListItemActive
+                      ? "book-game-item book-game-item-active"
+                      : "book-game-item"
+                  }
+                >
+                  <button
+                    type="button"
+                    className="book-game-preview"
+                    aria-pressed={isBookAddListItemActive}
+                    onClick={previewBookAddListItem}
+                  >
+                    <span className="book-game-cursor" aria-hidden="true">
+                      ▶
+                    </span>
+                    <span className="book-game-slot">00</span>
+                    <span className="book-game-copy">
+                      <strong>책 추가하기</strong>
+                      <small>새로운 독서 시작</small>
+                    </span>
+                  </button>
+                  {isBookAddListItemActive ? (
+                    <button
+                      type="button"
+                      className="book-game-select-button"
+                      onClick={openBookAddFlow}
+                    >
+                      선택
+                    </button>
+                  ) : (
+                    <span className="book-game-progress">NEW</span>
+                  )}
+                </div>
                 {readingBooks.map((book, index) => (
                   <BookGameSelectItem
                     key={book.id}
                     book={book}
                     index={index}
-                    isActive={book.id === selectedBookPreview?.id}
+                    isActive={
+                      !isBookAddListItemActive &&
+                      book.id === selectedBookPreview?.id
+                    }
                     itemRef={(node) => {
                       if (node) {
                         bookSelectItemRefs.current.set(book.id, node);
@@ -782,36 +1597,31 @@ export const SessionScreen = ({
     );
   }
 
-  if (!currentBook) {
+  if (!currentBook || currentBook.status === "completed") {
     return (
       <div className="session-screen space-y-4">
-        <section className="session-focus-panel session-focus-panel-expanded">
-          <div className="focus-timer-card">
-            <div className="relative z-10">
-              <AdventureScene
-                status="idle"
-                mode={timer.mode}
-                displayTime={formatFocusTime(timer.remainingSeconds)}
-                progress={0}
-                goalApproachProgress={null}
-                showStartBanner={false}
-                presets={presets}
-                targetSeconds={timer.targetSeconds}
-                memoryLogs={[]}
-                memorySeed="empty-book"
-                emptyState={{
-                  title: "첫 책을 추가해볼까요?",
-                  description:
-                    "읽고 있는 책을 등록하면 바로 독서 시간을 기록할 수 있어요.",
-                  actionLabel: "첫 책 추가하기",
-                  onAction: onAddFirstBook,
-                }}
-                onChangeMode={() => undefined}
-                onSelectPreset={() => undefined}
-                onStart={() => undefined}
-                onPause={() => undefined}
-                onStop={() => undefined}
-              />
+        <section className="session-book-select-stage session-ready-stage session-empty-book-stage">
+          <div className="session-book-select-console session-ready-console session-empty-book-console">
+            <div className="focus-timer-card session-ready-scene-card">
+              <div className="relative z-10 session-ready-scene-shell">
+                <div className="session-ready-info session-empty-book-info">
+                  <div className="session-ready-continue session-empty-book-copy">
+                    <strong className="session-empty-book-title">
+                      첫 책을 추가해볼까요?
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="session-ready-controls session-empty-book-controls">
+              <button
+                type="button"
+                className="session-empty-book-primary"
+                onClick={openBookAddFlow}
+              >
+                첫 책 추가하기
+              </button>
             </div>
           </div>
         </section>

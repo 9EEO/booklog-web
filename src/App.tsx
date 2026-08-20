@@ -284,6 +284,8 @@ function AuthenticatedApp({
   const [tierBoard, setTierBoard] = useState<TierBoard>(getInitialTierBoard);
   const [isLibraryDetailMode, setIsLibraryDetailMode] = useState(false);
   const [bookFormOpenRequestId, setBookFormOpenRequestId] = useState(0);
+  const [sessionBookAddOpenRequestId, setSessionBookAddOpenRequestId] =
+    useState(0);
   const [bookDetailOpenRequest, setBookDetailOpenRequest] = useState<{
     id: number;
     bookId: string;
@@ -1522,9 +1524,9 @@ function AuthenticatedApp({
   };
 
   const openFirstBookForm = () => {
-    setActiveTab("library");
+    setActiveTab("session");
     setIsLibraryDetailMode(false);
-    setBookFormOpenRequestId((current) => current + 1);
+    setSessionBookAddOpenRequestId((current) => current + 1);
   };
 
   const openLibraryBookDetail = (bookId: string) => {
@@ -1548,9 +1550,11 @@ function AuthenticatedApp({
           onChangeBook={setCurrentBookId}
           onOpenBookDetail={openLibraryBookDetail}
           onSaveRecord={handleSaveRecord}
+          onAddBook={handleAddBook}
           onAddSentence={handleAddSentence}
           onAddWordNote={handleAddWordNote}
-          onAddFirstBook={openFirstBookForm}
+          bookAddOpenRequestId={sessionBookAddOpenRequestId}
+          onConsumeBookAddOpenRequest={() => setSessionBookAddOpenRequestId(0)}
         />
       )}
       {activeTab === "records" && (
@@ -1579,6 +1583,7 @@ function AuthenticatedApp({
           onDeleteRound={handleDeleteRound}
           bookFormOpenRequestId={bookFormOpenRequestId}
           onConsumeBookFormOpenRequest={() => setBookFormOpenRequestId(0)}
+          onOpenReadingBookAdd={openFirstBookForm}
           bookDetailOpenRequest={bookDetailOpenRequest}
           onConsumeBookDetailOpenRequest={() =>
             setBookDetailOpenRequest(null)

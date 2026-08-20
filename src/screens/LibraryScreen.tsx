@@ -77,6 +77,7 @@ type LibraryScreenProps = {
   onDeleteRound: (bookId: string, roundId: string) => Promise<void>;
   bookFormOpenRequestId: number;
   onConsumeBookFormOpenRequest: () => void;
+  onOpenReadingBookAdd: () => void;
   bookDetailOpenRequest: { id: number; bookId: string } | null;
   onConsumeBookDetailOpenRequest: () => void;
   onDetailModeChange?: (isDetailMode: boolean) => void;
@@ -640,6 +641,7 @@ export const LibraryScreen = ({
   onDeleteRound,
   bookFormOpenRequestId,
   onConsumeBookFormOpenRequest,
+  onOpenReadingBookAdd,
   bookDetailOpenRequest,
   onConsumeBookDetailOpenRequest,
   onDetailModeChange,
@@ -1507,7 +1509,14 @@ export const LibraryScreen = ({
                   <button
                     type="button"
                     className="library-icon-button library-icon-button-primary"
-                    onClick={() => setIsBookFormOpen(true)}
+                    onClick={() => {
+                      if (activeShelfTab === "reading") {
+                        onOpenReadingBookAdd();
+                        return;
+                      }
+
+                      setIsBookFormOpen(true);
+                    }}
                     aria-label="새 책 추가"
                   >
                     <Icon name="plus" className="h-5 w-5" />
