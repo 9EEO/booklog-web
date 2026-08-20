@@ -249,45 +249,6 @@ const BookGameSelectItem = ({
   );
 };
 
-const formatReadyDuration = (seconds: number) => {
-  const minutes = Math.max(Math.round(seconds / 60), 1);
-  const hours = Math.floor(minutes / 60);
-  const restMinutes = minutes % 60;
-
-  if (hours > 0) {
-    return restMinutes > 0 ? `${hours}시간 ${restMinutes}분` : `${hours}시간`;
-  }
-
-  return `${minutes}분`;
-};
-
-const formatDaysSinceReading = (dateLabel: string) => {
-  const [year, month, day] = dateLabel.split(".").map(Number);
-
-  if (!year || !month || !day) {
-    return "마지막 독서일 확인 불가";
-  }
-
-  const today = new Date();
-  const todayStart = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  const readingDate = new Date(year, month - 1, day);
-  const daysSinceReading = Math.max(
-    0,
-    Math.floor(
-      (todayStart.getTime() - readingDate.getTime()) / (1000 * 60 * 60 * 24),
-    ),
-  );
-
-  if (daysSinceReading === 0) return "마지막 독서 오늘";
-  if (daysSinceReading === 1) return "마지막 독서 어제";
-
-  return `마지막 독서 ${daysSinceReading}일 전`;
-};
-
 const getReadingRecordTime = (record: ReadingRecord) => {
   const preciseDate = record.endedAt ?? record.startedAt;
 
@@ -322,6 +283,8 @@ export const SessionScreen = ({
   const [hasSelectedSessionBook, setHasSelectedSessionBook] = useState(false);
   const [previewBookId, setPreviewBookId] = useState<string | null>(null);
   const [isBookAddListItemActive, setIsBookAddListItemActive] = useState(false);
+  const [isBookChangeTimeItemActive, setIsBookChangeTimeItemActive] =
+    useState(false);
   const [isBookAddOpen, setIsBookAddOpen] = useState(false);
   const [bookAddStep, setBookAddStep] = useState<BookAddStep>("search");
   const [bookSearchQuery, setBookSearchQuery] = useState("");
@@ -840,7 +803,11 @@ export const SessionScreen = ({
   }, [canShowBookSelectScreen, previewBookId]);
 
   const activeTimerOptionKey =
-    timer.mode === "stopwatch" ? "stopwatch" : `preset-${timer.targetSeconds}`;
+    isBookChangeTimeItemActive
+      ? "change-book"
+      : timer.mode === "stopwatch"
+        ? "stopwatch"
+        : `preset-${timer.targetSeconds}`;
 
   useEffect(() => {
     if (!canChangeTimerMode) return undefined;
@@ -1643,28 +1610,10 @@ export const SessionScreen = ({
     : timer.progress;
   const canDecreaseExtension = extensionSeconds > minimumExtensionSeconds;
   const canIncreaseExtension = extensionSeconds < maximumExtensionSeconds;
-  const currentBookRecords = records
-    .filter((record) => record.bookId === currentBook.id)
-    .sort(
-      (left, right) =>
-        `${right.date}-${right.endedAt ?? right.startedAt ?? ""}`.localeCompare(
-          `${left.date}-${left.endedAt ?? left.startedAt ?? ""}`,
-        ),
-    );
-  const latestReadingRecord = currentBookRecords[0];
   const readyBookProgress = getBookProgress(
     currentBook.currentPage,
     currentBook.totalPages,
   );
-  const readyProgressStyle = {
-    "--ready-progress": `${readyBookProgress ?? 0}%`,
-  } as CSSProperties;
-  const savedSentenceCount = currentBook.sentences.length;
-  const readyMeta = latestReadingRecord
-    ? `${formatDaysSinceReading(latestReadingRecord.date)} · 지난번 ${formatReadyDuration(
-        latestReadingRecord.durationSeconds,
-      )} 읽음 · 저장 문장 ${savedSentenceCount}개`
-    : `아직 독서 기록 없음 · 저장 문장 ${savedSentenceCount}개`;
   const updateForm = (patch: Partial<typeof form>) => {
     setForm((current) => ({
       ...current,
@@ -1780,13 +1729,23 @@ export const SessionScreen = ({
 
     vibrateTimerSelect();
     timerControlSound.playSelect();
+    setIsBookChangeTimeItemActive(false);
     timer.setMode(mode);
   };
 
   const selectTimerPreset = (seconds: number) => {
     vibrateTimerSelect();
     timerControlSound.playSelect();
+    setIsBookChangeTimeItemActive(false);
     timer.setPreset(seconds);
+  };
+
+  const selectBookChangeTimeItem = () => {
+    if (isBookChangeTimeItemActive) return;
+
+    vibrateTimerSelect();
+    timerControlSound.playSelect();
+    setIsBookChangeTimeItemActive(true);
   };
 
   const startTimer = () => {
@@ -2326,35 +2285,61 @@ export const SessionScreen = ({
       ) : canChangeTimerMode ? (
         <section className="session-book-select-stage session-ready-stage">
           <div className="session-book-select-console session-ready-console">
-            <div className="focus-timer-card session-ready-scene-card">
-              <div className="relative z-10 session-ready-scene-shell">
-                <div className="session-ready-info">
-                  <div className="session-ready-book-status">
-                    <div>
-                      <strong>{currentBook.title}</strong>
-                      <span>
-                        {readyBookProgress !== null
-                          ? `${readyBookProgress}%`
-                          : `${currentBook.currentPage}p`}
-                      </span>
-                    </div>
-                    {readyBookProgress !== null && (
-                      <div
-                        className="session-ready-book-progress"
-                        style={readyProgressStyle}
-                      >
-                        <span />
-                      </div>
-                    )}
-                  </div>
-                  <div className="session-ready-continue">
-                    <span>이어가기</span>
-                    <strong>{currentBook.currentPage}p부터 이어 읽기</strong>
-                    <p>{readyMeta}</p>
-                  </div>
+            <aside className="session-book-preview-panel">
+              <div className="session-book-preview-screen">
+                <div className="session-book-preview-cover">
+                  {currentBook.thumbnail ? (
+                    <PixelatedBookCover
+                      src={currentBook.thumbnail}
+                      alt=""
+                      className="session-book-preview-pixel-cover"
+                    />
+                  ) : (
+                    <Icon name="book" className="h-9 w-9" />
+                  )}
                 </div>
               </div>
-            </div>
+              <div className="session-book-preview-copy">
+                <h2>{currentBook.title}</h2>
+                <p className="session-book-preview-author">
+                  {currentBook.author || "작자 미상"}
+                </p>
+                <p
+                  key={`${currentBook.id}-${selectedBookDescription}`}
+                  ref={bookDescriptionRef}
+                  className="session-book-preview-description"
+                  style={bookDescriptionStyle}
+                >
+                  <span
+                    className="session-book-preview-description-text"
+                    aria-label={selectedBookDescription}
+                  >
+                    {visibleBookDescription}
+                    {isBookDescriptionTyping && (
+                      <span
+                        className="session-book-preview-description-cursor"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </span>
+                </p>
+              </div>
+              <div className="session-book-preview-stats">
+                <span>
+                  PAGE {currentBook.currentPage}
+                  {currentBook.totalPages ? `/${currentBook.totalPages}` : ""}
+                </span>
+                <span className="session-book-preview-progress">
+                  <span
+                    key={currentBook.id}
+                    style={{ width: `${readyBookProgress ?? 0}%` }}
+                  />
+                </span>
+                <strong>
+                  {readyBookProgress !== null ? `${readyBookProgress}%` : "NEW"}
+                </strong>
+              </div>
+            </aside>
 
             <div className="session-ready-controls">
               <div
@@ -2362,8 +2347,51 @@ export const SessionScreen = ({
                 className="session-ready-preset-grid"
                 role="list"
               >
+                <div
+                  ref={(node) => {
+                    if (node) {
+                      timerPresetItemRefs.current.set("change-book", node);
+                      return;
+                    }
+
+                    timerPresetItemRefs.current.delete("change-book");
+                  }}
+                  className={`book-game-item session-ready-time-item ${
+                    isBookChangeTimeItemActive ? "book-game-item-active" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="book-game-preview"
+                    onClick={selectBookChangeTimeItem}
+                    aria-pressed={isBookChangeTimeItemActive}
+                  >
+                    <span className="book-game-cursor" aria-hidden="true">
+                      ▶
+                    </span>
+                    <span className="book-game-slot">00</span>
+                    <span className="book-game-copy">
+                      <strong>책 변경하기</strong>
+                    </span>
+                  </button>
+                  {isBookChangeTimeItemActive ? (
+                    <button
+                      type="button"
+                      className="book-game-select-button"
+                      onClick={openSessionBookSelection}
+                    >
+                      확인
+                    </button>
+                  ) : (
+                    <span
+                      className="book-game-progress book-game-progress-empty"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
                 {presets.map((preset, index) => {
                   const isActive =
+                    !isBookChangeTimeItemActive &&
                     timer.mode === "countdown" &&
                     timer.targetSeconds === preset.seconds;
                   const presetKey = `preset-${preset.seconds}`;
@@ -2426,14 +2454,18 @@ export const SessionScreen = ({
                     timerPresetItemRefs.current.delete("stopwatch");
                   }}
                   className={`book-game-item session-ready-time-item ${
-                    timer.mode === "stopwatch" ? "book-game-item-active" : ""
+                    !isBookChangeTimeItemActive && timer.mode === "stopwatch"
+                      ? "book-game-item-active"
+                      : ""
                   }`}
                 >
                   <button
                     type="button"
                     className="book-game-preview"
                     onClick={() => changeTimerMode("stopwatch")}
-                    aria-pressed={timer.mode === "stopwatch"}
+                    aria-pressed={
+                      !isBookChangeTimeItemActive && timer.mode === "stopwatch"
+                    }
                   >
                     <span className="book-game-cursor" aria-hidden="true">
                       ▶
@@ -2442,10 +2474,11 @@ export const SessionScreen = ({
                       {(presets.length + 1).toString().padStart(2, "0")}
                     </span>
                     <span className="book-game-copy">
-                      <strong>FREE JOURNEY</strong>
+                      <strong>FREE MODE</strong>
                     </span>
                   </button>
-                  {timer.mode === "stopwatch" ? (
+                  {!isBookChangeTimeItemActive &&
+                  timer.mode === "stopwatch" ? (
                     <button
                       type="button"
                       className="book-game-select-button"
@@ -2460,16 +2493,6 @@ export const SessionScreen = ({
                     />
                   )}
                 </div>
-              </div>
-
-              <div className="session-ready-action-row">
-                <button
-                  type="button"
-                  className="session-ready-book-change"
-                  onClick={openSessionBookSelection}
-                >
-                  책 변경
-                </button>
               </div>
             </div>
           </div>

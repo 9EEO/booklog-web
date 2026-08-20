@@ -3390,6 +3390,66 @@ button {
   box-shadow: 3px 3px 0 rgba(47, 42, 38, 0.78);
 }
 
+.app-loading-screen {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  background: #fcfbf7;
+  color: #151515;
+}
+
+.app-loading-shell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: max(18px, env(safe-area-inset-top)) 18px
+    max(18px, env(safe-area-inset-bottom));
+}
+
+.app-loading-scene {
+  --scene-ground-y: 66%;
+  --scene-character-x: 50%;
+  position: relative;
+  display: grid;
+  width: 140px;
+  height: 118px;
+  justify-items: center;
+}
+
+.app-loading-copy {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  margin: 0;
+  color: rgba(21, 21, 21, 0.62);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: center;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  animation: app-loading-text 1120ms ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+@keyframes app-loading-text {
+  0%,
+  100% {
+    opacity: 0.46;
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(-50%, -2px, 0);
+  }
+}
+
 .pixel-label {
   color: var(--muted);
   font-family: var(--font-ui);
@@ -4865,7 +4925,7 @@ button {
 .session-ready-controls {
   display: grid;
   min-height: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   gap: 8px;
   overflow: hidden;
   border: 2px solid #151515;
@@ -5447,20 +5507,6 @@ button {
   box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.3);
 }
 
-.session-ready-book-change {
-  min-height: 34px;
-  border: 2px solid #151515;
-  border-radius: 2px;
-  background: #fffef8;
-  color: #151515;
-  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.32);
-  padding: 0 10px;
-  font-family: var(--font-pixel);
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: 0;
-}
-
 .session-ready-preset-grid {
   display: grid;
   min-height: 0;
@@ -5475,16 +5521,6 @@ button {
 .session-ready-preset-grid::-webkit-scrollbar {
   width: 0;
   height: 0;
-}
-
-.session-ready-action-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-}
-
-.session-ready-book-change:active {
-  transform: translateY(1px);
 }
 
 @keyframes session-empty-book-title-reveal {

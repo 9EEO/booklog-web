@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { BottomTabs } from "./components/BottomTabs";
+import { Character } from "./components/adventure/AdventureScene";
 import { useAuth } from "./hooks/useAuth";
 import { useReadingTimer } from "./hooks/useReadingTimer";
 import { AdminScreen } from "./screens/AdminScreen";
@@ -1608,13 +1609,7 @@ function AuthenticatedApp({
   const shouldHideBottomTabs = activeTab === "library" && isLibraryDetailMode;
 
   if (isDataLoading) {
-    return (
-      <main className="grid min-h-svh place-items-center bg-[#F8F8F5] px-4 text-stone-900">
-        <div className="w-full max-w-[430px] border-2 border-[#2F2A26] bg-[#FCFBF7] p-5 text-center shadow-pixel">
-          <p className="text-sm font-black">독서 데이터를 불러오는 중</p>
-        </div>
-      </main>
-    );
+    return <AppLoadingScreen label="Loading..." />;
   }
 
   return (
@@ -1652,13 +1647,7 @@ function BooklogApp() {
   const isAdminPath = window.location.pathname.startsWith("/admin");
 
   if (auth.isLoading) {
-    return (
-      <main className="grid min-h-svh place-items-center bg-[#F8F8F5] px-4 text-stone-900">
-        <div className="w-full max-w-[430px] border-2 border-[#2F2A26] bg-[#FCFBF7] p-5 text-center shadow-pixel">
-          <p className="text-sm font-black">로그인 상태 확인 중</p>
-        </div>
-      </main>
-    );
+    return <AppLoadingScreen label="Loading..." />;
   }
 
   if (!auth.user) {
@@ -1677,6 +1666,19 @@ function BooklogApp() {
   }
 
   return <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />;
+}
+
+function AppLoadingScreen({ label }: { label: string }) {
+  return (
+    <main className="app-loading-screen">
+      <div className="app-loading-shell">
+        <section className="app-loading-scene" aria-live="polite">
+          <Character status="running" />
+          <p className="app-loading-copy">{label}</p>
+        </section>
+      </div>
+    </main>
+  );
 }
 
 function App() {
