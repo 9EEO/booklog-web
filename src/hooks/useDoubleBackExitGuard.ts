@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
   hasActiveBackNavigationLayer,
   wasBackNavigationLayerClosedRecently,
@@ -11,6 +11,22 @@ type DoubleBackExitGuardOptions = {
   requireAppLikeEnvironment?: boolean;
   timeoutMs?: number;
 };
+
+type DoubleBackExitGuardCallbacks = {
+  onFirstBack?: () => void;
+  onReset?: () => void;
+};
+
+type DoubleBackExitGuardInitOptions = {
+  requireAppLikeEnvironment?: boolean;
+  timeoutMs?: number;
+};
+
+let isExitGuardInitialized = false;
+let lastBackAt = 0;
+let resetTimeoutId: number | null = null;
+let isGuardArmed = false;
+let callbacks: DoubleBackExitGuardCallbacks = {};
 
 const isAppLikeBackButtonEnvironment = () => {
   if (typeof window === "undefined") return false;
@@ -30,6 +46,129 @@ const isAppLikeBackButtonEnvironment = () => {
   );
 };
 
+const logBackState = (stage: string) => {
+  console.log("[PWA Back]", {
+    stage,
+    pathname: window.location.pathname,
+    historyLength: window.history.length,
+    historyState: window.history.state,
+  });
+};
+
+const clearResetTimer = () => {
+  if (resetTimeoutId === null) return;
+
+  window.clearTimeout(resetTimeoutId);
+  resetTimeoutId = null;
+};
+
+const resetFirstBack = () => {
+  lastBackAt = 0;
+  clearResetTimer();
+  callbacks.onReset?.();
+};
+
+const getStateObject = () => {
+  const currentState = window.history.state;
+
+  return typeof currentState === "object" && currentState !== null
+    ? currentState
+    : {};
+};
+
+const replaceExitBase = (guardId: string) => {
+  window.history.replaceState(
+    {
+      ...getStateObject(),
+      booklogExitBase: guardId,
+    },
+    "",
+    window.location.href,
+  );
+  logBackState("replace-exit-base");
+};
+
+const pushExitGuard = (guardId: string) => {
+  if (isGuardArmed) return;
+
+  window.history.pushState(
+    {
+      ...getStateObject(),
+      booklogExitGuard: guardId,
+    },
+    "",
+    window.location.href,
+  );
+  isGuardArmed = true;
+  logBackState("push-exit-guard");
+};
+
+export const initializeDoubleBackExitGuard = ({
+  requireAppLikeEnvironment = true,
+  timeoutMs = 2000,
+}: DoubleBackExitGuardInitOptions = {}) => {
+  if (typeof window === "undefined") return;
+  if (isExitGuardInitialized) return;
+  if (requireAppLikeEnvironment && !isAppLikeBackButtonEnvironment()) return;
+
+  const guardId = `booklog-exit-${Date.now()}`;
+
+  const handlePopState = () => {
+    logBackState("popstate");
+
+    if (
+      hasActiveBackNavigationLayer() ||
+      wasBackNavigationLayerClosedRecently()
+    ) {
+      logBackState("popstate-layer-skip");
+      return;
+    }
+
+    const now = Date.now();
+    const isSecondBack = lastBackAt > 0 && now - lastBackAt <= timeoutMs;
+
+    if (isSecondBack) {
+      logBackState("second-back-exit");
+      resetFirstBack();
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("pointerdown", handleUserInteraction);
+      window.removeEventListener("keydown", handleUserInteraction);
+      isGuardArmed = false;
+      isExitGuardInitialized = false;
+      window.history.back();
+      return;
+    }
+
+    isGuardArmed = false;
+    lastBackAt = now;
+    callbacks.onFirstBack?.();
+    logBackState("first-back-toast");
+    pushExitGuard(guardId);
+    clearResetTimer();
+    resetTimeoutId = window.setTimeout(() => {
+      resetFirstBack();
+      logBackState("first-back-timeout-reset");
+    }, timeoutMs);
+  };
+
+  const handleUserInteraction = () => {
+    if (lastBackAt === 0) return;
+
+    resetFirstBack();
+    pushExitGuard(guardId);
+  };
+
+  isExitGuardInitialized = true;
+  replaceExitBase(guardId);
+  pushExitGuard(guardId);
+  window.addEventListener("popstate", handlePopState);
+  window.addEventListener("pointerdown", handleUserInteraction, {
+    passive: true,
+  });
+  window.addEventListener("keydown", handleUserInteraction);
+  logBackState("guard-ready");
+};
+
 export const useDoubleBackExitGuard = ({
   isActive,
   onFirstBack,
@@ -37,156 +176,14 @@ export const useDoubleBackExitGuard = ({
   requireAppLikeEnvironment = true,
   timeoutMs = 2000,
 }: DoubleBackExitGuardOptions) => {
-  const lastBackAtRef = useRef(0);
-  const resetTimeoutRef = useRef<number | null>(null);
-  const isGuardArmedRef = useRef(false);
-  const onFirstBackRef = useRef(onFirstBack);
-  const onResetRef = useRef(onReset);
-  const timeoutMsRef = useRef(timeoutMs);
-
   useEffect(() => {
-    onFirstBackRef.current = onFirstBack;
-  }, [onFirstBack]);
+    if (!isActive) return;
 
-  useEffect(() => {
-    onResetRef.current = onReset;
-  }, [onReset]);
-
-  useEffect(() => {
-    timeoutMsRef.current = timeoutMs;
-  }, [timeoutMs]);
-
-  useEffect(() => {
-    if (!isActive || typeof window === "undefined") return;
-    if (requireAppLikeEnvironment && !isAppLikeBackButtonEnvironment()) return;
-
-    const guardId = `booklog-exit-${Date.now()}`;
-    let initializeTimeoutId: number | null = null;
-
-    const clearResetTimer = () => {
-      if (resetTimeoutRef.current === null) return;
-
-      window.clearTimeout(resetTimeoutRef.current);
-      resetTimeoutRef.current = null;
-    };
-
-    const resetFirstBack = () => {
-      lastBackAtRef.current = 0;
-      clearResetTimer();
-      onResetRef.current?.();
-    };
-
-    const logBackState = (stage: string) => {
-      console.log("[PWA Back]", {
-        stage,
-        pathname: window.location.pathname,
-        historyLength: window.history.length,
-        historyState: window.history.state,
-      });
-    };
-
-    const getStateObject = () => {
-      const currentState = window.history.state;
-
-      return typeof currentState === "object" && currentState !== null
-        ? currentState
-        : {};
-    };
-
-    const replaceExitBase = () => {
-      window.history.replaceState(
-        {
-          ...getStateObject(),
-          booklogExitBase: guardId,
-        },
-        "",
-        window.location.href,
-      );
-      logBackState("replace-exit-base");
-    };
-
-    const pushExitGuard = () => {
-      if (isGuardArmedRef.current) return;
-
-      window.history.pushState(
-        {
-          ...getStateObject(),
-          booklogExitGuard: guardId,
-        },
-        "",
-        window.location.href,
-      );
-      isGuardArmedRef.current = true;
-      logBackState("push-exit-guard");
-    };
-
-    const handlePopState = () => {
-      logBackState("popstate");
-
-      if (
-        hasActiveBackNavigationLayer() ||
-        wasBackNavigationLayerClosedRecently()
-      ) {
-        logBackState("popstate-layer-skip");
-        return;
-      }
-
-      const now = Date.now();
-      const isSecondBack =
-        lastBackAtRef.current > 0 &&
-        now - lastBackAtRef.current <= timeoutMsRef.current;
-
-      if (isSecondBack) {
-        logBackState("second-back-exit");
-        resetFirstBack();
-        window.removeEventListener("popstate", handlePopState);
-        window.removeEventListener("pointerdown", handleUserInteraction);
-        window.removeEventListener("keydown", handleUserInteraction);
-        isGuardArmedRef.current = false;
-        window.history.back();
-        return;
-      }
-
-      isGuardArmedRef.current = false;
-      lastBackAtRef.current = now;
-      onFirstBackRef.current();
-      logBackState("first-back-toast");
-      pushExitGuard();
-      clearResetTimer();
-      resetTimeoutRef.current = window.setTimeout(() => {
-        resetFirstBack();
-        logBackState("first-back-timeout-reset");
-      }, timeoutMsRef.current);
-    };
-
-    const handleUserInteraction = () => {
-      if (lastBackAtRef.current === 0) return;
-
-      resetFirstBack();
-      pushExitGuard();
-    };
-
-    initializeTimeoutId = window.setTimeout(() => {
-      replaceExitBase();
-      pushExitGuard();
-      window.addEventListener("popstate", handlePopState);
-      window.addEventListener("pointerdown", handleUserInteraction, {
-        passive: true,
-      });
-      window.addEventListener("keydown", handleUserInteraction);
-      logBackState("guard-ready");
-    }, 0);
+    callbacks = { onFirstBack, onReset };
+    initializeDoubleBackExitGuard({ requireAppLikeEnvironment, timeoutMs });
 
     return () => {
-      if (initializeTimeoutId !== null) {
-        window.clearTimeout(initializeTimeoutId);
-      }
-
-      window.removeEventListener("popstate", handlePopState);
-      window.removeEventListener("pointerdown", handleUserInteraction);
-      window.removeEventListener("keydown", handleUserInteraction);
-      clearResetTimer();
-      isGuardArmedRef.current = false;
+      callbacks = {};
     };
-  }, [isActive, requireAppLikeEnvironment]);
+  }, [isActive, onFirstBack, onReset, requireAppLikeEnvironment, timeoutMs]);
 };
