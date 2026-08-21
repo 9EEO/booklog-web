@@ -294,7 +294,6 @@ function AuthenticatedApp({
   } | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [isExitToastVisible, setIsExitToastVisible] = useState(false);
   const pendingFlushRef = useRef(false);
   const readingTimer = useReadingTimer(import.meta.env.DEV ? 10 : 15 * 60);
   const resetReadingTimer = readingTimer.reset;
@@ -370,12 +369,6 @@ function AuthenticatedApp({
   useEffect(() => {
     saveActiveTab(activeTab);
   }, [activeTab]);
-
-  useDoubleBackExitGuard({
-    isActive: true,
-    onFirstBack: () => setIsExitToastVisible(true),
-    onReset: () => setIsExitToastVisible(false),
-  });
 
   useEffect(() => {
     let isMounted = true;
@@ -1645,11 +1638,6 @@ function AuthenticatedApp({
             onChange={setActiveTab}
           />
         )}
-        {isExitToastVisible && (
-          <div className="app-exit-toast" role="status" aria-live="polite">
-            뒤로가기를 한 번 더 누르면 종료됩니다.
-          </div>
-        )}
       </div>
     </main>
   );
@@ -1658,20 +1646,41 @@ function AuthenticatedApp({
 function BooklogApp() {
   const auth = useAuth();
   const isAdminPath = window.location.pathname.startsWith("/admin");
+  const [isExitToastVisible, setIsExitToastVisible] = useState(false);
+
+  useDoubleBackExitGuard({
+    isActive: !isAdminPath,
+    onFirstBack: () => setIsExitToastVisible(true),
+    onReset: () => setIsExitToastVisible(false),
+  });
+
+  const exitToast = isExitToastVisible ? (
+    <div className="app-exit-toast" role="status" aria-live="polite">
+      뒤로가기를 한 번 더 누르면 종료됩니다.
+    </div>
+  ) : null;
 
   if (auth.isLoading) {
-    return <AppLoadingScreen label="Loading..." />;
+    return (
+      <>
+        <AppLoadingScreen label="Loading..." />
+        {exitToast}
+      </>
+    );
   }
 
   if (!auth.user) {
     return (
-      <AuthScreen
-        error={auth.error}
-        onSignIn={auth.signIn}
-        onSignInWithGoogle={auth.signInWithGoogle}
-        onSignUp={auth.signUp}
-        onResetPassword={auth.resetPassword}
-      />
+      <>
+        <AuthScreen
+          error={auth.error}
+          onSignIn={auth.signIn}
+          onSignInWithGoogle={auth.signInWithGoogle}
+          onSignUp={auth.signUp}
+          onResetPassword={auth.resetPassword}
+        />
+        {exitToast}
+      </>
     );
   }
 
@@ -1679,7 +1688,12 @@ function BooklogApp() {
     return <AdminScreen user={auth.user} onSignOut={auth.signOut} />;
   }
 
-  return <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />;
+  return (
+    <>
+      <AuthenticatedApp user={auth.user} onSignOut={auth.signOut} />
+      {exitToast}
+    </>
+  );
 }
 
 function AppLoadingScreen({ label }: { label: string }) {

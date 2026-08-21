@@ -61,6 +61,7 @@ export const useDoubleBackExitGuard = ({
     if (requireAppLikeEnvironment && !isAppLikeBackButtonEnvironment()) return;
 
     const guardId = `booklog-exit-${Date.now()}`;
+    let initializeTimeoutId: number | null = null;
 
     const clearResetTimer = () => {
       if (resetTimeoutRef.current === null) return;
@@ -73,6 +74,15 @@ export const useDoubleBackExitGuard = ({
       lastBackAtRef.current = 0;
       clearResetTimer();
       onResetRef.current?.();
+    };
+
+    const logBackState = (stage: string) => {
+      console.log("[PWA Back]", {
+        stage,
+        pathname: window.location.pathname,
+        historyLength: window.history.length,
+        historyState: window.history.state,
+      });
     };
 
     const getStateObject = () => {
@@ -92,6 +102,7 @@ export const useDoubleBackExitGuard = ({
         "",
         window.location.href,
       );
+      logBackState("replace-exit-base");
     };
 
     const pushExitGuard = () => {
@@ -106,26 +117,45 @@ export const useDoubleBackExitGuard = ({
         window.location.href,
       );
       isGuardArmedRef.current = true;
+      logBackState("push-exit-guard");
     };
 
-    replaceExitBase();
-    pushExitGuard();
-
     const handlePopState = () => {
+      logBackState("popstate");
+
       if (
         hasActiveBackNavigationLayer() ||
         wasBackNavigationLayerClosedRecently()
       ) {
+        logBackState("popstate-layer-skip");
+        return;
+      }
+
+      const now = Date.now();
+      const isSecondBack =
+        lastBackAtRef.current > 0 &&
+        now - lastBackAtRef.current <= timeoutMsRef.current;
+
+      if (isSecondBack) {
+        logBackState("second-back-exit");
+        resetFirstBack();
+        window.removeEventListener("popstate", handlePopState);
+        window.removeEventListener("pointerdown", handleUserInteraction);
+        window.removeEventListener("keydown", handleUserInteraction);
+        isGuardArmedRef.current = false;
+        window.history.back();
         return;
       }
 
       isGuardArmedRef.current = false;
-      lastBackAtRef.current = Date.now();
+      lastBackAtRef.current = now;
       onFirstBackRef.current();
+      logBackState("first-back-toast");
+      pushExitGuard();
       clearResetTimer();
       resetTimeoutRef.current = window.setTimeout(() => {
         resetFirstBack();
-        pushExitGuard();
+        logBackState("first-back-timeout-reset");
       }, timeoutMsRef.current);
     };
 
@@ -136,13 +166,22 @@ export const useDoubleBackExitGuard = ({
       pushExitGuard();
     };
 
-    window.addEventListener("popstate", handlePopState);
-    window.addEventListener("pointerdown", handleUserInteraction, {
-      passive: true,
-    });
-    window.addEventListener("keydown", handleUserInteraction);
+    initializeTimeoutId = window.setTimeout(() => {
+      replaceExitBase();
+      pushExitGuard();
+      window.addEventListener("popstate", handlePopState);
+      window.addEventListener("pointerdown", handleUserInteraction, {
+        passive: true,
+      });
+      window.addEventListener("keydown", handleUserInteraction);
+      logBackState("guard-ready");
+    }, 0);
 
     return () => {
+      if (initializeTimeoutId !== null) {
+        window.clearTimeout(initializeTimeoutId);
+      }
+
       window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("pointerdown", handleUserInteraction);
       window.removeEventListener("keydown", handleUserInteraction);
