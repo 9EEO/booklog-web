@@ -9813,6 +9813,14 @@ button {
     animation-duration: 520ms;
     animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
+
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-timing-function: step-end !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
