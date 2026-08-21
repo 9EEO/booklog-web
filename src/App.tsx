@@ -372,7 +372,7 @@ function AuthenticatedApp({
   }, [activeTab]);
 
   useDoubleBackExitGuard({
-    isActive: !isDataLoading,
+    isActive: true,
     onFirstBack: () => setIsExitToastVisible(true),
     onReset: () => setIsExitToastVisible(false),
   });

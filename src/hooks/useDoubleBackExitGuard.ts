@@ -8,17 +8,36 @@ type DoubleBackExitGuardOptions = {
   isActive: boolean;
   onFirstBack: () => void;
   onReset?: () => void;
+  requireStandalone?: boolean;
   timeoutMs?: number;
+};
+
+const isStandaloneDisplayMode = () => {
+  if (typeof window === "undefined") return false;
+
+  const navigatorWithStandalone = window.navigator as Navigator & {
+    standalone?: boolean;
+  };
+
+  return (
+    navigatorWithStandalone.standalone === true ||
+    document.referrer.startsWith("android-app://") ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.matchMedia("(display-mode: minimal-ui)").matches
+  );
 };
 
 export const useDoubleBackExitGuard = ({
   isActive,
   onFirstBack,
   onReset,
+  requireStandalone = true,
   timeoutMs = 2000,
 }: DoubleBackExitGuardOptions) => {
   const lastBackAtRef = useRef(0);
   const resetTimeoutRef = useRef<number | null>(null);
+  const isGuardArmedRef = useRef(false);
   const onFirstBackRef = useRef(onFirstBack);
   const onResetRef = useRef(onReset);
   const timeoutMsRef = useRef(timeoutMs);
@@ -37,6 +56,7 @@ export const useDoubleBackExitGuard = ({
 
   useEffect(() => {
     if (!isActive || typeof window === "undefined") return;
+    if (requireStandalone && !isStandaloneDisplayMode()) return;
 
     const guardId = `booklog-exit-${Date.now()}`;
 
@@ -53,16 +73,40 @@ export const useDoubleBackExitGuard = ({
       onResetRef.current?.();
     };
 
-    const pushExitGuard = () => {
-      window.history.pushState(
+    const getStateObject = () => {
+      const currentState = window.history.state;
+
+      return typeof currentState === "object" && currentState !== null
+        ? currentState
+        : {};
+    };
+
+    const replaceExitBase = () => {
+      window.history.replaceState(
         {
-          ...(window.history.state ?? {}),
-          booklogExitGuard: guardId,
+          ...getStateObject(),
+          booklogExitBase: guardId,
         },
         "",
+        window.location.href,
       );
     };
 
+    const pushExitGuard = () => {
+      if (isGuardArmedRef.current) return;
+
+      window.history.pushState(
+        {
+          ...getStateObject(),
+          booklogExitGuard: guardId,
+        },
+        "",
+        window.location.href,
+      );
+      isGuardArmedRef.current = true;
+    };
+
+    replaceExitBase();
     pushExitGuard();
 
     const handlePopState = () => {
@@ -73,32 +117,35 @@ export const useDoubleBackExitGuard = ({
         return;
       }
 
-      const now = Date.now();
-      const isSecondBack =
-        lastBackAtRef.current > 0 &&
-        now - lastBackAtRef.current <= timeoutMsRef.current;
-
-      if (isSecondBack) {
-        resetFirstBack();
-        window.removeEventListener("popstate", handlePopState);
-        window.history.back();
-        return;
-      }
-
-      lastBackAtRef.current = now;
+      isGuardArmedRef.current = false;
+      lastBackAtRef.current = Date.now();
       onFirstBackRef.current();
-      pushExitGuard();
       clearResetTimer();
       resetTimeoutRef.current = window.setTimeout(() => {
         resetFirstBack();
+        pushExitGuard();
       }, timeoutMsRef.current);
     };
 
+    const handleUserInteraction = () => {
+      if (lastBackAtRef.current === 0) return;
+
+      resetFirstBack();
+      pushExitGuard();
+    };
+
     window.addEventListener("popstate", handlePopState);
+    window.addEventListener("pointerdown", handleUserInteraction, {
+      passive: true,
+    });
+    window.addEventListener("keydown", handleUserInteraction);
 
     return () => {
       window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("pointerdown", handleUserInteraction);
+      window.removeEventListener("keydown", handleUserInteraction);
       clearResetTimer();
+      isGuardArmedRef.current = false;
     };
-  }, [isActive]);
+  }, [isActive, requireStandalone]);
 };

@@ -9,7 +9,7 @@ type BottomTabsProps = {
 };
 
 const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: "session", label: "독서중" },
+  { key: "session", label: "독서" },
   { key: "records", label: "기록" },
   { key: "library", label: "서재" },
   { key: "profile", label: "프로필" },
