@@ -8,19 +8,21 @@ type DoubleBackExitGuardOptions = {
   isActive: boolean;
   onFirstBack: () => void;
   onReset?: () => void;
-  requireStandalone?: boolean;
+  requireAppLikeEnvironment?: boolean;
   timeoutMs?: number;
 };
 
-const isStandaloneDisplayMode = () => {
+const isAppLikeBackButtonEnvironment = () => {
   if (typeof window === "undefined") return false;
 
   const navigatorWithStandalone = window.navigator as Navigator & {
     standalone?: boolean;
   };
+  const isAndroid = /android/i.test(window.navigator.userAgent);
 
   return (
     navigatorWithStandalone.standalone === true ||
+    isAndroid ||
     document.referrer.startsWith("android-app://") ||
     window.matchMedia("(display-mode: standalone)").matches ||
     window.matchMedia("(display-mode: fullscreen)").matches ||
@@ -32,7 +34,7 @@ export const useDoubleBackExitGuard = ({
   isActive,
   onFirstBack,
   onReset,
-  requireStandalone = true,
+  requireAppLikeEnvironment = true,
   timeoutMs = 2000,
 }: DoubleBackExitGuardOptions) => {
   const lastBackAtRef = useRef(0);
@@ -56,7 +58,7 @@ export const useDoubleBackExitGuard = ({
 
   useEffect(() => {
     if (!isActive || typeof window === "undefined") return;
-    if (requireStandalone && !isStandaloneDisplayMode()) return;
+    if (requireAppLikeEnvironment && !isAppLikeBackButtonEnvironment()) return;
 
     const guardId = `booklog-exit-${Date.now()}`;
 
@@ -147,5 +149,5 @@ export const useDoubleBackExitGuard = ({
       clearResetTimer();
       isGuardArmedRef.current = false;
     };
-  }, [isActive, requireStandalone]);
+  }, [isActive, requireAppLikeEnvironment]);
 };
