@@ -12,6 +12,7 @@ import type { User } from "@supabase/supabase-js";
 import { BottomTabs } from "./components/BottomTabs";
 import { Character } from "./components/adventure/AdventureScene";
 import { useAuth } from "./hooks/useAuth";
+import { useDoubleBackExitGuard } from "./hooks/useDoubleBackExitGuard";
 import { useReadingTimer } from "./hooks/useReadingTimer";
 import { AdminScreen } from "./screens/AdminScreen";
 import { AuthScreen } from "./screens/AuthScreen";
@@ -293,6 +294,7 @@ function AuthenticatedApp({
   } | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isExitToastVisible, setIsExitToastVisible] = useState(false);
   const pendingFlushRef = useRef(false);
   const readingTimer = useReadingTimer(import.meta.env.DEV ? 10 : 15 * 60);
   const resetReadingTimer = readingTimer.reset;
@@ -368,6 +370,12 @@ function AuthenticatedApp({
   useEffect(() => {
     saveActiveTab(activeTab);
   }, [activeTab]);
+
+  useDoubleBackExitGuard({
+    isActive: !isDataLoading,
+    onFirstBack: () => setIsExitToastVisible(true),
+    onReset: () => setIsExitToastVisible(false),
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -1636,6 +1644,11 @@ function AuthenticatedApp({
             activeTab={activeTab}
             onChange={setActiveTab}
           />
+        )}
+        {isExitToastVisible && (
+          <div className="app-exit-toast" role="status" aria-live="polite">
+            뒤로가기를 한 번 더 누르면 종료됩니다.
+          </div>
         )}
       </div>
     </main>

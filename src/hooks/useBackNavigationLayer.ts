@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 let layerSequence = 0;
 let suppressNextPop = false;
+let lastLayerPopCloseAt = 0;
 const layerStack: string[] = [];
 
 const removeLayer = (layerId: string) => {
@@ -14,6 +15,11 @@ const removeLayer = (layerId: string) => {
 
 const isTopLayer = (layerId: string) =>
   layerStack[layerStack.length - 1] === layerId;
+
+export const hasActiveBackNavigationLayer = () => layerStack.length > 0;
+
+export const wasBackNavigationLayerClosedRecently = () =>
+  Date.now() - lastLayerPopCloseAt < 80;
 
 export const useBackNavigationLayer = (
   isActive: boolean,
@@ -40,6 +46,7 @@ export const useBackNavigationLayer = (
       if (suppressNextPop || !isTopLayer(layerId)) return;
 
       closedByPopRef.current = true;
+      lastLayerPopCloseAt = Date.now();
       removeLayer(layerId);
       onCloseRef.current();
     };
@@ -55,6 +62,7 @@ export const useBackNavigationLayer = (
       removeLayer(layerId);
 
       if (wasTopLayer) {
+        lastLayerPopCloseAt = Date.now();
         suppressNextPop = true;
         window.history.back();
         window.setTimeout(() => {
