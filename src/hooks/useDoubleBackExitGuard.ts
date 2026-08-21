@@ -23,6 +23,7 @@ type DoubleBackExitGuardInitOptions = {
 };
 
 let isExitGuardInitialized = false;
+let isActivationInitializerRegistered = false;
 let lastBackAt = 0;
 let resetTimeoutId: number | null = null;
 let isGuardArmed = false;
@@ -103,7 +104,17 @@ const pushExitGuard = (guardId: string) => {
   logBackState("push-exit-guard");
 };
 
-export const initializeDoubleBackExitGuard = ({
+const hasUserActivation = () => {
+  const navigatorWithActivation = window.navigator as Navigator & {
+    userActivation?: {
+      hasBeenActive: boolean;
+    };
+  };
+
+  return navigatorWithActivation.userActivation?.hasBeenActive === true;
+};
+
+const armDoubleBackExitGuard = ({
   requireAppLikeEnvironment = true,
   timeoutMs = 2000,
 }: DoubleBackExitGuardInitOptions = {}) => {
@@ -167,6 +178,43 @@ export const initializeDoubleBackExitGuard = ({
   });
   window.addEventListener("keydown", handleUserInteraction);
   logBackState("guard-ready");
+};
+
+export const initializeDoubleBackExitGuard = (
+  options: DoubleBackExitGuardInitOptions = {},
+) => {
+  if (typeof window === "undefined") return;
+  if (isExitGuardInitialized) return;
+  if (
+    options.requireAppLikeEnvironment !== false &&
+    !isAppLikeBackButtonEnvironment()
+  ) {
+    return;
+  }
+
+  if (hasUserActivation()) {
+    armDoubleBackExitGuard(options);
+    return;
+  }
+
+  if (isActivationInitializerRegistered) return;
+
+  const handleFirstUserActivation = () => {
+    window.removeEventListener("click", handleFirstUserActivation);
+    window.removeEventListener("keydown", handleFirstUserActivation);
+    window.removeEventListener("touchend", handleFirstUserActivation);
+    isActivationInitializerRegistered = false;
+
+    window.setTimeout(() => {
+      armDoubleBackExitGuard(options);
+    }, 0);
+  };
+
+  isActivationInitializerRegistered = true;
+  window.addEventListener("click", handleFirstUserActivation);
+  window.addEventListener("keydown", handleFirstUserActivation);
+  window.addEventListener("touchend", handleFirstUserActivation);
+  logBackState("wait-user-activation");
 };
 
 export const useDoubleBackExitGuard = ({
