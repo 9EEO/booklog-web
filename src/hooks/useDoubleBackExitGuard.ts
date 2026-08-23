@@ -35,15 +35,22 @@ const isAppLikeBackButtonEnvironment = () => {
   const navigatorWithStandalone = window.navigator as Navigator & {
     standalone?: boolean;
   };
-  const isAndroid = /android/i.test(window.navigator.userAgent);
+  const userAgent = window.navigator.userAgent;
+  const isAndroid = /android/i.test(userAgent);
+  const isIOS =
+    /iphone|ipad|ipod/i.test(userAgent) ||
+    (/macintosh/i.test(userAgent) && window.navigator.maxTouchPoints > 1);
+
+  if (isIOS) return false;
 
   return (
-    navigatorWithStandalone.standalone === true ||
     isAndroid ||
     document.referrer.startsWith("android-app://") ||
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.matchMedia("(display-mode: fullscreen)").matches ||
-    window.matchMedia("(display-mode: minimal-ui)").matches
+    (isAndroid &&
+      (navigatorWithStandalone.standalone === true ||
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.matchMedia("(display-mode: fullscreen)").matches ||
+        window.matchMedia("(display-mode: minimal-ui)").matches))
   );
 };
 
