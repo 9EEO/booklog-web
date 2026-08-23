@@ -12,7 +12,6 @@ import {
 import { flushSync } from "react-dom";
 import { BottomSheetModal } from "../components/BottomSheetModal";
 import { Icon } from "../components/Icon";
-import { InteractiveBookCover } from "../components/InteractiveBookCover";
 import { MiniBook } from "../components/MiniBook";
 import { PixelCard } from "../components/PixelCard";
 import { ReadingJourneyChart } from "../components/ReadingJourneyChart";
@@ -94,6 +93,7 @@ const emptyNewBook: NewBookInput = {
 type SearchStatus = "idle" | "loading" | "success" | "empty" | "error";
 type BookFormStep = "search" | "details";
 type ShelfTab = "reading" | "completed";
+type BookDetailTab = "summary" | "records" | "notes";
 type LibraryView = "shelf" | "tier";
 type BookTransitionState =
   | "idle"
@@ -114,6 +114,12 @@ type DocumentWithViewTransition = Document & {
 const shelfTabOptions: Array<{ value: ShelfTab; label: string }> = [
   { value: "reading", label: "독서중" },
   { value: "completed", label: "완독" },
+];
+
+const bookDetailTabOptions: Array<{ value: BookDetailTab; label: string }> = [
+  { value: "summary", label: "요약" },
+  { value: "records", label: "기록" },
+  { value: "notes", label: "노트" },
 ];
 
 const bookChatInitialQuestions = [
@@ -476,6 +482,32 @@ const formatCompactMinutes = (seconds: number) => {
   return `${minutes}분`;
 };
 
+const formatFriendlyReadingTime = (seconds: number | null | undefined) => {
+  if (!seconds || seconds <= 0) return "-";
+
+  return `약 ${formatCompactMinutes(seconds)}`;
+};
+
+const getReadingProgressMessage = (progress: number | null) => {
+  if (progress === null) return "전체 페이지를 설정하면 진행률을 볼 수 있어요";
+  if (progress >= 100) return "완독했어요! 🎉";
+  if (progress >= 90) return "거의 다 읽었어요!";
+  if (progress >= 75) return "완독이 가까워지고 있어요";
+  if (progress >= 50) return "절반을 넘겼어요! 🎉";
+  if (progress >= 25) return "꽤 많이 읽었어요";
+  if (progress >= 10) return "조금씩 읽어가고 있어요";
+
+  return "독서를 시작했어요";
+};
+
+const formatRemainingPagesLabel = (remainingPages: number | null) =>
+  remainingPages !== null ? `${remainingPages}쪽 남음` : "전체 페이지 미설정";
+
+const formatReadableBookPages = (
+  currentPage: number,
+  totalPages: number | null,
+) => (totalPages ? `${currentPage} / ${totalPages}p` : `${currentPage}p`);
+
 type FocusDurationBarStyle = CSSProperties & {
   "--focus-delay": string;
   "--focus-height": string;
@@ -706,6 +738,9 @@ export const LibraryScreen = ({
       ? "completed"
       : "reading",
   );
+  const [activeBookDetailTab, setActiveBookDetailTab] =
+    useState<BookDetailTab>("summary");
+  const [isPageEditing, setIsPageEditing] = useState(false);
   const [libraryView, setLibraryView] = useState<LibraryView>("shelf");
   const [bookTransitionState, setBookTransitionState] =
     useState<BookTransitionState>(initialDetailBook ? "detail-idle" : "idle");
@@ -716,9 +751,10 @@ export const LibraryScreen = ({
   const selectedBook = selectedBookId
     ? books.find((book) => book.id === selectedBookId)
     : null;
-  const deleteSentence = selectedBook?.sentences.find(
-    (sentence) => sentence.id === deleteSentenceId,
-  ) ?? deleteSentenceSnapshot;
+  const deleteSentence =
+    selectedBook?.sentences.find(
+      (sentence) => sentence.id === deleteSentenceId,
+    ) ?? deleteSentenceSnapshot;
   const deleteWordNote = selectedBook?.wordNotes.find(
     (wordNote) => wordNote.id === deleteWordNoteId,
   );
@@ -796,6 +832,41 @@ export const LibraryScreen = ({
     averagePagesPerHour: selectedBookAveragePagesPerHour,
     estimatedSecondsLeft: selectedBookEstimatedSecondsLeft,
   };
+  const selectedBookProgressMessage = getReadingProgressMessage(
+    selectedBookStats.progress,
+  );
+  const selectedBookReadingSummary = selectedBook
+    ? [
+        selectedBook.accumulatedSeconds > 0
+          ? (
+              <>
+                지금까지{" "}
+                <strong>
+                  {formatCompactMinutes(selectedBook.accumulatedSeconds)}
+                </strong>{" "}
+                읽었어요.
+              </>
+            )
+          : "아직 기록된 독서 시간이 없어요.",
+        selectedBook.totalPages === null
+          ? "전체 페이지를 입력하면 남은 독서량을 더 정확히 볼 수 있어요."
+          : selectedBookStats.remainingPages === 0
+            ? "완독 지점에 도착했어요."
+            : selectedBookStats.estimatedSecondsLeft > 0
+              ? (
+                  <>
+                    지금 속도라면{" "}
+                    <strong>
+                      {formatFriendlyReadingTime(
+                        selectedBookStats.estimatedSecondsLeft,
+                      )}
+                    </strong>{" "}
+                    더 읽으면 완독이에요.
+                  </>
+                )
+              : "아직 독서 속도를 계산하기 위한 기록이 부족해요.",
+      ]
+    : [];
   const recentBookRecords = selectedBookRecords.slice(0, 3);
   const selectedBookRounds = selectedBook
     ? [...(selectedBook.rounds ?? [])].sort(
@@ -848,7 +919,6 @@ export const LibraryScreen = ({
     selectedBook && selectedBook.status === "completed"
       ? buildCompletedReadingReport(selectedBook, selectedBookRecords)
       : null;
-
   useEffect(() => {
     onDetailModeChange?.(Boolean(selectedBook));
   }, [onDetailModeChange, selectedBook]);
@@ -875,6 +945,8 @@ export const LibraryScreen = ({
     const book = books.find((item) => item.id === bookId);
 
     setSelectedBookId(bookId);
+    setActiveBookDetailTab("summary");
+    setIsPageEditing(false);
     setCurrentPageDraft(book?.currentPage ?? 1);
     setTotalPagesDraft(book?.totalPages ?? book?.currentPage ?? 1);
   };
@@ -894,6 +966,8 @@ export const LibraryScreen = ({
     setDeleteRoundId(null);
     setSelectedRoundId(null);
     setExpandedCompleteSentenceId(null);
+    setActiveBookDetailTab("summary");
+    setIsPageEditing(false);
   };
 
   const selectBook = async (bookId: string) => {
@@ -1064,6 +1138,7 @@ export const LibraryScreen = ({
     try {
       setCurrentPageDraft(nextPage);
       await onUpdateBookPage(selectedBook.id, nextPage);
+      setIsPageEditing(false);
     } finally {
       setIsMutating(false);
     }
@@ -1082,6 +1157,7 @@ export const LibraryScreen = ({
     try {
       setTotalPagesDraft(nextTotalPages);
       await onUpdateBookTotalPages(selectedBook.id, nextTotalPages);
+      setIsPageEditing(false);
     } finally {
       setIsMutating(false);
     }
@@ -1883,6 +1959,7 @@ export const LibraryScreen = ({
             </>
           ) : selectedBook ? (
             <>
+              {/*
               <div className="book-detail-header">
                 <div className="book-detail-hero">
                   <InteractiveBookCover
@@ -1912,587 +1989,643 @@ export const LibraryScreen = ({
                     <h2>{selectedBook.title}</h2>
                     <p>{selectedBook.author}</p>
                   </div>
-                  <div
-                    className="book-detail-hero-progress book-detail-enter-item book-detail-enter-item-2"
-                    aria-label="독서 진행률"
-                  >
-                    <div className="book-detail-hero-progress-label">
-                      <span>진행률</span>
-                      <strong
-                        className={
-                          selectedBookStats.progress === null
-                            ? "book-detail-progress-unset"
-                            : undefined
-                        }
-                      >
-                        {selectedBookStats.progress !== null
-                          ? `${selectedBookStats.progress}%`
-                          : "미설정"}
-                      </strong>
-                    </div>
-                    <div className="book-detail-progress-track">
-                      <span
-                        style={{ width: `${selectedBookStats.progress ?? 0}%` }}
-                      />
-                    </div>
-                    <div className="book-detail-hero-progress-meta">
-                      <span>현재 페이지</span>
-                      <strong>
-                        {formatBookPages(
-                          selectedBook.currentPage,
-                          selectedBook.totalPages,
-                        )}
-                      </strong>
-                    </div>
-                  </div>
                 </div>
               </div>
+              */}
 
               <div className="book-detail-body">
-                {selectedBookRounds.length > 1 && (
-                  <div className="book-detail-active-round">
-                    <span className="text-xs font-black text-stone-500">
-                      현재 회차
-                    </span>
-                    <strong className="text-sm font-black text-[#5F6D57]">
-                      {getActiveRoundLabel(selectedBook)}
-                    </strong>
-                  </div>
-                )}
-
-                {selectedBookRounds.length > 1 && (
-                  <div className="book-detail-rounds">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h2 className="text-sm font-black">회차 관리</h2>
-                      <span className="text-[11px] font-black text-stone-500">
-                        {selectedBookRounds.length}개
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {selectedBookRounds.map((round) => {
-                        const roundRecords = getRoundRecords(
-                          selectedBookRecords,
-                          round,
-                        );
-                        const roundDurationSeconds = roundRecords.reduce(
-                          (sum, record) => sum + record.durationSeconds,
-                          0,
-                        );
-                        const isActiveRound =
-                          round.id === selectedBook.activeRoundId;
-                        const canDeleteRound = round.roundNumber > 1;
-
-                        return (
-                          <div
-                            key={round.id}
-                            className="book-detail-round-item"
-                          >
-                            <button
-                              type="button"
-                              className="min-w-0 text-left"
-                              onClick={() => setSelectedRoundId(round.id)}
-                            >
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-black">
-                                  {round.roundNumber}회독
-                                </p>
-                                {isActiveRound && (
-                                  <span className="book-detail-round-badge book-detail-round-badge-active">
-                                    현재
-                                  </span>
-                                )}
-                                <span className="book-detail-round-badge">
-                                  {getReadingStatusLabel(
-                                    round.status,
-                                    round.startedAt,
-                                  )}
-                                </span>
-                              </div>
-                              <p className="mt-1 truncate text-[11px] font-black text-stone-500">
-                                {formatBookPages(
-                                  round.currentPage,
-                                  selectedBook.totalPages,
-                                )}{" "}
-                                · 기록 {roundRecords.length}개 ·{" "}
-                                {formatDuration(
-                                  roundDurationSeconds ||
-                                    round.accumulatedSeconds,
-                                )}
-                              </p>
-                            </button>
-                            <button
-                              type="button"
-                              className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8] disabled:cursor-not-allowed disabled:opacity-40"
-                              onClick={() => setDeleteRoundId(round.id)}
-                              disabled={!canDeleteRound || isMutating}
-                              aria-label={`${round.roundNumber}회독 삭제`}
-                            >
-                              <Icon name="trash" className="h-4 w-4" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <section className="book-detail-progress-section">
-                  <div className="book-detail-section-title">
-                    <h2>독서 진행</h2>
-                  </div>
-
-                  <div className="book-detail-page-control">
-                    <div className="book-detail-page-control-heading">
-                      <label htmlFor="book-current-page">현재 페이지</label>
-                      <strong>
-                        {formatBookPages(
-                          selectedBook.currentPage,
-                          selectedBook.totalPages,
-                        )}
-                      </strong>
-                    </div>
-                    <div className="book-detail-inline-form">
-                      <input
-                        id="book-current-page"
-                        className="pixel-input"
-                        type="text"
-                        inputMode="numeric"
-                        min={1}
-                        max={selectedBook.totalPages ?? undefined}
-                        value={currentPageDraft}
-                        onChange={(event) =>
-                          setCurrentPageDraft(
-                            parsePageInput(event.target.value),
-                          )
-                        }
-                      />
-                      <button
-                        type="button"
-                        className="primary-button px-3"
-                        onClick={saveCurrentPage}
-                        disabled={currentPageDraft === selectedBook.currentPage}
-                      >
-                        저장
-                      </button>
-                    </div>
-                  </div>
-
-                  {selectedBook.totalPages === null && (
-                    <div className="book-detail-page-control book-detail-total-pages-control">
-                      <div className="book-detail-page-control-heading">
-                        <div>
-                          <label htmlFor="book-total-pages">전체 페이지</label>
-                          <p>입력하면 진행률과 남은 시간을 계산합니다.</p>
+                <SwipeSegmentedControl
+                  options={bookDetailTabOptions}
+                  value={activeBookDetailTab}
+                  onChange={setActiveBookDetailTab}
+                  ariaLabel="책 상세 보기"
+                  className="book-detail-tabs"
+                />
+                <SwipeableView
+                  key={`${selectedBook.id}-${activeBookDetailTab}`}
+                  options={bookDetailTabOptions}
+                  value={activeBookDetailTab}
+                  onChange={setActiveBookDetailTab}
+                  className="book-detail-tab-view"
+                  ariaLabel="책 상세 탭 본문"
+                >
+                  {activeBookDetailTab === "summary" && (
+                    <>
+                      {selectedBookRounds.length > 1 && (
+                        <div className="book-detail-active-round">
+                          <span className="text-xs font-black text-stone-500">
+                            현재 회차
+                          </span>
+                          <strong className="text-sm font-black text-[#5F6D57]">
+                            {getActiveRoundLabel(selectedBook)}
+                          </strong>
                         </div>
-                      </div>
-                      <div className="book-detail-inline-form">
-                        <input
-                          id="book-total-pages"
-                          className="pixel-input"
-                          type="text"
-                          inputMode="numeric"
-                          min={selectedBook.currentPage}
-                          value={totalPagesDraft}
-                          onChange={(event) =>
-                            setTotalPagesDraft(
-                              parsePageInput(event.target.value),
-                            )
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="primary-button px-3"
-                          onClick={saveTotalPages}
-                          disabled={
-                            totalPagesDraft < selectedBook.currentPage ||
-                            isMutating
-                          }
-                        >
-                          추가
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  <div className="book-detail-progress-list">
-                    <div className="book-detail-progress-item">
-                      <span>남은 페이지</span>
-                      <strong>
-                        {selectedBookStats.remainingPages !== null
-                          ? `${selectedBookStats.remainingPages}p`
-                          : "-"}
-                      </strong>
-                    </div>
-                    <div className="book-detail-progress-item">
-                      <span>예상 남은 시간</span>
-                      <strong>
-                        {selectedBookStats.estimatedSecondsLeft !== null &&
-                        selectedBookStats.estimatedSecondsLeft > 0
-                          ? formatDuration(
-                              selectedBookStats.estimatedSecondsLeft,
-                            )
-                          : "-"}
-                      </strong>
-                    </div>
-                    <div className="book-detail-progress-item">
-                      <span>누적 시간</span>
-                      <strong>
-                        {formatDuration(selectedBook.accumulatedSeconds)}
-                      </strong>
-                    </div>
-                    <div className="book-detail-progress-item">
-                      <span>평균 속도</span>
-                      <strong>
-                        {selectedBookStats.averagePagesPerHour > 0
-                          ? `${selectedBookStats.averagePagesPerHour}p/h`
-                          : "-"}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div className="book-detail-meta-list">
-                    <div className="book-detail-meta-item">
-                      <span>시작일</span>
-                      <strong>{selectedBook.startedAt || "기록 전"}</strong>
-                    </div>
-                    <div className="book-detail-meta-item">
-                      <span>완독일</span>
-                      <strong>{selectedBook.completedAt ?? "-"}</strong>
-                    </div>
-                    <div className="book-detail-meta-item">
-                      <span>독서 기록</span>
-                      <strong>{selectedBookRecords.length}회</strong>
-                    </div>
-                  </div>
-                </section>
-
-                {selectedBook.libraryReference && (
-                  <section className="book-library-reference-section">
-                    <div className="book-detail-section-title">
-                      <h2>도서관 이용 데이터</h2>
-                      <strong>{selectedBook.libraryReference.source}</strong>
-                    </div>
-                    <p className="book-library-reference-summary">
-                      {getDisplayBookDescription(selectedBook)}
-                    </p>
-                    {selectedBook.libraryReference.recommendedBooks.length >
-                      0 && (
-                      <div className="book-library-reference-books">
-                        {selectedBook.libraryReference.recommendedBooks.map(
-                          (book) => (
-                            <p key={`${book.title}-${book.author ?? ""}`}>
-                              {book.title}
-                              {book.author ? ` · ${book.author}` : ""}
-                            </p>
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </section>
-                )}
-
-                <section className="book-detail-journey-section">
-                  <div className="book-detail-section-title">
-                    <h2>독서 여정</h2>
-                    <strong>
-                      {selectedBookActiveRound
-                        ? `${selectedBookActiveRound.roundNumber}회독`
-                        : `${selectedBookJourneyRecords.length}회 기록`}
-                    </strong>
-                  </div>
-                  <ReadingJourneyChart
-                    key={selectedBook.id}
-                    records={selectedBookJourneyRecords}
-                    totalPages={selectedBook.totalPages}
-                  />
-                </section>
-
-                <section className="book-detail-records-section">
-                  <div className="book-detail-section-title">
-                    <h2>최근 독서 기록</h2>
-                    <strong>{selectedBookStats.recordedPages}p</strong>
-                  </div>
-                  {recentBookRecords.length === 0 ? (
-                    <p className="book-detail-empty-state">
-                      아직 이 책의 독서 기록이 없습니다.
-                    </p>
-                  ) : (
-                    <div className="book-detail-record-list">
-                      {recentBookRecords.map((record) => (
-                        <div
-                          key={record.id}
-                          className="book-detail-record-item"
-                        >
-                          <span className="book-detail-record-marker" />
-                          <div>
-                            <p>{formatDateWithWeekday(record.date)}</p>
-                            <span>
-                              {record.roundNumber ?? 1}회독 · {record.startPage}
-                              p → {record.endPage}p
+                      {selectedBookRounds.length > 1 && (
+                        <div className="book-detail-rounds">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <h2 className="text-sm font-black">회차 관리</h2>
+                            <span className="text-[11px] font-black text-stone-500">
+                              {selectedBookRounds.length}개
                             </span>
                           </div>
-                          <strong>
-                            {formatDuration(record.durationSeconds)}
-                          </strong>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
+                          <div className="space-y-2">
+                            {selectedBookRounds.map((round) => {
+                              const roundRecords = getRoundRecords(
+                                selectedBookRecords,
+                                round,
+                              );
+                              const roundDurationSeconds = roundRecords.reduce(
+                                (sum, record) => sum + record.durationSeconds,
+                                0,
+                              );
+                              const isActiveRound =
+                                round.id === selectedBook.activeRoundId;
+                              const canDeleteRound = round.roundNumber > 1;
 
-                <section className="book-detail-pattern-section">
-                  <div className="book-detail-section-title">
-                    <h2>독서 패턴</h2>
-                    <strong>{selectedBookRecords.length}회</strong>
-                  </div>
-                  {selectedBookPattern ? (
-                    <div className="book-detail-pattern">
-                      <p className="book-detail-pattern-line">
-                        {selectedBookPattern.typeLabel}
-                      </p>
-                      <p className="book-detail-pattern-summary">
-                        {selectedBookPattern.summary}
-                      </p>
-                      <div className="book-detail-pattern-grid">
-                        <div>
-                          <span>평균 세션</span>
-                          <strong>
-                            {formatDuration(
-                              selectedBookPattern.averageSessionSeconds,
-                            )}
-                          </strong>
-                        </div>
-                        <div>
-                          <span>평균 속도</span>
-                          <strong>
-                            {selectedBookPattern.pagesPerHour > 0
-                              ? `${selectedBookPattern.pagesPerHour}p/h`
-                              : "-"}
-                          </strong>
-                        </div>
-                        <div>
-                          <span>많이 읽은 요일</span>
-                          <strong>{selectedBookPattern.topWeekday}</strong>
-                        </div>
-                        <div>
-                          <span>많이 읽은 시간</span>
-                          <strong>{selectedBookPattern.topTimeBand}</strong>
-                        </div>
-                      </div>
-                      <div className="book-detail-pattern-sentence">
-                        <span>문장 기록</span>
-                        <p>
-                          {selectedBook.sentences.length}개 ·{" "}
-                          {selectedBookPattern.sentencePeak}에 많이 남김
-                          {selectedBookPattern.sentenceDensity > 0
-                            ? ` · 10p당 ${selectedBookPattern.sentenceDensity}개`
-                            : ""}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="book-detail-empty-state">
-                      독서 기록을 남기면 패턴이 계산됩니다.
-                    </p>
-                  )}
-                </section>
-
-                <section className="book-detail-word-section">
-                  <div className="book-detail-section-title">
-                    <h2>단어 기록</h2>
-                    <strong>{selectedBook.wordNotes.length}개</strong>
-                  </div>
-                  {selectedBook.wordNotes.length === 0 ? (
-                    <p className="book-detail-empty-state">
-                      독서 중 검색한 단어가 이곳에 저장됩니다.
-                    </p>
-                  ) : (
-                    <div className="book-detail-word-list">
-                      {selectedBook.wordNotes.map((wordNote) => (
-                        <article
-                          key={wordNote.id}
-                          className="book-detail-word-item"
-                        >
-                          <div className="book-detail-word-heading">
-                            <div>
-                              <strong>{wordNote.word}</strong>
-                              {wordNote.pos && <span>{wordNote.pos}</span>}
-                            </div>
-                            <div className="book-detail-word-actions">
-                              {wordNote.page && <em>{wordNote.page}p</em>}
-                              <button
-                                type="button"
-                                className="mini-icon-button"
-                                onClick={() => setDeleteWordNoteId(wordNote.id)}
-                                aria-label="단어 삭제"
-                              >
-                                <Icon name="trash" className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                          <p>{wordNote.definition}</p>
-                          {wordNote.contextSentence && (
-                            <blockquote className="book-detail-word-context">
-                              {wordNote.contextSentence}
-                            </blockquote>
-                          )}
-                          <div className="book-detail-word-meta">
-                            <span>{wordNote.sourceName}</span>
-                            <span>{wordNote.recordedAt}</span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="book-detail-sentence-section">
-                  <div className="book-detail-section-title">
-                    <h2>기록한 문장</h2>
-                    <button
-                      type="button"
-                      className="book-detail-add-sentence"
-                      onClick={startAdd}
-                      aria-label="문장 추가"
-                    >
-                      <Icon name="plus" className="h-4 w-4" />
-                    </button>
-                  </div>
-                  {selectedBook.sentences.length > 1 && (
-                    <div className="book-detail-sort-switch">
-                      <button
-                        type="button"
-                        className={
-                          sentenceSort === "created"
-                            ? "book-detail-sort-option book-detail-sort-option-active"
-                            : "book-detail-sort-option"
-                        }
-                        onClick={() => setSentenceSort("created")}
-                      >
-                        등록순
-                      </button>
-                      <button
-                        type="button"
-                        className={
-                          sentenceSort === "page"
-                            ? "book-detail-sort-option book-detail-sort-option-active"
-                            : "book-detail-sort-option"
-                        }
-                        onClick={() => setSentenceSort("page")}
-                      >
-                        페이지순
-                      </button>
-                    </div>
-                  )}
-                  <div className="book-detail-sentence-list">
-                    {selectedBook.sentences.length === 0 ? (
-                      <p className="book-detail-empty-state">
-                        아직 기록한 문장이 없습니다.
-                      </p>
-                    ) : (
-                      sortedSentences.map((sentence) => {
-                        const isEditing = editingSentenceId === sentence.id;
-
-                        return (
-                          <div
-                            key={sentence.id}
-                            className="book-detail-sentence-item"
-                          >
-                            {isEditing ? (
-                              <div className="book-detail-sentence-editor">
-                                <div className="book-detail-sentence-editor-page">
-                                  <label
-                                    htmlFor={`sentence-page-${sentence.id}`}
+                              return (
+                                <div
+                                  key={round.id}
+                                  className="book-detail-round-item"
+                                >
+                                  <button
+                                    type="button"
+                                    className="min-w-0 text-left"
+                                    onClick={() => setSelectedRoundId(round.id)}
                                   >
-                                    페이지
-                                  </label>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-black">
+                                        {round.roundNumber}회독
+                                      </p>
+                                      {isActiveRound && (
+                                        <span className="book-detail-round-badge book-detail-round-badge-active">
+                                          현재
+                                        </span>
+                                      )}
+                                      <span className="book-detail-round-badge">
+                                        {getReadingStatusLabel(
+                                          round.status,
+                                          round.startedAt,
+                                        )}
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 truncate text-[11px] font-black text-stone-500">
+                                      {formatBookPages(
+                                        round.currentPage,
+                                        selectedBook.totalPages,
+                                      )}{" "}
+                                      · 기록 {roundRecords.length}개 ·{" "}
+                                      {formatDuration(
+                                        roundDurationSeconds ||
+                                          round.accumulatedSeconds,
+                                      )}
+                                    </p>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="mini-icon-button bg-[#B58A7A] text-[#FFFDF8] disabled:cursor-not-allowed disabled:opacity-40"
+                                    onClick={() => setDeleteRoundId(round.id)}
+                                    disabled={!canDeleteRound || isMutating}
+                                    aria-label={`${round.roundNumber}회독 삭제`}
+                                  >
+                                    <Icon name="trash" className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <section className="book-detail-progress-section">
+                        <div className="book-detail-section-title">
+                          <h2>독서 진행</h2>
+                          <button
+                            type="button"
+                            className="book-detail-page-edit-toggle"
+                            onClick={() =>
+                              setIsPageEditing((current) => !current)
+                            }
+                            aria-expanded={isPageEditing}
+                          >
+                            <Icon name="edit" className="h-4 w-4" />
+                            페이지 수정
+                          </button>
+                        </div>
+
+                        <div className="book-detail-progress-overview">
+                          <p className="book-detail-progress-status">
+                            {selectedBookProgressMessage}
+                          </p>
+                          <div className="book-detail-current-page">
+                            <strong>{selectedBook.currentPage}</strong>
+                            <span>쪽</span>
+                            {selectedBook.totalPages !== null && (
+                              <em>/ {selectedBook.totalPages}쪽</em>
+                            )}
+                          </div>
+                          <div className="book-detail-progress-track">
+                            <span
+                              style={{
+                                width: `${selectedBookStats.progress ?? 0}%`,
+                              }}
+                            />
+                          </div>
+                          <div className="book-detail-progress-caption">
+                            <strong>
+                              {selectedBookStats.progress !== null
+                                ? `${selectedBookStats.progress}%`
+                                : "진행률 미설정"}
+                            </strong>
+                            <span>
+                              {formatRemainingPagesLabel(
+                                selectedBookStats.remainingPages,
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {isPageEditing && (
+                          <div className="book-detail-page-edit-panel">
+                            <div className="book-detail-page-control">
+                              <div className="book-detail-page-control-heading">
+                                <label htmlFor="book-current-page">
+                                  현재 페이지
+                                </label>
+                                <strong>
+                                  {formatReadableBookPages(
+                                    selectedBook.currentPage,
+                                    selectedBook.totalPages,
+                                  )}
+                                </strong>
+                              </div>
+                              <div className="book-detail-inline-form">
+                                <input
+                                  id="book-current-page"
+                                  className="pixel-input"
+                                  type="text"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={selectedBook.totalPages ?? undefined}
+                                  value={currentPageDraft}
+                                  onChange={(event) =>
+                                    setCurrentPageDraft(
+                                      parsePageInput(event.target.value),
+                                    )
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  className="primary-button px-3"
+                                  onClick={saveCurrentPage}
+                                  disabled={
+                                    currentPageDraft ===
+                                      selectedBook.currentPage || isMutating
+                                  }
+                                >
+                                  저장
+                                </button>
+                              </div>
+                            </div>
+
+                            {selectedBook.totalPages === null && (
+                              <div className="book-detail-page-control book-detail-total-pages-control">
+                                <div className="book-detail-page-control-heading">
+                                  <div>
+                                    <label htmlFor="book-total-pages">
+                                      전체 페이지
+                                    </label>
+                                    <p>
+                                      입력하면 진행률과 남은 시간을 계산합니다.
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="book-detail-inline-form">
                                   <input
-                                    id={`sentence-page-${sentence.id}`}
-                                    className="book-detail-sentence-page-input"
+                                    id="book-total-pages"
+                                    className="pixel-input"
                                     type="text"
                                     inputMode="numeric"
-                                    min={1}
-                                    max={selectedBook.totalPages ?? undefined}
-                                    value={draftPage}
+                                    min={selectedBook.currentPage}
+                                    value={totalPagesDraft}
                                     onChange={(event) =>
-                                      setDraftPage(
+                                      setTotalPagesDraft(
                                         parsePageInput(event.target.value),
                                       )
                                     }
                                   />
-                                </div>
-                                <textarea
-                                  className="book-detail-sentence-textarea"
-                                  value={draftSentence}
-                                  onChange={(event) =>
-                                    setDraftSentence(event.target.value)
-                                  }
-                                />
-                                <div className="book-detail-editor-actions">
                                   <button
                                     type="button"
-                                    className="book-detail-editor-cancel"
-                                    onClick={cancelDraft}
+                                    className="primary-button px-3"
+                                    onClick={saveTotalPages}
+                                    disabled={
+                                      totalPagesDraft <
+                                        selectedBook.currentPage || isMutating
+                                    }
                                   >
-                                    취소
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="book-detail-editor-save"
-                                    onClick={saveEdit}
-                                    disabled={draftSentence.trim().length === 0}
-                                  >
-                                    <Icon name="save" className="h-4 w-4" />
-                                    저장
+                                    추가
                                   </button>
                                 </div>
                               </div>
-                            ) : (
-                              <>
-                                <div className="book-detail-sentence-item-header">
-                                  <span className="book-detail-sentence-page">
-                                    {sentence.page}p
+                            )}
+                          </div>
+                        )}
+
+                        <div className="book-detail-reading-summary">
+                          {selectedBookReadingSummary.map((summary, index) => (
+                            <p key={index}>{summary}</p>
+                          ))}
+                        </div>
+
+                        <div className="book-detail-stat-section">
+                          <div className="book-detail-stat-grid">
+                            <div>
+                              <Icon name="timer" className="h-3.5 w-3.5" />
+                              <span>
+                                {selectedBookStats.averagePagesPerHour > 0
+                                  ? `시간당 ${selectedBookStats.averagePagesPerHour}쪽`
+                                  : "-"}
+                              </span>
+                            </div>
+                            <div>
+                              <Icon name="book" className="h-3.5 w-3.5" />
+                              <span>{selectedBookRecords.length}회 기록</span>
+                            </div>
+                            <div>
+                              <Icon name="calendar" className="h-3.5 w-3.5" />
+                              <span>{selectedBook.startedAt || "-"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      {selectedBook.libraryReference && (
+                        <section className="book-library-reference-section">
+                          <div className="book-detail-section-title">
+                            <h2>도서관 이용 데이터</h2>
+                            <strong>
+                              {selectedBook.libraryReference.source}
+                            </strong>
+                          </div>
+                          <p className="book-library-reference-summary">
+                            {getDisplayBookDescription(selectedBook)}
+                          </p>
+                          {selectedBook.libraryReference.recommendedBooks
+                            .length > 0 && (
+                            <div className="book-library-reference-books">
+                              {selectedBook.libraryReference.recommendedBooks.map(
+                                (book) => (
+                                  <p key={`${book.title}-${book.author ?? ""}`}>
+                                    {book.title}
+                                    {book.author ? ` · ${book.author}` : ""}
+                                  </p>
+                                ),
+                              )}
+                            </div>
+                          )}
+                        </section>
+                      )}
+                    </>
+                  )}
+
+                  {activeBookDetailTab === "records" && (
+                    <>
+                      <section className="book-detail-journey-section">
+                        <div className="book-detail-section-title">
+                          <h2>독서 여정</h2>
+                          <strong>
+                            {selectedBookActiveRound
+                              ? `${selectedBookActiveRound.roundNumber}회독`
+                              : `${selectedBookJourneyRecords.length}회 기록`}
+                          </strong>
+                        </div>
+                        <ReadingJourneyChart
+                          key={selectedBook.id}
+                          records={selectedBookJourneyRecords}
+                          totalPages={selectedBook.totalPages}
+                        />
+                      </section>
+
+                      <section className="book-detail-records-section">
+                        <div className="book-detail-section-title">
+                          <h2>최근 독서 기록</h2>
+                          <strong>{selectedBookStats.recordedPages}p</strong>
+                        </div>
+                        {recentBookRecords.length === 0 ? (
+                          <p className="book-detail-empty-state">
+                            아직 이 책의 독서 기록이 없습니다.
+                          </p>
+                        ) : (
+                          <div className="book-detail-record-list">
+                            {recentBookRecords.map((record) => (
+                              <div
+                                key={record.id}
+                                className="book-detail-record-item"
+                              >
+                                <span className="book-detail-record-marker" />
+                                <div>
+                                  <p>{formatDateWithWeekday(record.date)}</p>
+                                  <span>
+                                    {record.roundNumber ?? 1}회독 ·{" "}
+                                    {record.startPage}p → {record.endPage}p
                                   </span>
-                                  <div className="book-detail-sentence-actions">
+                                </div>
+                                <strong>
+                                  {formatDuration(record.durationSeconds)}
+                                </strong>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </section>
+
+                      <section className="book-detail-pattern-section">
+                        <div className="book-detail-section-title">
+                          <h2>독서 패턴</h2>
+                          <strong>{selectedBookRecords.length}회</strong>
+                        </div>
+                        {selectedBookPattern ? (
+                          <div className="book-detail-pattern">
+                            <p className="book-detail-pattern-line">
+                              {selectedBookPattern.typeLabel}
+                            </p>
+                            <p className="book-detail-pattern-summary">
+                              {selectedBookPattern.summary}
+                            </p>
+                            <div className="book-detail-pattern-grid">
+                              <div>
+                                <span>평균 세션</span>
+                                <strong>
+                                  {formatDuration(
+                                    selectedBookPattern.averageSessionSeconds,
+                                  )}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>평균 속도</span>
+                                <strong>
+                                  {selectedBookPattern.pagesPerHour > 0
+                                    ? `${selectedBookPattern.pagesPerHour}p/h`
+                                    : "-"}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>많이 읽은 요일</span>
+                                <strong>
+                                  {selectedBookPattern.topWeekday}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>많이 읽은 시간</span>
+                                <strong>
+                                  {selectedBookPattern.topTimeBand}
+                                </strong>
+                              </div>
+                            </div>
+                            <div className="book-detail-pattern-sentence">
+                              <span>문장 기록</span>
+                              <p>
+                                {selectedBook.sentences.length}개 ·{" "}
+                                {selectedBookPattern.sentencePeak}에 많이 남김
+                                {selectedBookPattern.sentenceDensity > 0
+                                  ? ` · 10p당 ${selectedBookPattern.sentenceDensity}개`
+                                  : ""}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="book-detail-empty-state">
+                            독서 기록을 남기면 패턴이 계산됩니다.
+                          </p>
+                        )}
+                      </section>
+                    </>
+                  )}
+
+                  {activeBookDetailTab === "notes" && (
+                    <>
+                      <section className="book-detail-word-section">
+                        <div className="book-detail-section-title">
+                          <h2>단어 기록</h2>
+                          <strong>{selectedBook.wordNotes.length}개</strong>
+                        </div>
+                        {selectedBook.wordNotes.length === 0 ? (
+                          <p className="book-detail-empty-state">
+                            독서 중 검색한 단어가 이곳에 저장됩니다.
+                          </p>
+                        ) : (
+                          <div className="book-detail-word-list">
+                            {selectedBook.wordNotes.map((wordNote) => (
+                              <article
+                                key={wordNote.id}
+                                className="book-detail-word-item"
+                              >
+                                <div className="book-detail-word-heading">
+                                  <div>
+                                    <strong>{wordNote.word}</strong>
+                                    {wordNote.pos && (
+                                      <span>{wordNote.pos}</span>
+                                    )}
+                                  </div>
+                                  <div className="book-detail-word-actions">
+                                    {wordNote.page && <em>{wordNote.page}p</em>}
                                     <button
                                       type="button"
                                       className="mini-icon-button"
                                       onClick={() =>
-                                        startEdit(
-                                          sentence.id,
-                                          sentence.text,
-                                          sentence.page,
-                                        )
+                                        setDeleteWordNoteId(wordNote.id)
                                       }
-                                      aria-label="문장 수정"
-                                    >
-                                      <Icon name="edit" className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="mini-icon-button"
-                                      onClick={() => {
-                                        setDeleteSentenceSnapshot(sentence);
-                                        setDeleteSentenceId(sentence.id);
-                                      }}
-                                      aria-label="문장 삭제"
+                                      aria-label="단어 삭제"
                                     >
                                       <Icon name="trash" className="h-4 w-4" />
                                     </button>
                                   </div>
                                 </div>
-                                <blockquote className="book-detail-sentence-quote">
-                                  {sentence.text}
-                                  <span>{sentence.recordedAt}</span>
-                                </blockquote>
-                              </>
-                            )}
+                                <p>{wordNote.definition}</p>
+                                {wordNote.contextSentence && (
+                                  <blockquote className="book-detail-word-context">
+                                    {wordNote.contextSentence}
+                                  </blockquote>
+                                )}
+                                <div className="book-detail-word-meta">
+                                  <span>{wordNote.sourceName}</span>
+                                  <span>{wordNote.recordedAt}</span>
+                                </div>
+                              </article>
+                            ))}
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </section>
+                        )}
+                      </section>
+
+                      <section className="book-detail-sentence-section">
+                        <div className="book-detail-section-title">
+                          <h2>기록한 문장</h2>
+                          <button
+                            type="button"
+                            className="book-detail-add-sentence"
+                            onClick={startAdd}
+                            aria-label="문장 추가"
+                          >
+                            <Icon name="plus" className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {selectedBook.sentences.length > 1 && (
+                          <div className="book-detail-sort-switch">
+                            <button
+                              type="button"
+                              className={
+                                sentenceSort === "created"
+                                  ? "book-detail-sort-option book-detail-sort-option-active"
+                                  : "book-detail-sort-option"
+                              }
+                              onClick={() => setSentenceSort("created")}
+                            >
+                              등록순
+                            </button>
+                            <button
+                              type="button"
+                              className={
+                                sentenceSort === "page"
+                                  ? "book-detail-sort-option book-detail-sort-option-active"
+                                  : "book-detail-sort-option"
+                              }
+                              onClick={() => setSentenceSort("page")}
+                            >
+                              페이지순
+                            </button>
+                          </div>
+                        )}
+                        <div className="book-detail-sentence-list">
+                          {selectedBook.sentences.length === 0 ? (
+                            <p className="book-detail-empty-state">
+                              아직 기록한 문장이 없습니다.
+                            </p>
+                          ) : (
+                            sortedSentences.map((sentence) => {
+                              const isEditing =
+                                editingSentenceId === sentence.id;
+
+                              return (
+                                <div
+                                  key={sentence.id}
+                                  className="book-detail-sentence-item"
+                                >
+                                  {isEditing ? (
+                                    <div className="book-detail-sentence-editor">
+                                      <div className="book-detail-sentence-editor-page">
+                                        <label
+                                          htmlFor={`sentence-page-${sentence.id}`}
+                                        >
+                                          페이지
+                                        </label>
+                                        <input
+                                          id={`sentence-page-${sentence.id}`}
+                                          className="book-detail-sentence-page-input"
+                                          type="text"
+                                          inputMode="numeric"
+                                          min={1}
+                                          max={
+                                            selectedBook.totalPages ?? undefined
+                                          }
+                                          value={draftPage}
+                                          onChange={(event) =>
+                                            setDraftPage(
+                                              parsePageInput(
+                                                event.target.value,
+                                              ),
+                                            )
+                                          }
+                                        />
+                                      </div>
+                                      <textarea
+                                        className="book-detail-sentence-textarea"
+                                        value={draftSentence}
+                                        onChange={(event) =>
+                                          setDraftSentence(event.target.value)
+                                        }
+                                      />
+                                      <div className="book-detail-editor-actions">
+                                        <button
+                                          type="button"
+                                          className="book-detail-editor-cancel"
+                                          onClick={cancelDraft}
+                                        >
+                                          취소
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="book-detail-editor-save"
+                                          onClick={saveEdit}
+                                          disabled={
+                                            draftSentence.trim().length === 0
+                                          }
+                                        >
+                                          <Icon
+                                            name="save"
+                                            className="h-4 w-4"
+                                          />
+                                          저장
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="book-detail-sentence-item-header">
+                                        <span className="book-detail-sentence-page">
+                                          {sentence.page}p
+                                        </span>
+                                        <div className="book-detail-sentence-actions">
+                                          <button
+                                            type="button"
+                                            className="mini-icon-button"
+                                            onClick={() =>
+                                              startEdit(
+                                                sentence.id,
+                                                sentence.text,
+                                                sentence.page,
+                                              )
+                                            }
+                                            aria-label="문장 수정"
+                                          >
+                                            <Icon
+                                              name="edit"
+                                              className="h-4 w-4"
+                                            />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="mini-icon-button"
+                                            onClick={() => {
+                                              setDeleteSentenceSnapshot(
+                                                sentence,
+                                              );
+                                              setDeleteSentenceId(sentence.id);
+                                            }}
+                                            aria-label="문장 삭제"
+                                          >
+                                            <Icon
+                                              name="trash"
+                                              className="h-4 w-4"
+                                            />
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <blockquote className="book-detail-sentence-quote">
+                                        {sentence.text}
+                                        <span>{sentence.recordedAt}</span>
+                                      </blockquote>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </section>
+                    </>
+                  )}
+                </SwipeableView>
 
                 {hasCompletedRound(selectedBook) &&
                   selectedBook.status === "completed" && (
@@ -2516,15 +2649,6 @@ export const LibraryScreen = ({
                     </div>
                   )}
 
-                <div className="book-detail-danger-zone">
-                  <button
-                    type="button"
-                    className="book-detail-delete-button"
-                    onClick={() => setDeleteBookId(selectedBook.id)}
-                  >
-                    <Icon name="trash" className="h-4 w-4" />책 삭제
-                  </button>
-                </div>
               </div>
             </>
           ) : null}
