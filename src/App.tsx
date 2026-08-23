@@ -12,6 +12,10 @@ import type { User } from "@supabase/supabase-js";
 import { BottomTabs } from "./components/BottomTabs";
 import { Character } from "./components/adventure/AdventureScene";
 import { useAuth } from "./hooks/useAuth";
+import {
+  hasActiveBackNavigationLayer,
+  wasBackNavigationLayerClosedRecently,
+} from "./hooks/useBackNavigationLayer";
 import { useDoubleBackExitGuard } from "./hooks/useDoubleBackExitGuard";
 import { useReadingTimer } from "./hooks/useReadingTimer";
 import { AdminScreen } from "./screens/AdminScreen";
@@ -264,6 +268,18 @@ const syncPendingWordNote = async (pending: PendingWordNoteSync) => {
   await createRemoteWordNote(pending.userId, pending.note);
 };
 
+const replaceCurrentHistoryEntry = () => {
+  if (typeof window === "undefined") return;
+
+  const currentState = window.history.state;
+  const nextState =
+    typeof currentState === "object" && currentState !== null
+      ? { ...currentState }
+      : {};
+
+  window.history.replaceState(nextState, "", window.location.href);
+};
+
 function AuthenticatedApp({
   user,
   onSignOut,
@@ -297,6 +313,7 @@ function AuthenticatedApp({
   const pendingFlushRef = useRef(false);
   const readingTimer = useReadingTimer(import.meta.env.DEV ? 10 : 15 * 60);
   const resetReadingTimer = readingTimer.reset;
+  const activeTabRef = useRef(activeTab);
 
   const currentBook = useMemo(
     () => books.find((book) => book.id === currentBookId) ?? books[0] ?? null,
@@ -368,7 +385,38 @@ function AuthenticatedApp({
 
   useEffect(() => {
     saveActiveTab(activeTab);
+    activeTabRef.current = activeTab;
+    replaceCurrentHistoryEntry();
   }, [activeTab]);
+
+  const changeRootTab = (tab: TabKey) => {
+    if (tab === activeTab) return;
+
+    replaceCurrentHistoryEntry();
+    setActiveTab(tab);
+  };
+
+  useEffect(() => {
+    const keepCurrentRootTabOnBack = () => {
+      if (
+        hasActiveBackNavigationLayer() ||
+        wasBackNavigationLayerClosedRecently()
+      ) {
+        return;
+      }
+
+      setActiveTab(activeTabRef.current);
+      window.requestAnimationFrame(() => {
+        setActiveTab(activeTabRef.current);
+      });
+    };
+
+    window.addEventListener("popstate", keepCurrentRootTabOnBack);
+
+    return () => {
+      window.removeEventListener("popstate", keepCurrentRootTabOnBack);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -1635,7 +1683,7 @@ function AuthenticatedApp({
         {!shouldHideBottomTabs && (
           <BottomTabs
             activeTab={activeTab}
-            onChange={setActiveTab}
+            onChange={changeRootTab}
           />
         )}
       </div>
