@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 let layerSequence = 0;
 let suppressNextPop = false;
@@ -23,7 +23,7 @@ export const wasBackNavigationLayerClosedRecently = () =>
 
 export const useBackNavigationLayer = (
   isActive: boolean,
-  onClose: () => void,
+  onClose: (reason?: "pop") => void,
   layerName: string,
 ) => {
   const onCloseRef = useRef(onClose);
@@ -33,7 +33,7 @@ export const useBackNavigationLayer = (
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isActive || typeof window === "undefined") return;
 
     const layerId = `${layerName}-${layerSequence}`;
@@ -48,7 +48,7 @@ export const useBackNavigationLayer = (
       closedByPopRef.current = true;
       lastLayerPopCloseAt = Date.now();
       removeLayer(layerId);
-      onCloseRef.current();
+      onCloseRef.current("pop");
     };
 
     window.addEventListener("popstate", handlePopState);

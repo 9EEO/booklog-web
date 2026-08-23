@@ -1017,7 +1017,7 @@ export const LibraryScreen = ({
     });
   };
 
-  const closeDetail = async () => {
+  const closeDetail = async (options: { skipTransition?: boolean } = {}) => {
     if (!selectedBookId) return;
     if (
       bookTransitionState !== "detail-idle" &&
@@ -1027,6 +1027,20 @@ export const LibraryScreen = ({
     }
 
     const closingBookId = selectedBookId;
+
+    if (options.skipTransition) {
+      flushSync(() => {
+        resetDetailState();
+        setBookTransitionState("idle");
+        setTransitionBookId(null);
+      });
+      window.scrollTo({ top: listScrollYRef.current, behavior: "auto" });
+      window.requestAnimationFrame(() => {
+        bookButtonRefs.current.get(closingBookId)?.focus({ preventScroll: true });
+      });
+      return;
+    }
+
     const transitionKey = getBookTransitionKey(closingBookId);
     const sourceElement = getTransitionCoverElement(transitionKey);
     flushSync(() => {
@@ -1481,7 +1495,13 @@ export const LibraryScreen = ({
     () => setLibraryView("shelf"),
     "library-tier",
   );
-  useBackNavigationLayer(Boolean(selectedBook), closeDetail, "library-detail");
+  useBackNavigationLayer(
+    Boolean(selectedBook),
+    (reason) => {
+      void closeDetail({ skipTransition: reason === "pop" });
+    },
+    "library-detail",
+  );
   useBackNavigationLayer(
     Boolean(selectedBook && isAddingSentence),
     cancelDraft,
