@@ -302,6 +302,12 @@ export const SessionScreen = ({
   const [isSavingBook, setIsSavingBook] = useState(false);
   const [isBookPreviewGlitching, setIsBookPreviewGlitching] = useState(false);
   const [bookDescriptionLineClamp, setBookDescriptionLineClamp] = useState(4);
+  const [expandedBookDescriptionKey, setExpandedBookDescriptionKey] =
+    useState<string | null>(null);
+  const [bookDescriptionExpandable, setBookDescriptionExpandable] = useState({
+    key: "",
+    value: false,
+  });
   const [bookDescriptionTyping, setBookDescriptionTyping] = useState({
     key: "",
     visibleLength: 0,
@@ -344,7 +350,8 @@ export const SessionScreen = ({
     endPage: 0,
   });
   const bookPreviewGlitchTimerRef = useRef<number | null>(null);
-  const bookDescriptionRef = useRef<HTMLParagraphElement | null>(null);
+  const bookDescriptionTypingTimerRef = useRef<number | null>(null);
+  const bookDescriptionRef = useRef<HTMLButtonElement | null>(null);
   const bookSelectListRef = useRef<HTMLDivElement | null>(null);
   const bookSelectItemRefs = useRef(new Map<string, HTMLDivElement>());
   const timerPresetListRef = useRef<HTMLDivElement | null>(null);
@@ -776,15 +783,25 @@ export const SessionScreen = ({
     () => Array.from(selectedBookDescription),
     [selectedBookDescription],
   );
+  const isBookDescriptionExpanded =
+    expandedBookDescriptionKey === selectedBookDescriptionKey;
   const visibleBookDescriptionLength =
-    bookDescriptionTyping.key === selectedBookDescriptionKey
+    isBookDescriptionExpanded
+      ? selectedBookDescriptionCharacters.length
+      : bookDescriptionTyping.key === selectedBookDescriptionKey
       ? bookDescriptionTyping.visibleLength
       : 0;
   const visibleBookDescription = selectedBookDescriptionCharacters
     .slice(0, visibleBookDescriptionLength)
     .join("");
   const isBookDescriptionTyping =
+    !isBookDescriptionExpanded &&
     visibleBookDescriptionLength < selectedBookDescriptionCharacters.length;
+  const isBookDescriptionExpandable =
+    bookDescriptionExpandable.key === selectedBookDescriptionKey &&
+    bookDescriptionExpandable.value;
+  const canToggleBookDescription =
+    isBookDescriptionExpanded || isBookDescriptionExpandable;
 
   useEffect(() => {
     if (!canShowBookSelectScreen || !previewBookId) return undefined;
@@ -842,10 +859,18 @@ export const SessionScreen = ({
     };
   }, [isWordSearchOpen, selectedWordDefinition?.key]);
   const bookDescriptionStyle = {
-    "--book-description-lines": bookDescriptionLineClamp,
+    "--book-description-lines": isBookDescriptionExpanded
+      ? 8
+      : bookDescriptionLineClamp,
   } as CSSProperties;
 
   useEffect(() => {
+    if (bookDescriptionTypingTimerRef.current !== null) {
+      window.clearInterval(bookDescriptionTypingTimerRef.current);
+      window.clearTimeout(bookDescriptionTypingTimerRef.current);
+      bookDescriptionTypingTimerRef.current = null;
+    }
+
     const nextDescriptionLength = selectedBookDescriptionCharacters.length;
 
     if (nextDescriptionLength === 0) {
@@ -858,10 +883,16 @@ export const SessionScreen = ({
           key: selectedBookDescriptionKey,
           visibleLength: nextDescriptionLength,
         });
+        bookDescriptionTypingTimerRef.current = null;
       }, 0);
+      bookDescriptionTypingTimerRef.current = reduceMotionTimer;
 
       return () => {
-        window.clearTimeout(reduceMotionTimer);
+        if (bookDescriptionTypingTimerRef.current !== null) {
+          window.clearInterval(bookDescriptionTypingTimerRef.current);
+          window.clearTimeout(bookDescriptionTypingTimerRef.current);
+          bookDescriptionTypingTimerRef.current = null;
+        }
       };
     }
 
@@ -875,11 +906,17 @@ export const SessionScreen = ({
 
       if (nextVisibleLength >= nextDescriptionLength) {
         window.clearInterval(typingTimer);
+        bookDescriptionTypingTimerRef.current = null;
       }
     }, 24);
+    bookDescriptionTypingTimerRef.current = typingTimer;
 
     return () => {
-      window.clearInterval(typingTimer);
+      if (bookDescriptionTypingTimerRef.current !== null) {
+        window.clearInterval(bookDescriptionTypingTimerRef.current);
+        window.clearTimeout(bookDescriptionTypingTimerRef.current);
+        bookDescriptionTypingTimerRef.current = null;
+      }
     };
   }, [selectedBookDescriptionCharacters, selectedBookDescriptionKey]);
 
@@ -903,10 +940,32 @@ export const SessionScreen = ({
       const availableHeight =
         descriptionElement.clientHeight - paddingTop - paddingBottom;
       const nextLineClamp = Math.max(1, Math.floor(availableHeight / lineHeight));
+      const textElement = descriptionElement.querySelector<HTMLElement>(
+        ".session-book-preview-description-text",
+      );
 
       setBookDescriptionLineClamp((currentLineClamp) =>
         currentLineClamp === nextLineClamp ? currentLineClamp : nextLineClamp,
       );
+
+      if (!textElement || isBookDescriptionTyping || isBookDescriptionExpanded) {
+        return;
+      }
+
+      const nextExpandable =
+        textElement.scrollHeight > textElement.clientHeight + 1;
+
+      setBookDescriptionExpandable((current) => {
+        if (current.key !== selectedBookDescriptionKey) {
+          return { key: selectedBookDescriptionKey, value: nextExpandable };
+        }
+
+        const nextValue = current.value || nextExpandable;
+
+        return current.value === nextValue
+          ? current
+          : { key: selectedBookDescriptionKey, value: nextValue };
+      });
     };
 
     updateDescriptionLineClamp();
@@ -917,7 +976,57 @@ export const SessionScreen = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [selectedBookDescription, selectedBookPreview]);
+  }, [
+    isBookDescriptionExpanded,
+    isBookDescriptionTyping,
+    selectedBookDescription,
+    selectedBookDescriptionKey,
+    selectedBookPreview,
+  ]);
+
+  useEffect(() => {
+    if (!isBookDescriptionExpanded) return undefined;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      bookDescriptionRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [isBookDescriptionExpanded]);
+
+  const toggleBookDescription = () => {
+    if (!canToggleBookDescription && !isBookDescriptionTyping) return;
+
+    if (isBookDescriptionTyping) {
+      if (bookDescriptionTypingTimerRef.current !== null) {
+        window.clearInterval(bookDescriptionTypingTimerRef.current);
+        window.clearTimeout(bookDescriptionTypingTimerRef.current);
+        bookDescriptionTypingTimerRef.current = null;
+      }
+
+      setBookDescriptionTyping({
+        key: selectedBookDescriptionKey,
+        visibleLength: selectedBookDescriptionCharacters.length,
+      });
+      setBookDescriptionExpandable({
+        key: selectedBookDescriptionKey,
+        value: true,
+      });
+      setExpandedBookDescriptionKey(selectedBookDescriptionKey);
+      return;
+    }
+
+    setExpandedBookDescriptionKey((currentKey) =>
+      currentKey === selectedBookDescriptionKey
+        ? null
+        : selectedBookDescriptionKey,
+    );
+  };
 
   const selectSessionBook = (bookId: string) => {
     vibrateSelect();
@@ -1440,7 +1549,13 @@ export const SessionScreen = ({
         <section className="session-book-select-stage">
           <div className="session-book-select-console">
             {selectedBookPreview && (
-              <aside className="session-book-preview-panel">
+              <aside
+                className={`session-book-preview-panel ${
+                  isBookDescriptionExpanded
+                    ? "session-book-preview-panel-description-expanded"
+                    : ""
+                }`}
+              >
                 <div className="session-book-preview-screen">
                   <div
                     className={`session-book-preview-cover ${
@@ -1465,15 +1580,30 @@ export const SessionScreen = ({
                   <p className="session-book-preview-author">
                     {selectedBookPreview.author || "작자 미상"}
                   </p>
-                  <p
+                  <button
                     key={`${selectedBookPreview.id}-${selectedBookDescription}`}
+                    type="button"
                     ref={bookDescriptionRef}
-                    className="session-book-preview-description"
+                    className={`session-book-preview-description ${
+                      isBookDescriptionExpanded
+                        ? "session-book-preview-description-expanded"
+                        : ""
+                    } ${
+                      canToggleBookDescription
+                        ? "session-book-preview-description-toggleable"
+                        : ""
+                    }`}
                     style={bookDescriptionStyle}
+                    onClick={toggleBookDescription}
+                    aria-expanded={
+                      canToggleBookDescription
+                        ? isBookDescriptionExpanded
+                        : undefined
+                    }
+                    aria-label={selectedBookDescription}
                   >
                     <span
                       className="session-book-preview-description-text"
-                      aria-label={selectedBookDescription}
                     >
                       {visibleBookDescription}
                       {isBookDescriptionTyping && (
@@ -1483,7 +1613,7 @@ export const SessionScreen = ({
                         />
                       )}
                     </span>
-                  </p>
+                  </button>
                 </div>
                 <div className="session-book-preview-stats">
                   <span>
@@ -2297,7 +2427,13 @@ export const SessionScreen = ({
       ) : canChangeTimerMode ? (
         <section className="session-book-select-stage session-ready-stage">
           <div className="session-book-select-console session-ready-console">
-            <aside className="session-book-preview-panel">
+            <aside
+              className={`session-book-preview-panel ${
+                isBookDescriptionExpanded
+                  ? "session-book-preview-panel-description-expanded"
+                  : ""
+              }`}
+            >
               <div className="session-book-preview-screen">
                 <div className="session-book-preview-cover">
                   {currentBook.thumbnail ? (
@@ -2316,15 +2452,30 @@ export const SessionScreen = ({
                 <p className="session-book-preview-author">
                   {currentBook.author || "작자 미상"}
                 </p>
-                <p
+                <button
                   key={`${currentBook.id}-${selectedBookDescription}`}
+                  type="button"
                   ref={bookDescriptionRef}
-                  className="session-book-preview-description"
+                  className={`session-book-preview-description ${
+                    isBookDescriptionExpanded
+                      ? "session-book-preview-description-expanded"
+                      : ""
+                  } ${
+                    canToggleBookDescription
+                      ? "session-book-preview-description-toggleable"
+                      : ""
+                  }`}
                   style={bookDescriptionStyle}
+                  onClick={toggleBookDescription}
+                  aria-expanded={
+                    canToggleBookDescription
+                      ? isBookDescriptionExpanded
+                      : undefined
+                  }
+                  aria-label={selectedBookDescription}
                 >
                   <span
                     className="session-book-preview-description-text"
-                    aria-label={selectedBookDescription}
                   >
                     {visibleBookDescription}
                     {isBookDescriptionTyping && (
@@ -2334,7 +2485,7 @@ export const SessionScreen = ({
                       />
                     )}
                   </span>
-                </p>
+                </button>
               </div>
               <div className="session-book-preview-stats">
                 <span>
