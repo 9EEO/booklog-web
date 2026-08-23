@@ -8,6 +8,7 @@ import {
   useState,
   type SetStateAction,
 } from "react";
+import { flushSync } from "react-dom";
 import type { User } from "@supabase/supabase-js";
 import { BottomTabs } from "./components/BottomTabs";
 import { Character } from "./components/adventure/AdventureScene";
@@ -50,6 +51,7 @@ import {
   getInitialBooks,
   getInitialCurrentBookId,
   getInitialDailyGoalSeconds,
+  getInitialActiveTab,
   getInitialRecords,
   getInitialTierBoard,
   getInitialWeeklyGoalDays,
@@ -392,6 +394,8 @@ function AuthenticatedApp({
   const changeRootTab = (tab: TabKey) => {
     if (tab === activeTab) return;
 
+    saveActiveTab(tab);
+    activeTabRef.current = tab;
     replaceCurrentHistoryEntry();
     setActiveTab(tab);
   };
@@ -405,16 +409,27 @@ function AuthenticatedApp({
         return;
       }
 
-      setActiveTab(activeTabRef.current);
+      const currentRootTab = getInitialActiveTab();
+
+      activeTabRef.current = currentRootTab;
+      flushSync(() => {
+        setActiveTab(currentRootTab);
+      });
+      replaceCurrentHistoryEntry();
       window.requestAnimationFrame(() => {
-        setActiveTab(activeTabRef.current);
+        setActiveTab(currentRootTab);
+        replaceCurrentHistoryEntry();
       });
     };
 
-    window.addEventListener("popstate", keepCurrentRootTabOnBack);
+    window.addEventListener("popstate", keepCurrentRootTabOnBack, {
+      capture: true,
+    });
 
     return () => {
-      window.removeEventListener("popstate", keepCurrentRootTabOnBack);
+      window.removeEventListener("popstate", keepCurrentRootTabOnBack, {
+        capture: true,
+      });
     };
   }, []);
 
