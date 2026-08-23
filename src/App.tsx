@@ -51,7 +51,6 @@ import {
   getInitialBooks,
   getInitialCurrentBookId,
   getInitialDailyGoalSeconds,
-  getInitialActiveTab,
   getInitialRecords,
   getInitialTierBoard,
   getInitialWeeklyGoalDays,
@@ -409,9 +408,8 @@ function AuthenticatedApp({
         return;
       }
 
-      const currentRootTab = getInitialActiveTab();
+      const currentRootTab = activeTabRef.current;
 
-      activeTabRef.current = currentRootTab;
       flushSync(() => {
         setActiveTab(currentRootTab);
       });
@@ -746,7 +744,7 @@ function AuthenticatedApp({
         };
       }),
     );
-    setActiveTab("session");
+    changeRootTab("session");
 
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
       setSyncError("오프라인으로 저장했습니다. 네트워크 연결 시 자동으로 동기화됩니다.");
@@ -1472,7 +1470,7 @@ function AuthenticatedApp({
         ),
       );
       setCurrentBookId(bookId);
-      setActiveTab("session");
+      changeRootTab("session");
       readingTimer.reset();
     } catch (error) {
       handleSyncFailure(error, "재독을 시작하지 못했습니다.");
@@ -1589,7 +1587,7 @@ function AuthenticatedApp({
   };
 
   const openFirstBookForm = () => {
-    setActiveTab("session");
+    changeRootTab("session");
     setIsLibraryDetailMode(false);
     setSessionBookAddOpenRequestId((current) => current + 1);
   };
@@ -1600,7 +1598,7 @@ function AuthenticatedApp({
       id: (current?.id ?? 0) + 1,
       bookId,
     }));
-    setActiveTab("library");
+    changeRootTab("library");
   };
 
   const activeScreen = (
