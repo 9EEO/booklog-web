@@ -1031,6 +1031,14 @@ textarea {
   font: inherit;
 }
 
+@supports (-webkit-touch-callout: none) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 button {
   -webkit-tap-highlight-color: transparent;
 }
