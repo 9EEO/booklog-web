@@ -6009,6 +6009,7 @@ button {
 }
 
 .book-game-preview:active,
+.book-game-progress-button:active,
 .book-game-select-button:active {
   transform: translateY(1px);
 }
@@ -6092,8 +6093,17 @@ button {
   font-weight: 950;
 }
 
+.book-game-progress-button {
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-pixel);
+  padding: 0;
+}
+
 .book-game-progress-empty {
-  visibility: hidden;
+  color: transparent;
 }
 
 .book-game-select-button {

@@ -241,9 +241,14 @@ const BookGameSelectItem = ({
           선택
         </button>
       ) : (
-        <span className="book-game-progress">
+        <button
+          type="button"
+          className="book-game-progress book-game-progress-button"
+          onClick={onSelect}
+          aria-label={`${book.title} 선택`}
+        >
           {progress !== null ? `${progress}%` : "NEW"}
-        </span>
+        </button>
       )}
     </div>
   );
@@ -1674,7 +1679,14 @@ export const SessionScreen = ({
                       선택
                     </button>
                   ) : (
-                    <span className="book-game-progress">NEW</span>
+                    <button
+                      type="button"
+                      className="book-game-progress book-game-progress-button"
+                      onClick={previewBookAddListItem}
+                      aria-label="책 추가하기 선택"
+                    >
+                      NEW
+                    </button>
                   )}
                 </div>
                 {readingBooks.map((book, index) => (
@@ -2546,10 +2558,14 @@ export const SessionScreen = ({
                       확인
                     </button>
                   ) : (
-                    <span
-                      className="book-game-progress book-game-progress-empty"
-                      aria-hidden="true"
-                    />
+                    <button
+                      type="button"
+                      className="book-game-progress book-game-progress-button book-game-progress-empty"
+                      onClick={selectBookChangeTimeItem}
+                      aria-label="책 변경하기 선택"
+                    >
+                      확인
+                    </button>
                   )}
                 </div>
                 {presets.map((preset, index) => {
@@ -2599,10 +2615,14 @@ export const SessionScreen = ({
                           시작
                         </button>
                       ) : (
-                        <span
-                          className="book-game-progress book-game-progress-empty"
-                          aria-hidden="true"
-                        />
+                        <button
+                          type="button"
+                          className="book-game-progress book-game-progress-button book-game-progress-empty"
+                          onClick={() => selectTimerPreset(preset.seconds)}
+                          aria-label={`${preset.label} 선택`}
+                        >
+                          시작
+                        </button>
                       )}
                     </div>
                   );
@@ -2650,10 +2670,14 @@ export const SessionScreen = ({
                       시작
                     </button>
                   ) : (
-                    <span
-                      className="book-game-progress book-game-progress-empty"
-                      aria-hidden="true"
-                    />
+                    <button
+                      type="button"
+                      className="book-game-progress book-game-progress-button book-game-progress-empty"
+                      onClick={() => changeTimerMode("stopwatch")}
+                      aria-label="FREE MODE 선택"
+                    >
+                      시작
+                    </button>
                   )}
                 </div>
               </div>
