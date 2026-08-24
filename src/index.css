@@ -6150,6 +6150,7 @@ button {
   padding: 10px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  transition: grid-template-rows 220ms steps(6, end);
 }
 
 .session-book-preview-panel::-webkit-scrollbar {
@@ -6264,6 +6265,9 @@ button {
     #2b322c;
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.72);
   padding: 0;
+  transition:
+    max-width 220ms steps(6, end),
+    filter 180ms ease-out;
 }
 
 .session-book-preview-cover {
@@ -6445,6 +6449,10 @@ button {
   padding: 6px 8px;
   text-align: left;
   isolation: isolate;
+  transition:
+    background-color 160ms ease-out,
+    filter 180ms ease-out,
+    max-height 220ms steps(6, end);
 }
 
 .session-book-preview-description-toggleable {
@@ -6457,11 +6465,19 @@ button {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  animation: book-description-open 220ms steps(6, end);
 }
 
 .session-book-preview-description-expanded::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+.session-book-preview-description-expanded .session-book-preview-description-text {
+  display: block;
+  max-height: none;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
 }
 
 .session-book-preview-description:focus-visible {
@@ -6500,7 +6516,29 @@ button {
   }
 }
 
+@keyframes book-description-open {
+  0% {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  100% {
+    filter: brightness(1);
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .session-book-preview-panel,
+  .session-book-preview-screen,
+  .session-book-preview-description {
+    transition: none;
+  }
+
+  .session-book-preview-description-expanded {
+    animation: none;
+  }
+
   .session-book-preview-description-cursor {
     display: none;
   }
@@ -6577,6 +6615,10 @@ button {
   .session-book-preview-panel {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(102px, 0.8fr) minmax(0, 0.55fr) 32px;
+  }
+
+  .session-book-preview-panel-description-expanded {
+    grid-template-rows: minmax(58px, 0.4fr) minmax(0, 1fr) 32px;
   }
 
   .session-book-preview-screen {
