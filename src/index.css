@@ -10683,6 +10683,51 @@ button {
   font-weight: 700;
 }
 
+.book-detail-journey-section .book-journey-chart {
+  gap: 0;
+}
+
+.book-detail-journey-section .book-journey-plot {
+  border: 0;
+  border-radius: 16px;
+  background: #f1f4fb;
+}
+
+.book-detail-journey-section .book-journey-line {
+  stroke: var(--sage);
+  stroke-width: 2;
+}
+
+.book-detail-journey-section .book-journey-area {
+  fill: rgba(37, 99, 235, 0.08);
+}
+
+.book-detail-journey-section .book-journey-grid-line {
+  stroke: rgba(21, 21, 21, 0.05);
+}
+
+.book-detail-journey-section .book-journey-detail {
+  display: none;
+}
+
+.book-detail-journey-section .book-journey-axis-label {
+  bottom: 8px;
+  color: rgba(21, 21, 21, 0.3);
+  font-size: 9px;
+}
+
+.book-detail-journey-section .book-journey-point::before {
+  border-color: #f1f4fb;
+  background: rgba(37, 99, 235, 0.3);
+  box-shadow: none;
+}
+
+.book-detail-journey-section .book-journey-point-active::before {
+  border-color: #ffffff;
+  background: var(--sage);
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.16);
+}
+
 .book-complete-muted {
   margin-top: 14px;
 }
@@ -10848,11 +10893,19 @@ button {
 }
 
 .book-detail-journey-section {
+  border-color: rgba(21, 21, 21, 0.05);
+  border-radius: 22px;
   background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.04);
+  padding: 18px;
 }
 
 .book-detail-records-section {
+  border-color: rgba(21, 21, 21, 0.05);
+  border-radius: 22px;
   background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.04);
+  padding: 18px;
 }
 
 .book-library-reference-section {
@@ -10860,7 +10913,11 @@ button {
 }
 
 .book-detail-pattern-section {
-  background: #fffdf5;
+  border-color: rgba(21, 21, 21, 0.05);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow: 2px 2px 0 rgba(21, 21, 21, 0.04);
+  padding: 18px;
 }
 
 .book-detail-word-section {
@@ -10888,6 +10945,24 @@ button {
   color: rgba(21, 21, 21, 0.42);
   font-size: 10px;
   font-weight: 950;
+}
+
+.book-detail-journey-section .book-detail-section-title h2,
+.book-detail-records-section .book-detail-section-title h2,
+.book-detail-pattern-section .book-detail-section-title h2 {
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.book-detail-journey-section .book-detail-section-title > strong,
+.book-detail-records-section .book-detail-section-title > strong,
+.book-detail-pattern-section .book-detail-section-title > strong {
+  color: rgba(21, 21, 21, 0.36);
+  font-size: 12px;
+  font-weight: 750;
 }
 
 .book-detail-page-edit-toggle {
@@ -11506,32 +11581,36 @@ button {
 .book-detail-record-list {
   position: relative;
   display: grid;
-  gap: 0;
-  border: 1px solid rgba(21, 21, 21, 0.14);
-  border-radius: 8px;
-  background: #fafcf9;
-  padding: 4px 10px;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .book-detail-record-item {
   position: relative;
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 12px 0;
+  gap: 10px;
+  border: 1px solid rgba(21, 21, 21, 0.06);
+  border-radius: 18px 6px 18px 6px;
+  background: #f7f8fb;
+  padding: 14px 12px;
 }
 
 .book-detail-record-item + .book-detail-record-item {
-  border-top: 1px dashed rgba(21, 21, 21, 0.18);
+  border-top: 1px solid rgba(21, 21, 21, 0.06);
 }
 
 .book-detail-record-marker {
-  width: 9px;
-  height: 9px;
-  border: 2px solid var(--detail-ink);
+  width: 8px;
+  height: 8px;
+  border: 0;
   border-radius: 999px;
-  background: #8abf70;
+  background: var(--sage);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
 .book-detail-record-item div {
@@ -11539,98 +11618,104 @@ button {
 }
 
 .book-detail-record-item p {
-  font-size: 11px;
-  font-weight: 950;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .book-detail-record-item div span {
   display: block;
-  margin-top: 3px;
+  margin-top: 4px;
   overflow: hidden;
-  color: rgba(21, 21, 21, 0.42);
-  font-size: 10px;
-  font-weight: 850;
+  color: rgba(21, 21, 21, 0.48);
+  font-size: 12px;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .book-detail-record-item strong {
-  color: #568f3b;
-  font-size: 11px;
-  font-weight: 950;
+  color: var(--sage);
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .book-detail-pattern {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .book-detail-pattern-line {
-  border-left: 4px solid var(--detail-yellow);
-  color: rgba(21, 21, 21, 0.86);
-  padding-left: 10px;
+  overflow-wrap: normal;
+  border-left: 2px solid var(--sage);
+  color: var(--ink);
+  padding-left: 12px;
   font-size: 15px;
-  font-weight: 950;
-  line-height: 1.55;
+  font-weight: 800;
+  line-height: 1.5;
+  word-break: keep-all;
 }
 
 .book-detail-pattern-summary {
-  color: rgba(21, 21, 21, 0.68);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.6;
+  overflow-wrap: normal;
+  color: rgba(21, 21, 21, 0.62);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+  word-break: keep-all;
 }
 
 .book-detail-pattern-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid rgba(21, 21, 21, 0.16);
-  border-radius: 8px;
-  background: #ffffff;
+  border: 0;
+  border-radius: 18px;
+  background: #f7f8fb;
 }
 
 .book-detail-pattern-grid div {
   display: grid;
   min-width: 0;
-  gap: 4px;
-  padding: 10px;
+  gap: 5px;
+  padding: 13px;
 }
 
 .book-detail-pattern-grid div:nth-child(even) {
-  border-left: 1px dashed rgba(21, 21, 21, 0.14);
+  border-left: 1px solid rgba(21, 21, 21, 0.06);
 }
 
 .book-detail-pattern-grid div:nth-child(n + 3) {
-  border-top: 1px dashed rgba(21, 21, 21, 0.14);
+  border-top: 1px solid rgba(21, 21, 21, 0.06);
 }
 
 .book-detail-pattern-grid span,
 .book-detail-pattern-sentence span {
   color: rgba(21, 21, 21, 0.42);
-  font-size: 10px;
-  font-weight: 900;
+  font-size: 11px;
+  font-weight: 750;
 }
 
 .book-detail-pattern-grid strong {
   overflow: hidden;
-  color: rgba(21, 21, 21, 0.82);
-  font-size: 12px;
-  font-weight: 950;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .book-detail-pattern-sentence {
-  border-top: 1px dashed rgba(21, 21, 21, 0.18);
-  padding-top: 10px;
+  border-radius: 18px 6px 18px 6px;
+  background: rgba(37, 99, 235, 0.06);
+  padding: 13px;
 }
 
 .book-detail-pattern-sentence p {
   margin-top: 5px;
-  color: rgba(21, 21, 21, 0.76);
-  font-size: 12px;
-  font-weight: 850;
+  color: rgba(21, 21, 21, 0.68);
+  font-size: 13px;
+  font-weight: 650;
   line-height: 1.55;
 }
 

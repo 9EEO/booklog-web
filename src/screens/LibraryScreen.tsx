@@ -489,15 +489,15 @@ const formatFriendlyReadingTime = (seconds: number | null | undefined) => {
 };
 
 const getReadingProgressMessage = (progress: number | null) => {
-  if (progress === null) return "전체 페이지를 설정하면 진행률을 볼 수 있어요";
+  if (progress === null) return "전체 페이지를 설정하면 진행률을 볼 수 있어요 📚";
   if (progress >= 100) return "완독했어요! 🎉";
-  if (progress >= 90) return "거의 다 읽었어요!";
-  if (progress >= 75) return "완독이 가까워지고 있어요";
+  if (progress >= 90) return "거의 다 읽었어요! 🏁";
+  if (progress >= 75) return "완독이 가까워지고 있어요 ✨";
   if (progress >= 50) return "절반을 넘겼어요! 🎉";
-  if (progress >= 25) return "꽤 많이 읽었어요";
-  if (progress >= 10) return "조금씩 읽어가고 있어요";
+  if (progress >= 25) return "꽤 많이 읽었어요 📖";
+  if (progress >= 10) return "조금씩 읽어가고 있어요 🚶";
 
-  return "독서를 시작했어요";
+  return "독서를 시작했어요 🌱";
 };
 
 const formatRemainingPagesLabel = (remainingPages: number | null) =>
