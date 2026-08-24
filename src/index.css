@@ -6348,6 +6348,56 @@ button {
   animation: book-preview-content-flicker 360ms ease-out;
 }
 
+.session-book-add-preview-panel {
+  animation: book-preview-crt-jolt 300ms ease-out;
+}
+
+.session-book-add-preview-cover {
+  isolation: isolate;
+  background: #fffef8;
+}
+
+.session-book-add-preview-cover::before {
+  background:
+    linear-gradient(
+      180deg,
+      #151515 0 13%,
+      transparent 13% 87%,
+      #151515 87% 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 254, 248, 0.34) 0 1px,
+      transparent 1px 4px
+    );
+  mix-blend-mode: normal;
+  opacity: 1;
+}
+
+.session-book-add-preview-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: grayscale(1) contrast(1.18) brightness(1.14) sepia(0.08);
+  object-fit: cover;
+  opacity: 0.82;
+}
+
+.session-book-add-preview-character {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 48%;
+  max-width: 58px;
+  filter: grayscale(1) contrast(1.22) brightness(1.05)
+    drop-shadow(1px 1px 0 rgba(21, 21, 21, 0.22));
+  animation: book-add-preview-character-idle 1400ms steps(4, end) infinite;
+  transform: translateY(52%) scale(0.42);
+}
+
 .session-book-preview-pixel-cover {
   position: relative;
   display: block;
@@ -6362,6 +6412,26 @@ button {
   height: 100%;
   filter: grayscale(1) contrast(1.42) brightness(1.08) sepia(0.12);
   object-fit: cover;
+}
+
+.session-book-add-preview-cover .session-book-add-preview-character {
+  width: 48%;
+  max-width: 58px;
+  height: auto;
+  filter: grayscale(1) contrast(1.22) brightness(1.05)
+    drop-shadow(1px 1px 0 rgba(21, 21, 21, 0.22));
+  object-fit: contain;
+}
+
+@keyframes book-add-preview-character-idle {
+  0%,
+  100% {
+    transform: translateY(52%) scale(0.42);
+  }
+
+  50% {
+    transform: translateY(47%) scale(0.42);
+  }
 }
 
 .session-book-preview-pixel-cover canvas {
@@ -6536,6 +6606,10 @@ button {
   }
 
   .session-book-preview-description-expanded {
+    animation: none;
+  }
+
+  .session-book-add-preview-character {
     animation: none;
   }
 

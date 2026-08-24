@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import adventureBackground from "../assets/adventure-background.png";
+import focusSprout from "../assets/focus-sprout-2.gif";
 import { AdventureScene } from "../components/adventure/AdventureScene";
 import { Icon } from "../components/Icon";
 import { PixelatedBookCover } from "../components/PixelatedBookCover";
@@ -1049,6 +1051,7 @@ export const SessionScreen = ({
     vibrateSelect();
     timerControlSound.playSelect();
     setIsBookAddListItemActive(false);
+    setExpandedBookDescriptionKey(null);
     if (bookPreviewGlitchTimerRef.current !== null) {
       window.clearTimeout(bookPreviewGlitchTimerRef.current);
     }
@@ -1066,6 +1069,7 @@ export const SessionScreen = ({
     vibrateSelect();
     timerControlSound.playSelect();
     setIsBookAddListItemActive(true);
+    setExpandedBookDescriptionKey(null);
   };
 
   if (isBookAddOpen) {
@@ -1095,7 +1099,7 @@ export const SessionScreen = ({
                           type="search"
                           id="session-book-search-query"
                           aria-label="책 검색어"
-                          placeholder="제목, 저자, ISBN으로 검색"
+                          placeholder="책 제목이나 저자로 검색할 수 있어요"
                           value={bookSearchQuery}
                           onChange={(event) => {
                             setBookSearchQuery(event.target.value);
@@ -1553,7 +1557,38 @@ export const SessionScreen = ({
       <div className="session-screen space-y-4">
         <section className="session-book-select-stage">
           <div className="session-book-select-console">
-            {selectedBookPreview && (
+            {isBookAddListItemActive ? (
+              <aside className="session-book-preview-panel session-book-add-preview-panel">
+                <div className="session-book-preview-screen session-book-add-preview-screen">
+                  <div className="session-book-preview-cover session-book-add-preview-cover">
+                    <img
+                      src={adventureBackground}
+                      alt=""
+                      className="session-book-add-preview-background"
+                    />
+                    <img
+                      src={focusSprout}
+                      alt=""
+                      className="session-book-add-preview-character"
+                    />
+                  </div>
+                </div>
+                <div className="session-book-preview-copy session-book-add-preview-copy">
+                  <h2>새 책을 추가해볼까요?</h2>
+                  <p className="session-book-preview-author">
+                    책 제목이나 저자로 검색할 수 있어요.
+                  </p>
+                  <p className="session-book-preview-description">
+                    읽고 싶은 책을 검색해서 독서 목록에 추가해요.
+                  </p>
+                </div>
+                <div className="session-book-preview-stats">
+                  <span>PAGE --</span>
+                  <span className="session-book-preview-progress" />
+                  <strong>NEW</strong>
+                </div>
+              </aside>
+            ) : selectedBookPreview ? (
               <aside
                 className={`session-book-preview-panel ${
                   isBookDescriptionExpanded
@@ -1640,7 +1675,7 @@ export const SessionScreen = ({
                   </strong>
                 </div>
               </aside>
-            )}
+            ) : null}
 
             <div className="session-book-select-library">
               <div
