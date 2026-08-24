@@ -26,14 +26,16 @@ export type ReadingTimer = {
 
 const getInitialTimer = (initialTargetSeconds: number): StoredReadingTimer => {
   const storedTimer = getStoredReadingTimer(initialTargetSeconds)
-  const mode = storedTimer.mode ?? 'countdown'
+  const storedStatus = storedTimer.status ?? 'idle'
+  const baseElapsedSeconds = Math.max(Math.floor(storedTimer.baseElapsedSeconds ?? storedTimer.elapsedSeconds) || 0, 0)
+  const shouldUseDefaultStopwatch = storedStatus === 'idle' && baseElapsedSeconds === 0
+  const mode = shouldUseDefaultStopwatch ? 'stopwatch' : storedTimer.mode ?? 'stopwatch'
   const targetSeconds = Math.max(
     import.meta.env.DEV && storedTimer.status === 'idle'
       ? initialTargetSeconds
       : Math.floor(storedTimer.targetSeconds) || initialTargetSeconds,
     1,
   )
-  const baseElapsedSeconds = Math.max(Math.floor(storedTimer.baseElapsedSeconds ?? storedTimer.elapsedSeconds) || 0, 0)
 
   if (storedTimer.status === 'running' && storedTimer.startedAt) {
     const elapsedSinceStart = Math.max(Math.floor((Date.now() - storedTimer.startedAt) / 1000), 0)
@@ -279,6 +281,7 @@ export const useReadingTimer = (initialTargetSeconds = 15 * 60): ReadingTimer =>
     baseElapsedRef.current = 0
     setElapsedSeconds(0)
     setStatus('idle')
+    setTimerMode('stopwatch')
   }, [clearTimer, setSessionStartedAtValue])
 
   const complete = useCallback(() => {

@@ -448,7 +448,7 @@ const toDateTime = (dateLabel: string) => {
   return new Date(year, month - 1, day).getTime();
 };
 
-const formatDateWithWeekday = (dateLabel: string) => {
+const formatRecordWeekday = (dateLabel: string) => {
   const [year, month, day] = dateLabel.split(".").map(Number);
   const date = new Date(year, month - 1, day);
 
@@ -458,10 +458,12 @@ const formatDateWithWeekday = (dateLabel: string) => {
     date.getMonth() !== month - 1 ||
     date.getDate() !== day
   ) {
-    return dateLabel;
+    return "";
   }
 
-  return `${dateLabel}(${["일", "월", "화", "수", "목", "금", "토"][date.getDay()]})`;
+  return ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"][
+    date.getDay()
+  ];
 };
 
 const formatCompactDate = (dateLabel: string) => {
@@ -488,16 +490,18 @@ const formatFriendlyReadingTime = (seconds: number | null | undefined) => {
   return `약 ${formatCompactMinutes(seconds)}`;
 };
 
-const getReadingProgressMessage = (progress: number | null) => {
-  if (progress === null) return "전체 페이지를 설정하면 진행률을 볼 수 있어요";
-  if (progress >= 100) return "완독했어요! 🎉";
-  if (progress >= 90) return "거의 다 읽었어요!";
-  if (progress >= 75) return "완독이 가까워지고 있어요";
-  if (progress >= 50) return "절반을 넘겼어요! 🎉";
-  if (progress >= 25) return "꽤 많이 읽었어요";
-  if (progress >= 10) return "조금씩 읽어가고 있어요";
+const formatRecordDuration = (seconds: number) => formatCompactMinutes(seconds);
 
-  return "독서를 시작했어요";
+const getReadingProgressMessage = (progress: number | null) => {
+  if (progress === null) return "전체 페이지를 설정하면 진행률을 볼 수 있어요 📚";
+  if (progress >= 100) return "완독했어요! 🎉";
+  if (progress >= 90) return "거의 다 읽었어요! 🏁";
+  if (progress >= 75) return "완독이 가까워지고 있어요 ✨";
+  if (progress >= 50) return "절반을 넘겼어요! 🎉";
+  if (progress >= 25) return "꽤 많이 읽었어요 📖";
+  if (progress >= 10) return "조금씩 읽어가고 있어요 🚶";
+
+  return "독서를 시작했어요 🌱";
 };
 
 const formatRemainingPagesLabel = (remainingPages: number | null) =>
@@ -867,7 +871,19 @@ export const LibraryScreen = ({
               : "아직 독서 속도를 계산하기 위한 기록이 부족해요.",
       ]
     : [];
-  const recentBookRecords = selectedBookRecords.slice(0, 3);
+  const recentBookRecords = [...selectedBookRecords]
+    .sort(
+      (left, right) =>
+        right.date.localeCompare(left.date) ||
+        (right.startedAt ?? "").localeCompare(left.startedAt ?? "") ||
+        right.id.localeCompare(left.id),
+    )
+    .slice(0, 3);
+  const selectedBookAveragePagesPerSession =
+    selectedBookRecords.length > 0
+      ? Math.round(selectedBookRecordedPages / selectedBookRecords.length)
+      : 0;
+  const hasEnoughBookPatternRecords = selectedBookRecords.length >= 4;
   const selectedBookRounds = selectedBook
     ? [...(selectedBook.rounds ?? [])].sort(
         (left, right) => left.roundNumber - right.roundNumber,
@@ -2314,11 +2330,7 @@ export const LibraryScreen = ({
                       <section className="book-detail-journey-section">
                         <div className="book-detail-section-title">
                           <h2>독서 여정</h2>
-                          <strong>
-                            {selectedBookActiveRound
-                              ? `${selectedBookActiveRound.roundNumber}회독`
-                              : `${selectedBookJourneyRecords.length}회 기록`}
-                          </strong>
+                          <strong>{selectedBookJourneyRecords.length}회 기록</strong>
                         </div>
                         <ReadingJourneyChart
                           key={selectedBook.id}
@@ -2330,7 +2342,7 @@ export const LibraryScreen = ({
                       <section className="book-detail-records-section">
                         <div className="book-detail-section-title">
                           <h2>최근 독서 기록</h2>
-                          <strong>{selectedBookStats.recordedPages}p</strong>
+                          <strong>{recentBookRecords.length}개</strong>
                         </div>
                         {recentBookRecords.length === 0 ? (
                           <p className="book-detail-empty-state">
@@ -2338,24 +2350,39 @@ export const LibraryScreen = ({
                           </p>
                         ) : (
                           <div className="book-detail-record-list">
-                            {recentBookRecords.map((record) => (
-                              <div
-                                key={record.id}
-                                className="book-detail-record-item"
-                              >
-                                <span className="book-detail-record-marker" />
-                                <div>
-                                  <p>{formatDateWithWeekday(record.date)}</p>
-                                  <span>
-                                    {record.roundNumber ?? 1}회독 ·{" "}
-                                    {record.startPage}p → {record.endPage}p
-                                  </span>
-                                </div>
-                                <strong>
-                                  {formatDuration(record.durationSeconds)}
-                                </strong>
-                              </div>
-                            ))}
+                            {recentBookRecords.map((record) => {
+                                const readPages = Math.max(
+                                  record.endPage - record.startPage,
+                                  0,
+                                );
+
+                                return (
+                                  <div
+                                    key={record.id}
+                                    className="book-detail-record-item"
+                                  >
+                                    <span className="book-detail-record-marker" />
+                                    <div className="book-detail-record-date">
+                                      <strong>{formatCompactDate(record.date)}</strong>
+                                      <span>{formatRecordWeekday(record.date)}</span>
+                                    </div>
+                                    <div className="book-detail-record-content">
+                                      <div className="book-detail-record-pages">
+                                        <strong>
+                                          {record.startPage} → {record.endPage}p
+                                        </strong>
+                                        <span>+{readPages}p</span>
+                                      </div>
+                                      <p className="book-detail-record-duration">
+                                        <Icon name="clock" className="h-4 w-4" />
+                                        {formatRecordDuration(
+                                          record.durationSeconds,
+                                        )}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                           </div>
                         )}
                       </section>
@@ -2368,50 +2395,48 @@ export const LibraryScreen = ({
                         {selectedBookPattern ? (
                           <div className="book-detail-pattern">
                             <p className="book-detail-pattern-line">
-                              {selectedBookPattern.typeLabel}
+                              {hasEnoughBookPatternRecords
+                                ? `한 번 읽을 때 평균 ${formatCompactMinutes(
+                                    selectedBookPattern.averageSessionSeconds,
+                                  )} 정도 읽어요.`
+                                : "아직 기록을 모으고 있어요."}
                             </p>
                             <p className="book-detail-pattern-summary">
-                              {selectedBookPattern.summary}
+                              {hasEnoughBookPatternRecords
+                                ? `한 번에 평균 ${selectedBookAveragePagesPerSession}p를 읽고 있어요.`
+                                : "조금 더 읽으면 나만의 독서 패턴을 알려드릴게요."}
                             </p>
                             <div className="book-detail-pattern-grid">
                               <div>
-                                <span>평균 세션</span>
+                                <span>평균 독서 시간</span>
                                 <strong>
-                                  {formatDuration(
+                                  {formatCompactMinutes(
                                     selectedBookPattern.averageSessionSeconds,
                                   )}
                                 </strong>
                               </div>
                               <div>
-                                <span>평균 속도</span>
+                                <span>평균 읽은 분량</span>
                                 <strong>
-                                  {selectedBookPattern.pagesPerHour > 0
-                                    ? `${selectedBookPattern.pagesPerHour}p/h`
-                                    : "-"}
+                                  {selectedBookAveragePagesPerSession}p
                                 </strong>
                               </div>
-                              <div>
-                                <span>많이 읽은 요일</span>
-                                <strong>
-                                  {selectedBookPattern.topWeekday}
-                                </strong>
-                              </div>
-                              <div>
-                                <span>많이 읽은 시간</span>
-                                <strong>
-                                  {selectedBookPattern.topTimeBand}
-                                </strong>
-                              </div>
-                            </div>
-                            <div className="book-detail-pattern-sentence">
-                              <span>문장 기록</span>
-                              <p>
-                                {selectedBook.sentences.length}개 ·{" "}
-                                {selectedBookPattern.sentencePeak}에 많이 남김
-                                {selectedBookPattern.sentenceDensity > 0
-                                  ? ` · 10p당 ${selectedBookPattern.sentenceDensity}개`
-                                  : ""}
-                              </p>
+                              {hasEnoughBookPatternRecords && (
+                                <>
+                                  <div>
+                                    <span>자주 읽은 요일</span>
+                                    <strong>
+                                      {selectedBookPattern.topWeekday}
+                                    </strong>
+                                  </div>
+                                  <div>
+                                    <span>주로 읽은 시간</span>
+                                    <strong>
+                                      {selectedBookPattern.topTimeBand}
+                                    </strong>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
                         ) : (
