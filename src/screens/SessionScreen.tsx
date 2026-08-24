@@ -91,7 +91,6 @@ const presets = [
     ? { label: "10 SEC", seconds: 10 }
     : { label: "5 MIN", seconds: 5 * 60 },
   { label: "15 MIN", seconds: 15 * 60 },
-  { label: "30 MIN", seconds: 30 * 60 },
   { label: "60 MIN", seconds: 60 * 60 },
 ];
 
@@ -2560,46 +2559,51 @@ export const SessionScreen = ({
                 <div
                   ref={(node) => {
                     if (node) {
-                      timerPresetItemRefs.current.set("change-book", node);
+                      timerPresetItemRefs.current.set("stopwatch", node);
                       return;
                     }
 
-                    timerPresetItemRefs.current.delete("change-book");
+                    timerPresetItemRefs.current.delete("stopwatch");
                   }}
                   className={`book-game-item session-ready-time-item ${
-                    isBookChangeTimeItemActive ? "book-game-item-active" : ""
+                    !isBookChangeTimeItemActive && timer.mode === "stopwatch"
+                      ? "book-game-item-active"
+                      : ""
                   }`}
                 >
                   <button
                     type="button"
                     className="book-game-preview"
-                    onClick={selectBookChangeTimeItem}
-                    aria-pressed={isBookChangeTimeItemActive}
+                    onClick={() => changeTimerMode("stopwatch")}
+                    aria-pressed={
+                      !isBookChangeTimeItemActive && timer.mode === "stopwatch"
+                    }
                   >
                     <span className="book-game-cursor" aria-hidden="true">
                       ▶
                     </span>
                     <span className="book-game-slot">00</span>
                     <span className="book-game-copy">
-                      <strong>책 변경하기</strong>
+                      <strong>FREE MODE</strong>
                     </span>
                   </button>
-                  {isBookChangeTimeItemActive ? (
+                  {!isBookChangeTimeItemActive &&
+                  timer.mode === "stopwatch" ? (
                     <button
                       type="button"
                       className="book-game-select-button"
-                      onClick={openSessionBookSelection}
+                      onClick={startTimer}
                     >
-                      확인
+                      시작
                     </button>
                   ) : (
                     <button
                       type="button"
                       className="book-game-progress book-game-progress-button book-game-progress-empty"
-                      onClick={selectBookChangeTimeItem}
-                      aria-label="책 변경하기 선택"
+                      onClick={() => changeTimerMode("stopwatch")}
+                      aria-label="FREE MODE 선택"
                     >
-                      확인
+                      시작
                     </button>
                   )}
                 </div>
@@ -2665,25 +2669,21 @@ export const SessionScreen = ({
                 <div
                   ref={(node) => {
                     if (node) {
-                      timerPresetItemRefs.current.set("stopwatch", node);
+                      timerPresetItemRefs.current.set("change-book", node);
                       return;
                     }
 
-                    timerPresetItemRefs.current.delete("stopwatch");
+                    timerPresetItemRefs.current.delete("change-book");
                   }}
                   className={`book-game-item session-ready-time-item ${
-                    !isBookChangeTimeItemActive && timer.mode === "stopwatch"
-                      ? "book-game-item-active"
-                      : ""
+                    isBookChangeTimeItemActive ? "book-game-item-active" : ""
                   }`}
                 >
                   <button
                     type="button"
                     className="book-game-preview"
-                    onClick={() => changeTimerMode("stopwatch")}
-                    aria-pressed={
-                      !isBookChangeTimeItemActive && timer.mode === "stopwatch"
-                    }
+                    onClick={selectBookChangeTimeItem}
+                    aria-pressed={isBookChangeTimeItemActive}
                   >
                     <span className="book-game-cursor" aria-hidden="true">
                       ▶
@@ -2692,26 +2692,25 @@ export const SessionScreen = ({
                       {(presets.length + 1).toString().padStart(2, "0")}
                     </span>
                     <span className="book-game-copy">
-                      <strong>FREE MODE</strong>
+                      <strong>책 변경하기</strong>
                     </span>
                   </button>
-                  {!isBookChangeTimeItemActive &&
-                  timer.mode === "stopwatch" ? (
+                  {isBookChangeTimeItemActive ? (
                     <button
                       type="button"
                       className="book-game-select-button"
-                      onClick={startTimer}
+                      onClick={openSessionBookSelection}
                     >
-                      시작
+                      확인
                     </button>
                   ) : (
                     <button
                       type="button"
                       className="book-game-progress book-game-progress-button book-game-progress-empty"
-                      onClick={() => changeTimerMode("stopwatch")}
-                      aria-label="FREE MODE 선택"
+                      onClick={selectBookChangeTimeItem}
+                      aria-label="책 변경하기 선택"
                     >
-                      시작
+                      확인
                     </button>
                   )}
                 </div>
