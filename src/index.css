@@ -9523,6 +9523,10 @@ button {
   text-shadow: 1px 1px 0 #f2c94c;
 }
 
+.session-completion-hud-summary {
+  transform: translateY(clamp(-58px, -7vh, -34px));
+}
+
 .session-saved-summary-hud {
   width: min(100%, 292px);
   gap: 7px;
@@ -9577,6 +9581,8 @@ button {
   font-family: var(--font-pixel);
   font-size: 8px;
   font-weight: 950;
+  background: rgba(255, 254, 248, 0.62);
+  padding: 2px 4px;
 }
 
 .session-completion-page-input {
@@ -9589,11 +9595,10 @@ button {
 }
 
 .session-completion-page-input input {
-  width: 46px;
-  min-height: 23px;
-  border: 0;
-  border-bottom: 2px solid #151515;
-  background: transparent;
+  width: 56px;
+  min-height: 26px;
+  border: 2px solid #151515;
+  background: #fffef8;
   color: #151515;
   padding: 3px 5px;
   font-family: var(--font-pixel);
@@ -9685,6 +9690,11 @@ button {
   font-family: var(--font-pixel);
   font-size: 8px;
   font-weight: 950;
+}
+
+.session-completion-reset-confirming {
+  background: #151515;
+  color: #f2c94c;
 }
 
 .session-completion-hud button:active {

@@ -320,6 +320,8 @@ export const SessionScreen = ({
   });
   const [isCompletionOpen, setIsCompletionOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDiscardCompletionConfirming, setIsDiscardCompletionConfirming] =
+    useState(false);
   const [isWordSearchOpen, setIsWordSearchOpen] = useState(false);
   const [wordSearchResumeCountdownKey, setWordSearchResumeCountdownKey] =
     useState(0);
@@ -365,6 +367,7 @@ export const SessionScreen = ({
   const wordResultListRef = useRef<HTMLDivElement | null>(null);
   const wordResultItemRefs = useRef(new Map<string, HTMLElement>());
   const completionPageInputRef = useRef<HTMLInputElement | null>(null);
+  const discardCompletionTimerRef = useRef<number | null>(null);
   const isBookAddOpeningRef = useRef(false);
   const timerCompletionSound = useTimerCompletionSound(timer.status);
   const timerControlSound = useTimerControlSound();
@@ -412,10 +415,19 @@ export const SessionScreen = ({
     setTimerToastMessage(message);
   };
 
+  const clearDiscardCompletionConfirmation = () => {
+    setIsDiscardCompletionConfirming(false);
+    if (discardCompletionTimerRef.current !== null) {
+      window.clearTimeout(discardCompletionTimerRef.current);
+      discardCompletionTimerRef.current = null;
+    }
+  };
+
   useBackNavigationLayer(
     isCompletionOpen ||
       (timer.status === "completed" && timer.elapsedSeconds > 0),
     () => {
+      clearDiscardCompletionConfirmation();
       setIsCompletionOpen(false);
       if (timer.status === "completed") {
         timer.cancelCompletion();
@@ -524,9 +536,13 @@ export const SessionScreen = ({
 
   useEffect(
     () => () => {
-      if (bookPreviewGlitchTimerRef.current === null) return;
+      if (bookPreviewGlitchTimerRef.current !== null) {
+        window.clearTimeout(bookPreviewGlitchTimerRef.current);
+      }
 
-      window.clearTimeout(bookPreviewGlitchTimerRef.current);
+      if (discardCompletionTimerRef.current !== null) {
+        window.clearTimeout(discardCompletionTimerRef.current);
+      }
     },
     [],
   );
@@ -1785,6 +1801,7 @@ export const SessionScreen = ({
   }
   const isFormForCurrentBook = form.bookId === currentBook.id;
   const endPage = isFormForCurrentBook ? form.endPage : 0;
+  const hasCompletionEndPage = endPage > 0;
   const isStopwatchMode = timer.mode === "stopwatch";
   const isReading = timer.status === "running";
   const displaySeconds = isStopwatchMode
@@ -1813,6 +1830,7 @@ export const SessionScreen = ({
 
   const openCompletion = () => {
     if (timer.elapsedSeconds === 0) return;
+    clearDiscardCompletionConfirmation();
     setIsWordSearchOpen(false);
     setIsSentenceNoteOpen(false);
     vibrateTimerStop();
@@ -1823,7 +1841,7 @@ export const SessionScreen = ({
   };
 
   const saveCompletion = async () => {
-    if (isSaving) return;
+    if (isSaving || !hasCompletionEndPage) return;
 
     setIsSaving(true);
 
@@ -1871,6 +1889,7 @@ export const SessionScreen = ({
       });
       setSavedSessionSummary(summary);
       setSessionBaseline(null);
+      clearDiscardCompletionConfirmation();
       timer.reset();
       setForm({
         bookId: currentBook.id,
@@ -1884,6 +1903,7 @@ export const SessionScreen = ({
 
   const continueReading = () => {
     vibrateTap();
+    clearDiscardCompletionConfirmation();
     timerCompletionSound.prepare();
     setIsCompletionOpen(false);
     setSavedSessionSummary(null);
@@ -1892,6 +1912,7 @@ export const SessionScreen = ({
 
   const resetCompletion = () => {
     vibrateWarning();
+    clearDiscardCompletionConfirmation();
     timer.reset();
     setForm({
       bookId: currentBook.id,
@@ -1900,6 +1921,25 @@ export const SessionScreen = ({
     setIsCompletionOpen(false);
     setSavedSessionSummary(null);
     setSessionBaseline(null);
+  };
+
+  const discardCompletionWithConfirmation = () => {
+    if (isSaving) return;
+
+    if (isDiscardCompletionConfirming) {
+      resetCompletion();
+      return;
+    }
+
+    vibrateWarning();
+    setIsDiscardCompletionConfirming(true);
+    if (discardCompletionTimerRef.current !== null) {
+      window.clearTimeout(discardCompletionTimerRef.current);
+    }
+    discardCompletionTimerRef.current = window.setTimeout(() => {
+      setIsDiscardCompletionConfirming(false);
+      discardCompletionTimerRef.current = null;
+    }, 3000);
   };
 
   const adjustExtension = (deltaSeconds: number) => {
@@ -2752,6 +2792,8 @@ export const SessionScreen = ({
                             id="end-page"
                             type="text"
                             inputMode="numeric"
+                            required
+                            aria-required="true"
                             min={currentBook.currentPage}
                             max={currentBook.totalPages ?? undefined}
                             value={endPage > 0 ? endPage : ""}
@@ -2806,6 +2848,17 @@ export const SessionScreen = ({
               <div className="session-completion-actions">
                 <button
                   type="button"
+                  className="completion-save-action"
+                  onClick={() => {
+                    vibrateSelect();
+                    void saveCompletion();
+                  }}
+                  disabled={isSaving || !hasCompletionEndPage}
+                >
+                  {isSaving ? "저장 중" : "기록 저장"}
+                </button>
+                <button
+                  type="button"
                   className="completion-secondary-action"
                   onClick={continueReading}
                 >
@@ -2813,25 +2866,19 @@ export const SessionScreen = ({
                 </button>
                 <button
                   type="button"
-                  className="completion-save-action"
-                  onClick={() => {
-                    vibrateSelect();
-                    void saveCompletion();
-                  }}
+                  className={`session-completion-reset ${
+                    isDiscardCompletionConfirming
+                      ? "session-completion-reset-confirming"
+                      : ""
+                  }`}
+                  onClick={discardCompletionWithConfirmation}
                   disabled={isSaving}
                 >
-                  {isSaving ? "저장 중" : "기록 저장"}
+                  {isDiscardCompletionConfirming
+                    ? "한 번 더 누르면 종료됩니다"
+                    : "저장하지 않고 닫기"}
                 </button>
               </div>
-
-              <button
-                type="button"
-                className="session-completion-reset"
-                onClick={resetCompletion}
-                disabled={isSaving}
-              >
-                기록하지 않고 닫기
-              </button>
             </div>
           </div>
         </section>
