@@ -44,7 +44,7 @@ type JourneySvgLabel = {
   key: string;
   title: string;
   subtitle: string;
-  meta: string;
+  meta?: string;
   x: number;
   y: number;
   width: number;
@@ -54,10 +54,10 @@ type JourneySvgLabel = {
 
 const defaultChartLayout: ChartLayout = {
   width: 320,
-  height: 148,
+  height: 160,
   paddingX: 18,
-  paddingTop: 18,
-  paddingBottom: 24,
+  paddingTop: 52,
+  paddingBottom: 25,
 };
 
 const completeChartLayout: ChartLayout = {
@@ -79,6 +79,12 @@ const formatShortDate = (dateLabel: string) => {
   const [, month, day] = dateLabel.split(".");
 
   return month && day ? `${month}.${day}` : dateLabel;
+};
+
+const formatLongDate = (dateLabel: string) => {
+  const [, month, day] = dateLabel.split(".");
+
+  return month && day ? `${Number(month)}월 ${Number(day)}일` : dateLabel;
 };
 
 const formatCompactDuration = (seconds: number) => {
@@ -119,7 +125,7 @@ const createJourneyPoints = (
       endPage: dateRecords.at(-1)?.endPage ?? dateRecords[0].endPage,
       readPages: dateRecords.reduce(
         (sum, record) =>
-          sum + Math.max(record.endPage - record.startPage + 1, 0),
+          sum + Math.max(record.endPage - record.startPage, 0),
         0,
       ),
       durationSeconds: dateRecords.reduce(
@@ -204,7 +210,6 @@ export const ReadingJourneyChart = ({
   const selectedPoint =
     points.find((point) => point.date === selectedDate) ?? points.at(-1);
   const lastPoint = points.at(-1);
-  const showInlineLabels = variant === "completeReport";
   const maxDuration = Math.max(
     ...points.map((point) => point.durationSeconds),
     1,
@@ -218,18 +223,26 @@ export const ReadingJourneyChart = ({
   const areaData = points.length
     ? `${pathData} L ${points.at(-1)?.x.toFixed(2)} ${chartLayout.height - chartLayout.paddingBottom} L ${points[0].x.toFixed(2)} ${chartLayout.height - chartLayout.paddingBottom} Z`
     : "";
-  const svgLabels: JourneySvgLabel[] = showInlineLabels && selectedPoint
+  const svgLabels: JourneySvgLabel[] = selectedPoint
     ? [
         createSvgLabel(selectedPoint, chartLayout, {
           key: selectedPoint.date,
           title:
-            selectedPoint.date === lastPoint?.date
+            variant === "completeReport" && selectedPoint.date === lastPoint?.date
               ? `${formatShortDate(selectedPoint.date)} · 완독`
-              : formatShortDate(selectedPoint.date),
-          subtitle: `${selectedPoint.startPage}p → ${selectedPoint.endPage}p`,
-          meta: `${formatCompactDuration(selectedPoint.durationSeconds)} · ${selectedPoint.recordCount}회`,
-          width: 104,
-          height: 46,
+              : variant === "completeReport"
+                ? formatShortDate(selectedPoint.date)
+                : `${selectedPoint.endPage}p`,
+          subtitle:
+            variant === "completeReport"
+              ? `${selectedPoint.startPage}p → ${selectedPoint.endPage}p`
+              : formatLongDate(selectedPoint.date),
+          meta:
+            variant === "completeReport"
+              ? `${formatCompactDuration(selectedPoint.durationSeconds)} · ${selectedPoint.recordCount}회`
+              : undefined,
+          width: variant === "completeReport" ? 104 : 78,
+          height: variant === "completeReport" ? 46 : 42,
           className: "book-journey-svg-label-selected",
         }),
       ]
@@ -274,7 +287,7 @@ export const ReadingJourneyChart = ({
       ref={chartRef}
       className={`book-journey-chart ${
         isAnimated ? "book-journey-chart-active" : ""
-      } ${showInlineLabels ? "book-journey-chart-complete" : ""}`}
+      } ${variant === "completeReport" ? "book-journey-chart-complete" : ""}`}
       onFocusCapture={() => setIsAnimated(true)}
     >
       <div className="book-journey-plot">
@@ -284,7 +297,7 @@ export const ReadingJourneyChart = ({
           aria-label="날짜별 독서 페이지 추이"
         >
           <title>날짜별 독서 페이지 추이</title>
-          {[0, 1, 2].map((line) => {
+          {variant === "completeReport" && [0, 1, 2].map((line) => {
             const y =
               chartLayout.paddingTop +
               ((chartLayout.height -
@@ -317,21 +330,36 @@ export const ReadingJourneyChart = ({
               transform={`translate(${label.x.toFixed(2)} ${label.y.toFixed(2)})`}
             >
               <rect width={label.width} height={label.height} rx="13" />
-              <text className="book-journey-svg-label-title" x="10" y="14">
+              <text
+                className="book-journey-svg-label-title"
+                x="10"
+                y={label.meta ? "14" : "17"}
+              >
                 {label.title}
               </text>
-              <text className="book-journey-svg-label-subtitle" x="10" y="27">
+              <text
+                className="book-journey-svg-label-subtitle"
+                x="10"
+                y={label.meta ? "27" : "31"}
+              >
                 {label.subtitle}
               </text>
-              <text className="book-journey-svg-label-meta" x="10" y="39">
-                {label.meta}
-              </text>
+              {label.meta && (
+                <text className="book-journey-svg-label-meta" x="10" y="39">
+                  {label.meta}
+                </text>
+              )}
             </g>
           ))}
         </svg>
 
         {points.map((point, index) => {
-          const pointSize = 10 + (point.durationSeconds / maxDuration) * 6;
+          const pointSize =
+            variant === "completeReport"
+              ? 10 + (point.durationSeconds / maxDuration) * 6
+              : point.date === selectedPoint?.date
+                ? 14
+                : 10;
           const style: JourneyPointStyle = {
             "--journey-x": `${(point.x / chartLayout.width) * 100}%`,
             "--journey-y": `${(point.y / chartLayout.height) * 100}%`,
