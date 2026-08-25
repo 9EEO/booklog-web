@@ -586,18 +586,6 @@ function AuthenticatedApp({
     user.id,
   ]);
 
-  const handleAdjustDailyGoal = (deltaSeconds: number) => {
-    setDailyGoalSeconds((current) =>
-      Math.min(Math.max(current + deltaSeconds, 5 * 60), 180 * 60),
-    );
-  };
-
-  const handleAdjustWeeklyGoal = (deltaDays: number) => {
-    setWeeklyGoalDays((current) =>
-      Math.min(Math.max(current + deltaDays, 1), 7),
-    );
-  };
-
   const handleChangeTierBoard = (nextTierBoard: SetStateAction<TierBoard>) => {
     setTierBoard((current) => {
       const next =
@@ -1666,10 +1654,6 @@ function AuthenticatedApp({
           userEmail={user.email ?? ""}
           books={books}
           records={records}
-          dailyGoalSeconds={dailyGoalSeconds}
-          weeklyGoalDays={weeklyGoalDays}
-          onAdjustDailyGoal={handleAdjustDailyGoal}
-          onAdjustWeeklyGoal={handleAdjustWeeklyGoal}
           onSignOut={onSignOut}
         />
       )}

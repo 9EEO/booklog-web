@@ -98,6 +98,7 @@ type BookFormStep = "search" | "details";
 type ShelfTab = "reading" | "completed";
 type BookDetailTab = "summary" | "records" | "notes";
 type LibraryView = "shelf" | "tier";
+type CompletedShelfView = "grid" | "list";
 type BookTransitionState =
   | "idle"
   | "pressing"
@@ -785,17 +786,21 @@ export const LibraryScreen = ({
       ? "completed"
       : "reading",
   );
+  const [completedShelfView, setCompletedShelfView] =
+    useState<CompletedShelfView>("grid");
   const [activeBookDetailTab, setActiveBookDetailTab] =
     useState<BookDetailTab>("summary");
   const [selectedJourneyDate, setSelectedJourneyDate] = useState<string | null>(
     null,
   );
   const [isPageEditing, setIsPageEditing] = useState(false);
+  const [isBookDetailMenuOpen, setIsBookDetailMenuOpen] = useState(false);
   const [libraryView, setLibraryView] = useState<LibraryView>("shelf");
   const [bookTransitionState, setBookTransitionState] =
     useState<BookTransitionState>(initialDetailBook ? "detail-idle" : "idle");
   const [transitionBookId, setTransitionBookId] = useState<string | null>(null);
   const detailPageRef = useRef<HTMLElement | null>(null);
+  const bookDetailMenuRef = useRef<HTMLDivElement | null>(null);
   const bookButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const listScrollYRef = useRef(0);
   const selectedBook = selectedBookId
@@ -1028,6 +1033,7 @@ export const LibraryScreen = ({
     setActiveBookDetailTab("summary");
     setSelectedJourneyDate(null);
     setIsPageEditing(false);
+    setIsBookDetailMenuOpen(false);
     setCurrentPageDraft(book?.currentPage ?? 1);
     setTotalPagesDraft(book?.totalPages ?? 0);
   };
@@ -1050,6 +1056,7 @@ export const LibraryScreen = ({
     setActiveBookDetailTab("summary");
     setSelectedJourneyDate(null);
     setIsPageEditing(false);
+    setIsBookDetailMenuOpen(false);
   };
 
   const selectBook = async (bookId: string) => {
@@ -1236,6 +1243,7 @@ export const LibraryScreen = ({
 
     setCurrentPageDraft(selectedBook.currentPage);
     setTotalPagesDraft(selectedBook.totalPages ?? 0);
+    setIsBookDetailMenuOpen(false);
     setIsPageEditing(true);
   };
 
@@ -1604,6 +1612,11 @@ export const LibraryScreen = ({
     "library-detail",
   );
   useBackNavigationLayer(
+    Boolean(selectedBook && isBookDetailMenuOpen),
+    () => setIsBookDetailMenuOpen(false),
+    "library-detail-menu",
+  );
+  useBackNavigationLayer(
     Boolean(selectedBook && isAddingSentence),
     cancelDraft,
     "library-add-sentence",
@@ -1640,6 +1653,25 @@ export const LibraryScreen = ({
     },
     "library-book-form",
   );
+
+  useEffect(() => {
+    if (!isBookDetailMenuOpen) return undefined;
+
+    const closeMenuOnOutsidePress = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !bookDetailMenuRef.current?.contains(event.target)
+      ) {
+        setIsBookDetailMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeMenuOnOutsidePress);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeMenuOnOutsidePress);
+    };
+  }, [isBookDetailMenuOpen]);
 
   const latestBookChatAssistantId = bookChatMessages.reduce<string | null>(
     (latestId, message) =>
@@ -1780,6 +1812,8 @@ export const LibraryScreen = ({
                   books={activeShelfBooks}
                   records={records}
                   tierBoard={tierBoard}
+                  completedView={completedShelfView}
+                  onCompletedViewChange={setCompletedShelfView}
                   onSelectBook={selectBook}
                   transitionBookId={transitionBookId}
                   transitionState={bookTransitionState}
@@ -1819,6 +1853,51 @@ export const LibraryScreen = ({
             <h1 className="truncate text-xl font-black">
               {selectedBook.title}
             </h1>
+            {selectedRound ? (
+              <span aria-hidden="true" />
+            ) : (
+              <div
+                ref={bookDetailMenuRef}
+                className="book-detail-header-menu"
+              >
+                <button
+                  type="button"
+                  className="icon-button book-detail-menu-button"
+                  onClick={() =>
+                    setIsBookDetailMenuOpen((current) => !current)
+                  }
+                  aria-label="책 상세 메뉴"
+                  aria-haspopup="menu"
+                  aria-expanded={isBookDetailMenuOpen}
+                >
+                  <Icon name="more" className="h-5 w-5" />
+                </button>
+                {isBookDetailMenuOpen && (
+                  <div className="book-detail-overflow-menu" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={openPageEditSheet}
+                    >
+                      <Icon name="edit" className="h-4 w-4" />
+                      페이지 수정
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="book-detail-overflow-menu-danger"
+                      onClick={() => {
+                        setIsBookDetailMenuOpen(false);
+                        setDeleteBookId(selectedBook.id);
+                      }}
+                    >
+                      <Icon name="trash" className="h-4 w-4" />
+                      책 삭제
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </header>
 
           {selectedBook && selectedRound ? (
@@ -2223,15 +2302,6 @@ export const LibraryScreen = ({
                       <section className="book-detail-progress-section">
                         <div className="book-detail-section-title">
                           <h2>독서 진행</h2>
-                          <button
-                            type="button"
-                            className="book-detail-page-edit-toggle"
-                            onClick={openPageEditSheet}
-                            aria-haspopup="dialog"
-                          >
-                            <Icon name="edit" className="h-4 w-4" />
-                            페이지 수정
-                          </button>
                         </div>
 
                         <div className="book-detail-progress-overview">
@@ -2705,7 +2775,7 @@ export const LibraryScreen = ({
       <BottomSheetModal
         isOpen={Boolean(selectedBook && isPageEditing)}
         ariaLabel="페이지 수정"
-        backdropClassName="modal-backdrop-top"
+        backdropClassName="modal-backdrop-top book-page-edit-backdrop"
         panelClassName="book-page-edit-sheet"
         onBackdropClick={closePageEditSheet}
       >
@@ -2714,7 +2784,6 @@ export const LibraryScreen = ({
             <div className="book-page-edit-sheet-header">
               <div>
                 <h2>페이지 수정</h2>
-                <p>{selectedBook.title}</p>
               </div>
               <button
                 type="button"
@@ -2728,8 +2797,14 @@ export const LibraryScreen = ({
 
             <div className="book-page-edit-fields">
               <label className="book-page-edit-field" htmlFor="book-current-page">
-                <span>현재 페이지</span>
-                <div>
+                <span className="book-page-edit-field-icon" aria-hidden="true">
+                  <Icon name="book" className="h-6 w-6" />
+                </span>
+                <span className="book-page-edit-field-copy">
+                  <strong>현재 페이지</strong>
+                  <small>읽은 마지막 페이지</small>
+                </span>
+                <span className="book-page-edit-input">
                   <input
                     id="book-current-page"
                     type="text"
@@ -2742,11 +2817,17 @@ export const LibraryScreen = ({
                     }
                   />
                   <em>쪽</em>
-                </div>
+                </span>
               </label>
               <label className="book-page-edit-field" htmlFor="book-total-pages">
-                <span>전체 페이지</span>
-                <div>
+                <span className="book-page-edit-field-icon" aria-hidden="true">
+                  <Icon name="records" className="h-6 w-6" />
+                </span>
+                <span className="book-page-edit-field-copy">
+                  <strong>전체 페이지</strong>
+                  <small>책의 전체 페이지 수</small>
+                </span>
+                <span className="book-page-edit-input">
                   <input
                     id="book-total-pages"
                     type="text"
@@ -2759,9 +2840,14 @@ export const LibraryScreen = ({
                     }
                   />
                   <em>쪽</em>
-                </div>
+                </span>
               </label>
             </div>
+
+            <p className="book-page-edit-note">
+              <Icon name="check" className="h-4 w-4" />
+              입력한 페이지에 맞춰 진행률이 업데이트돼요.
+            </p>
 
             <button
               type="button"
@@ -2769,7 +2855,6 @@ export const LibraryScreen = ({
               onClick={saveBookPages}
               disabled={isMutating}
             >
-              <Icon name="save" className="h-4 w-4" />
               저장
             </button>
           </>
@@ -3171,42 +3256,62 @@ export const LibraryScreen = ({
         isOpen={Boolean(deleteBook)}
         ariaLabel="책 삭제 확인"
         role="alertdialog"
-        backdropClassName="modal-backdrop-top"
-        panelClassName="max-w-[360px]"
+        backdropClassName="modal-backdrop-top book-page-edit-backdrop"
+        panelClassName="book-delete-sheet"
+        onBackdropClick={() => setDeleteBookId(null)}
       >
         {deleteBook && (
           <>
-            <div className="mb-3 flex items-center gap-2">
-              <div className="grid h-10 w-10 place-items-center border-2 border-[#2F2A26] bg-[#B58A7A] text-[#FFFDF8]">
-                <Icon name="trash" className="h-5 w-5" />
-              </div>
+            <div className="book-delete-sheet-header">
               <div>
-                <h2 className="text-lg font-black">책 삭제</h2>
-                <p className="text-xs font-black text-stone-500">
-                  서재와 기록한 문장에서 제거됩니다.
-                </p>
+                <h2>책을 삭제할까요?</h2>
+                <p>삭제한 책과 문장은 되돌릴 수 없습니다.</p>
               </div>
-            </div>
-            <div className="mb-4 border-2 border-[#2F2A26] bg-[#FCFBF7] p-3">
-              <MiniBook book={deleteBook} />
-              <p className="mt-3 text-xs font-black leading-relaxed text-[#B58A7A]">
-                독서 세션 기록은 기록 탭에 그대로 남습니다.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className="secondary-button"
+                className="book-delete-sheet-close"
+                onClick={() => setDeleteBookId(null)}
+                aria-label="책 삭제 닫기"
+              >
+                <Icon name="close" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="book-delete-sheet-book">
+              <div
+                className="book-delete-sheet-cover"
+                style={{ backgroundColor: deleteBook.coverColor }}
+              >
+                {deleteBook.thumbnail ? (
+                  <img src={deleteBook.thumbnail} alt="" />
+                ) : (
+                  <Icon name="book" className="h-5 w-5" />
+                )}
+              </div>
+              <div>
+                <strong>{deleteBook.title}</strong>
+                <span>{deleteBook.author || "작자 미상"}</span>
+              </div>
+            </div>
+
+            <p className="book-delete-sheet-note">
+              독서 세션 기록은 기록 탭에 그대로 남습니다.
+            </p>
+
+            <div className="book-delete-sheet-actions">
+              <button
+                type="button"
+                className="book-delete-sheet-cancel"
                 onClick={() => setDeleteBookId(null)}
               >
                 취소
               </button>
               <button
                 type="button"
-                className="danger-button"
+                className="book-delete-sheet-confirm"
                 onClick={confirmDeleteBook}
+                disabled={isMutating}
               >
-                <Icon name="trash" className="h-5 w-5" />
                 삭제
               </button>
             </div>
@@ -3639,6 +3744,8 @@ type BookShelfSectionProps = {
   books: Book[];
   records: ReadingRecord[];
   tierBoard: TierBoard;
+  completedView: CompletedShelfView;
+  onCompletedViewChange: (view: CompletedShelfView) => void;
   onSelectBook: (bookId: string) => void;
   transitionBookId: string | null;
   transitionState: BookTransitionState;
@@ -3653,6 +3760,8 @@ const BookShelfSection = ({
   books,
   records,
   tierBoard,
+  completedView,
+  onCompletedViewChange,
   onSelectBook,
   transitionBookId,
   transitionState,
@@ -3687,14 +3796,41 @@ const BookShelfSection = ({
           <div className="completed-library-hero">
             <div>
               <h2>완독 컬렉션</h2>
-              <p>읽어낸 책들이 쌓이고 있어요.</p>
+              <span>
+                {books.length}권 · {completedPages.toLocaleString()}p
+              </span>
             </div>
-            <div className="completed-library-summary">
-              <strong>{books.length}권</strong>
-              <span>총 {completedPages.toLocaleString()}p</span>
+            <div className="completed-library-view-toggle" role="group">
+              <button
+                type="button"
+                className={
+                  completedView === "list"
+                    ? "completed-library-view-button completed-library-view-button-active"
+                    : "completed-library-view-button"
+                }
+                onClick={() => onCompletedViewChange("list")}
+                aria-label="완독 책 목록형 보기"
+                title="목록형 보기"
+              >
+                <Icon name="records" className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className={
+                  completedView === "grid"
+                    ? "completed-library-view-button completed-library-view-button-active"
+                    : "completed-library-view-button"
+                }
+                onClick={() => onCompletedViewChange("grid")}
+                aria-label="완독 책 그리드 보기"
+                title="그리드 보기"
+              >
+                <Icon name="grid" className="h-4 w-4" />
+              </button>
             </div>
           </div>
-          <div className="completed-library-grid">
+          {completedView === "grid" ? (
+            <div className="completed-library-grid">
             {books.map((book, index) => {
               const bookTier = getBookTier(tierBoard, book.id);
               const transitionKey = getBookTransitionKey(book.id);
@@ -3760,7 +3896,45 @@ const BookShelfSection = ({
                 </button>
               );
             })}
-          </div>
+            </div>
+          ) : (
+            <div className="library-reading-list completed-library-list">
+              {books.map((book) => {
+                const transitionKey = getBookTransitionKey(book.id);
+                const isTransitionBook = transitionBookId === book.id;
+                const isTransitioningFromList =
+                  transitionState === "leaving-list" ||
+                  transitionState === "entering-detail";
+
+                return (
+                  <button
+                    key={book.id}
+                    ref={(element) => registerBookButton(book.id, element)}
+                    type="button"
+                    className={`library-book-card book-select-button ${
+                      isTransitionBook ? "book-select-button-active" : ""
+                    } ${
+                      isTransitioningFromList && !isTransitionBook
+                        ? "book-select-button-dimmed"
+                        : ""
+                    }`}
+                    onClick={() => onSelectBook(book.id)}
+                    aria-label={`${book.title} 상세 보기`}
+                  >
+                    <div className="library-book-card-main">
+                      <MiniBook
+                        book={book}
+                        compact
+                        coverTransitionKey={transitionKey}
+                        coverStyle={{ viewTransitionName: transitionKey }}
+                      />
+                      <span className="completed-library-list-meta">완독</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : (
         <div className="library-reading-list">

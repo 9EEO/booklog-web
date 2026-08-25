@@ -25,6 +25,8 @@ export type IconName =
   | "calendar"
   | "chevronLeft"
   | "chevronRight"
+  | "more"
+  | "grid"
   | "edit"
   | "trash"
   | "plus"
@@ -120,6 +122,22 @@ const paths: Record<IconName, ReactNode> = {
     <>
       {softCircle}
       <path d="M8.05 6.64 12 10.59l3.95-3.95a1 1 0 1 1 1.41 1.41L13.41 12l3.95 3.95a1 1 0 0 1-1.41 1.41L12 13.41l-3.95 3.95a1 1 0 0 1-1.41-1.41L10.59 12 6.64 8.05a1 1 0 1 1 1.41-1.41Z" />
+    </>
+  ),
+  more: (
+    <>
+      <circle cx="12" cy="5" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="12" cy="19" r="1.5" />
+    </>
+  ),
+  grid: (
+    <>
+      <rect className="icon-bulk-soft" x="4" y="4" width="6" height="6" rx="1" />
+      <rect className="icon-bulk-soft" x="14" y="4" width="6" height="6" rx="1" />
+      <rect className="icon-bulk-soft" x="4" y="14" width="6" height="6" rx="1" />
+      <rect className="icon-bulk-soft" x="14" y="14" width="6" height="6" rx="1" />
+      <path d="M5 3h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm10 0h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM5 13h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2Zm10 0h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2Z" />
     </>
   ),
   save: (
