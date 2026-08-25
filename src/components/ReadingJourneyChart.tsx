@@ -12,6 +12,7 @@ type ReadingJourneyChartProps = {
   records: ReadingRecord[];
   totalPages: number | null;
   variant?: "default" | "completeReport";
+  onDateSelect?: (date: string) => void;
 };
 
 type JourneyPoint = {
@@ -195,6 +196,7 @@ export const ReadingJourneyChart = ({
   records,
   totalPages,
   variant = "default",
+  onDateSelect,
 }: ReadingJourneyChartProps) => {
   const chartLayout =
     variant === "completeReport" ? completeChartLayout : defaultChartLayout;
@@ -377,7 +379,10 @@ export const ReadingJourneyChart = ({
                   : ""
               }`}
               style={style}
-              onClick={() => setSelectedDate(point.date)}
+              onClick={() => {
+                setSelectedDate(point.date);
+                onDateSelect?.(point.date);
+              }}
               aria-label={`${point.date}, ${point.endPage}페이지, ${formatDuration(point.durationSeconds)}`}
               aria-pressed={point.date === selectedPoint?.date}
             />

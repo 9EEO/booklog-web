@@ -1358,26 +1358,30 @@ function AuthenticatedApp({
   const handleUpdateBookTotalPages = async (
     bookId: string,
     totalPages: number,
+    currentPage?: number,
   ) => {
     const targetBook = books.find((book) => book.id === bookId);
     if (!targetBook) return;
 
     const nextTotalPages = Math.max(
-      Math.floor(totalPages) || targetBook.currentPage,
-      targetBook.currentPage,
+      Math.floor(totalPages) || currentPage || targetBook.currentPage,
+      currentPage ?? targetBook.currentPage,
     );
-    const isCompleted = targetBook.currentPage >= nextTotalPages;
+    const nextCurrentPage = clampBookPage(
+      currentPage ?? targetBook.currentPage,
+      nextTotalPages,
+    );
+    const isCompleted = nextCurrentPage >= nextTotalPages;
     const date = todayLabel();
     const activeRound = getActiveRound(targetBook);
     const nextRound = activeRound
       ? {
           ...activeRound,
-          status: (isCompleted
-            ? "completed"
-            : activeRound.status) as BookStatus,
+          currentPage: nextCurrentPage,
+          status: (isCompleted ? "completed" : "reading") as BookStatus,
           completedAt: isCompleted
             ? (activeRound.completedAt ?? date)
-            : activeRound.completedAt,
+            : undefined,
         }
       : null;
 
@@ -1385,6 +1389,7 @@ function AuthenticatedApp({
       setSyncError(null);
       if (nextRound && !nextRound.id.includes("-round-")) {
         await updateRemoteReadingRound(nextRound.id, {
+          currentPage: nextRound.currentPage,
           status: nextRound.status,
           completedAt:
             nextRound.status === "completed"
@@ -1393,8 +1398,9 @@ function AuthenticatedApp({
         });
       }
       await updateRemoteBook(bookId, {
+        currentPage: nextCurrentPage,
         totalPages: nextTotalPages,
-        status: isCompleted ? "completed" : targetBook.status,
+        status: isCompleted ? "completed" : "reading",
         completedAt: isCompleted
           ? (targetBook.completedAt ?? date)
           : (targetBook.completedAt ?? null),
@@ -1408,8 +1414,9 @@ function AuthenticatedApp({
 
           return {
             ...nextBook,
+            currentPage: nextCurrentPage,
             totalPages: nextTotalPages,
-            status: isCompleted ? "completed" : nextBook.status,
+            status: isCompleted ? "completed" : "reading",
             completedAt: isCompleted
               ? (nextBook.completedAt ?? date)
               : nextBook.completedAt,
@@ -1417,7 +1424,7 @@ function AuthenticatedApp({
         }),
       );
     } catch (error) {
-      handleSyncFailure(error, "전체 페이지를 저장하지 못했습니다.");
+      handleSyncFailure(error, "페이지 정보를 저장하지 못했습니다.");
     }
   };
 

@@ -37,7 +37,6 @@ import type {
 import type { BookChatEvidence, BookChatMessage } from "../types/bookChat";
 import { buildCompletedReadingReport } from "../utils/completedReadingReport";
 import { buildCompletedBookChatContext } from "../utils/completedBookChatContext";
-import { getDisplayBookDescription } from "../utils/bookDescription";
 import { formatDuration } from "../utils/formatDuration";
 import { parsePageInput } from "../utils/pageInput";
 import { buildReadingPattern } from "../utils/readingPattern";
@@ -71,7 +70,11 @@ type LibraryScreenProps = {
   onDeleteWordNote: (bookId: string, wordNoteId: string) => Promise<void>;
   onDeleteBook: (bookId: string) => Promise<void>;
   onUpdateBookPage: (bookId: string, page: number) => Promise<void>;
-  onUpdateBookTotalPages: (bookId: string, totalPages: number) => Promise<void>;
+  onUpdateBookTotalPages: (
+    bookId: string,
+    totalPages: number,
+    currentPage?: number,
+  ) => Promise<void>;
   onStartReread: (bookId: string) => Promise<void>;
   onDeleteRound: (bookId: string, roundId: string) => Promise<void>;
   bookFormOpenRequestId: number;
@@ -193,6 +196,36 @@ const getReadingRecordTime = (record: ReadingRecord) => {
   if (!year || !month || !day) return 0;
 
   return new Date(year, month - 1, day).getTime();
+};
+
+const formatLastReadLabel = (record?: ReadingRecord) => {
+  if (!record) return undefined;
+
+  const recordTime = getReadingRecordTime(record);
+  if (recordTime <= 0) return undefined;
+
+  const today = new Date();
+  const todayStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  ).getTime();
+  const recordDate = new Date(recordTime);
+  const recordStart = new Date(
+    recordDate.getFullYear(),
+    recordDate.getMonth(),
+    recordDate.getDate(),
+  ).getTime();
+  const elapsedDays = Math.max(
+    0,
+    Math.floor((todayStart - recordStart) / (1000 * 60 * 60 * 24)),
+  );
+
+  if (elapsedDays === 0) return "오늘 읽었어요";
+  if (elapsedDays === 1) return "어제 읽었어요";
+  if (elapsedDays < 7) return `${elapsedDays}일 전에 읽었어요`;
+
+  return `${Math.floor(elapsedDays / 7)}주 전에 읽었어요`;
 };
 
 const getTransitionCoverElement = (transitionKey: string) =>
@@ -461,15 +494,19 @@ const formatRecordWeekday = (dateLabel: string) => {
     return "";
   }
 
-  return ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"][
-    date.getDay()
-  ];
+  return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
 };
 
 const formatCompactDate = (dateLabel: string) => {
   const [, month, day] = dateLabel.split(".").map(Number);
 
   return month && day ? `${month}.${day}` : dateLabel;
+};
+
+const formatRecordListDate = (dateLabel: string) => {
+  const [, month, day] = dateLabel.split(".").map(Number);
+
+  return month && day ? `${month}월 ${day}일` : dateLabel;
 };
 
 const formatCompactMinutes = (seconds: number) => {
@@ -490,7 +527,18 @@ const formatFriendlyReadingTime = (seconds: number | null | undefined) => {
   return `약 ${formatCompactMinutes(seconds)}`;
 };
 
-const formatRecordDuration = (seconds: number) => formatCompactMinutes(seconds);
+const formatRecordDuration = (seconds: number) => {
+  const totalSeconds = Math.max(Math.round(seconds), 0);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const restSeconds = totalSeconds % 60;
+  const secondsLabel = restSeconds > 0 ? ` ${restSeconds}초` : "";
+
+  if (hours > 0) return `${hours}시간 ${minutes}분${secondsLabel}`;
+  if (minutes > 0) return `${minutes}분${secondsLabel}`;
+
+  return restSeconds > 0 ? `${restSeconds}초` : "-";
+};
 
 const getReadingProgressMessage = (progress: number | null) => {
   if (progress === null) return "전체 페이지를 설정하면 진행률을 볼 수 있어요 📚";
@@ -506,11 +554,6 @@ const getReadingProgressMessage = (progress: number | null) => {
 
 const formatRemainingPagesLabel = (remainingPages: number | null) =>
   remainingPages !== null ? `${remainingPages}쪽 남음` : "전체 페이지 미설정";
-
-const formatReadableBookPages = (
-  currentPage: number,
-  totalPages: number | null,
-) => (totalPages ? `${currentPage} / ${totalPages}p` : `${currentPage}p`);
 
 type FocusDurationBarStyle = CSSProperties & {
   "--focus-delay": string;
@@ -723,7 +766,7 @@ export const LibraryScreen = ({
     initialDetailBook?.currentPage ?? 1,
   );
   const [totalPagesDraft, setTotalPagesDraft] = useState(
-    initialDetailBook?.totalPages ?? initialDetailBook?.currentPage ?? 1,
+    initialDetailBook?.totalPages ?? 0,
   );
   const [newBook, setNewBook] = useState<NewBookInput>(emptyNewBook);
   const [bookFormStep, setBookFormStep] = useState<BookFormStep>("search");
@@ -744,6 +787,9 @@ export const LibraryScreen = ({
   );
   const [activeBookDetailTab, setActiveBookDetailTab] =
     useState<BookDetailTab>("summary");
+  const [selectedJourneyDate, setSelectedJourneyDate] = useState<string | null>(
+    null,
+  );
   const [isPageEditing, setIsPageEditing] = useState(false);
   const [libraryView, setLibraryView] = useState<LibraryView>("shelf");
   const [bookTransitionState, setBookTransitionState] =
@@ -899,6 +945,24 @@ export const LibraryScreen = ({
   const selectedBookJourneyRecords = selectedBookActiveRound
     ? getRoundRecords(selectedBookRecords, selectedBookActiveRound)
     : selectedBookRecords;
+  const displayedBookRecords = selectedJourneyDate
+    ? [...selectedBookJourneyRecords]
+        .filter((record) => record.date <= selectedJourneyDate)
+        .sort(
+          (left, right) =>
+            right.date.localeCompare(left.date) ||
+            (right.startedAt ?? "").localeCompare(left.startedAt ?? "") ||
+            right.id.localeCompare(left.id),
+        )
+        .slice(0, 3)
+    : recentBookRecords;
+  const displayedBookRecordedPages = displayedBookRecords.reduce(
+    (sum, record) => sum + Math.max(record.endPage - record.startPage, 0),
+    0,
+  );
+  const emptyRecordSlotCount = selectedJourneyDate
+    ? Math.max(3 - displayedBookRecords.length, 0)
+    : 0;
   const selectedRoundRecords = selectedRound
     ? getRoundRecords(selectedBookRecords, selectedRound).sort(
         (left, right) =>
@@ -962,9 +1026,10 @@ export const LibraryScreen = ({
 
     setSelectedBookId(bookId);
     setActiveBookDetailTab("summary");
+    setSelectedJourneyDate(null);
     setIsPageEditing(false);
     setCurrentPageDraft(book?.currentPage ?? 1);
-    setTotalPagesDraft(book?.totalPages ?? book?.currentPage ?? 1);
+    setTotalPagesDraft(book?.totalPages ?? 0);
   };
 
   const resetDetailState = () => {
@@ -983,6 +1048,7 @@ export const LibraryScreen = ({
     setSelectedRoundId(null);
     setExpandedCompleteSentenceId(null);
     setActiveBookDetailTab("summary");
+    setSelectedJourneyDate(null);
     setIsPageEditing(false);
   };
 
@@ -1157,36 +1223,55 @@ export const LibraryScreen = ({
     }
   };
 
-  const saveCurrentPage = async () => {
-    if (!selectedBook) return;
-    if (isMutating) return;
-
-    const nextPage = clampBookPage(currentPageDraft, selectedBook.totalPages);
-
-    setIsMutating(true);
-
-    try {
-      setCurrentPageDraft(nextPage);
-      await onUpdateBookPage(selectedBook.id, nextPage);
-      setIsPageEditing(false);
-    } finally {
-      setIsMutating(false);
+  const closePageEditSheet = () => {
+    if (selectedBook) {
+      setCurrentPageDraft(selectedBook.currentPage);
+      setTotalPagesDraft(selectedBook.totalPages ?? 0);
     }
+    setIsPageEditing(false);
   };
 
-  const saveTotalPages = async () => {
-    if (!selectedBook || selectedBook.totalPages !== null || isMutating) return;
+  const openPageEditSheet = () => {
+    if (!selectedBook) return;
 
-    const nextTotalPages = Math.max(
-      totalPagesDraft,
-      selectedBook.currentPage,
-      1,
-    );
+    setCurrentPageDraft(selectedBook.currentPage);
+    setTotalPagesDraft(selectedBook.totalPages ?? 0);
+    setIsPageEditing(true);
+  };
+
+  const saveBookPages = async () => {
+    if (!selectedBook || isMutating) return;
+
+    const draftTotalPages = totalPagesDraft > 0 ? totalPagesDraft : null;
+    const resolvedTotalPages = draftTotalPages
+      ? Math.max(draftTotalPages, currentPageDraft, 1)
+      : selectedBook.totalPages;
+    const nextPage = clampBookPage(currentPageDraft, resolvedTotalPages);
+    const shouldUpdateCurrentPage = nextPage !== selectedBook.currentPage;
+    const shouldUpdateTotalPages =
+      resolvedTotalPages !== null &&
+      resolvedTotalPages !== selectedBook.totalPages;
+
+    if (!shouldUpdateCurrentPage && !shouldUpdateTotalPages) {
+      closePageEditSheet();
+      return;
+    }
+
     setIsMutating(true);
 
     try {
-      setTotalPagesDraft(nextTotalPages);
-      await onUpdateBookTotalPages(selectedBook.id, nextTotalPages);
+      if (resolvedTotalPages !== null) {
+        await onUpdateBookTotalPages(
+          selectedBook.id,
+          resolvedTotalPages,
+          nextPage,
+        );
+      } else if (shouldUpdateCurrentPage) {
+        await onUpdateBookPage(selectedBook.id, nextPage);
+      }
+
+      setCurrentPageDraft(nextPage);
+      setTotalPagesDraft(resolvedTotalPages ?? 0);
       setIsPageEditing(false);
     } finally {
       setIsMutating(false);
@@ -1693,6 +1778,7 @@ export const LibraryScreen = ({
                 <BookShelfSection
                   tone={activeShelfTab}
                   books={activeShelfBooks}
+                  records={records}
                   tierBoard={tierBoard}
                   onSelectBook={selectBook}
                   transitionBookId={transitionBookId}
@@ -2140,10 +2226,8 @@ export const LibraryScreen = ({
                           <button
                             type="button"
                             className="book-detail-page-edit-toggle"
-                            onClick={() =>
-                              setIsPageEditing((current) => !current)
-                            }
-                            aria-expanded={isPageEditing}
+                            onClick={openPageEditSheet}
+                            aria-haspopup="dialog"
                           >
                             <Icon name="edit" className="h-4 w-4" />
                             페이지 수정
@@ -2182,92 +2266,6 @@ export const LibraryScreen = ({
                           </div>
                         </div>
 
-                        {isPageEditing && (
-                          <div className="book-detail-page-edit-panel">
-                            <div className="book-detail-page-control">
-                              <div className="book-detail-page-control-heading">
-                                <label htmlFor="book-current-page">
-                                  현재 페이지
-                                </label>
-                                <strong>
-                                  {formatReadableBookPages(
-                                    selectedBook.currentPage,
-                                    selectedBook.totalPages,
-                                  )}
-                                </strong>
-                              </div>
-                              <div className="book-detail-inline-form">
-                                <input
-                                  id="book-current-page"
-                                  className="pixel-input"
-                                  type="text"
-                                  inputMode="numeric"
-                                  min={1}
-                                  max={selectedBook.totalPages ?? undefined}
-                                  value={currentPageDraft}
-                                  onChange={(event) =>
-                                    setCurrentPageDraft(
-                                      parsePageInput(event.target.value),
-                                    )
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className="primary-button px-3"
-                                  onClick={saveCurrentPage}
-                                  disabled={
-                                    currentPageDraft ===
-                                      selectedBook.currentPage || isMutating
-                                  }
-                                >
-                                  저장
-                                </button>
-                              </div>
-                            </div>
-
-                            {selectedBook.totalPages === null && (
-                              <div className="book-detail-page-control book-detail-total-pages-control">
-                                <div className="book-detail-page-control-heading">
-                                  <div>
-                                    <label htmlFor="book-total-pages">
-                                      전체 페이지
-                                    </label>
-                                    <p>
-                                      입력하면 진행률과 남은 시간을 계산합니다.
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="book-detail-inline-form">
-                                  <input
-                                    id="book-total-pages"
-                                    className="pixel-input"
-                                    type="text"
-                                    inputMode="numeric"
-                                    min={selectedBook.currentPage}
-                                    value={totalPagesDraft}
-                                    onChange={(event) =>
-                                      setTotalPagesDraft(
-                                        parsePageInput(event.target.value),
-                                      )
-                                    }
-                                  />
-                                  <button
-                                    type="button"
-                                    className="primary-button px-3"
-                                    onClick={saveTotalPages}
-                                    disabled={
-                                      totalPagesDraft <
-                                        selectedBook.currentPage || isMutating
-                                    }
-                                  >
-                                    추가
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
                         <div className="book-detail-reading-summary">
                           {selectedBookReadingSummary.map((summary, index) => (
                             <p key={index}>{summary}</p>
@@ -2296,32 +2294,55 @@ export const LibraryScreen = ({
                         </div>
                       </section>
 
-                      {selectedBook.libraryReference && (
-                        <section className="book-library-reference-section">
-                          <div className="book-detail-section-title">
-                            <h2>도서관 이용 데이터</h2>
-                            <strong>
-                              {selectedBook.libraryReference.source}
-                            </strong>
-                          </div>
-                          <p className="book-library-reference-summary">
-                            {getDisplayBookDescription(selectedBook)}
-                          </p>
-                          {selectedBook.libraryReference.recommendedBooks
-                            .length > 0 && (
-                            <div className="book-library-reference-books">
-                              {selectedBook.libraryReference.recommendedBooks.map(
-                                (book) => (
-                                  <p key={`${book.title}-${book.author ?? ""}`}>
-                                    {book.title}
-                                    {book.author ? ` · ${book.author}` : ""}
-                                  </p>
-                                ),
-                              )}
+                      {selectedBookPattern &&
+                        hasEnoughBookPatternRecords && (
+                          <section className="book-detail-pattern-section">
+                            <div className="book-detail-section-title">
+                              <h2>독서 패턴</h2>
+                              <strong>{selectedBookRecords.length}회</strong>
                             </div>
-                          )}
-                        </section>
-                      )}
+                            <div className="book-detail-pattern">
+                              <p className="book-detail-pattern-line">
+                                한 번 읽을 때 평균{" "}
+                                {formatCompactMinutes(
+                                  selectedBookPattern.averageSessionSeconds,
+                                )}
+                                정도 읽어요.
+                              </p>
+                              <p className="book-detail-pattern-summary">
+                                한 번에 평균 {selectedBookAveragePagesPerSession}p를
+                                읽고 있어요.
+                              </p>
+                              <div className="book-detail-pattern-grid">
+                                <div>
+                                  <span>평균 독서 시간</span>
+                                  <strong>
+                                    {formatCompactMinutes(
+                                      selectedBookPattern.averageSessionSeconds,
+                                    )}
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span>평균 읽은 분량</span>
+                                  <strong>
+                                    {selectedBookAveragePagesPerSession}p
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span>자주 읽은 요일</span>
+                                  <strong>{selectedBookPattern.topWeekday}</strong>
+                                </div>
+                                <div>
+                                  <span>주로 읽은 시간</span>
+                                  <strong>
+                                    {selectedBookPattern.topTimeBand}
+                                  </strong>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
+                        )}
+
                     </>
                   )}
 
@@ -2336,21 +2357,44 @@ export const LibraryScreen = ({
                           key={selectedBook.id}
                           records={selectedBookJourneyRecords}
                           totalPages={selectedBook.totalPages}
+                          onDateSelect={setSelectedJourneyDate}
                         />
                       </section>
 
                       <section className="book-detail-records-section">
                         <div className="book-detail-section-title">
-                          <h2>최근 독서 기록</h2>
-                          <strong>{recentBookRecords.length}개</strong>
+                          <h2>
+                            {selectedJourneyDate
+                              ? `${formatRecordListDate(selectedJourneyDate)} 기준 최근 기록`
+                              : "최근 독서 기록"}
+                          </h2>
+                          <div className="book-detail-record-title-actions">
+                            <strong>
+                              {selectedJourneyDate
+                                ? displayedBookRecordedPages
+                                : selectedBookStats.recordedPages}
+                              쪽
+                            </strong>
+                            {selectedJourneyDate && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedJourneyDate(null)}
+                              >
+                                전체 보기
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        {recentBookRecords.length === 0 ? (
+                        {displayedBookRecords.length === 0 ? (
                           <p className="book-detail-empty-state">
                             아직 이 책의 독서 기록이 없습니다.
                           </p>
                         ) : (
-                          <div className="book-detail-record-list">
-                            {recentBookRecords.map((record) => {
+                          <div
+                            key={selectedJourneyDate ?? "recent"}
+                            className="book-detail-record-list"
+                          >
+                              {displayedBookRecords.map((record) => {
                                 const readPages = Math.max(
                                   record.endPage - record.startPage,
                                   0,
@@ -2362,89 +2406,37 @@ export const LibraryScreen = ({
                                     className="book-detail-record-item"
                                   >
                                     <span className="book-detail-record-marker" />
-                                    <div className="book-detail-record-date">
-                                      <strong>{formatCompactDate(record.date)}</strong>
-                                      <span>{formatRecordWeekday(record.date)}</span>
-                                    </div>
-                                    <div className="book-detail-record-content">
-                                      <div className="book-detail-record-pages">
-                                        <strong>
-                                          {record.startPage} → {record.endPage}p
-                                        </strong>
-                                        <span>+{readPages}p</span>
+                                    <div className="book-detail-record-body">
+                                      <div className="book-detail-record-date">
+                                        <strong>{formatCompactDate(record.date)}</strong>
+                                        <span>{formatRecordWeekday(record.date)}</span>
                                       </div>
-                                      <p className="book-detail-record-duration">
-                                        <Icon name="clock" className="h-4 w-4" />
-                                        {formatRecordDuration(
-                                          record.durationSeconds,
-                                        )}
-                                      </p>
+                                      <div className="book-detail-record-pages">
+                                        <span>
+                                          {record.startPage}쪽 → {record.endPage}쪽
+                                        </span>
+                                        <strong>+{readPages}p</strong>
+                                      </div>
                                     </div>
+                                    <strong className="book-detail-record-duration">
+                                      {formatRecordDuration(record.durationSeconds)}
+                                    </strong>
                                   </div>
                                 );
                               })}
+                            {Array.from({ length: emptyRecordSlotCount }).map(
+                              (_, index) => (
+                                <div
+                                  key={`empty-record-slot-${index}`}
+                                  className="book-detail-record-placeholder"
+                                  aria-hidden="true"
+                                />
+                              ),
+                            )}
                           </div>
                         )}
                       </section>
 
-                      <section className="book-detail-pattern-section">
-                        <div className="book-detail-section-title">
-                          <h2>독서 패턴</h2>
-                          <strong>{selectedBookRecords.length}회</strong>
-                        </div>
-                        {selectedBookPattern ? (
-                          <div className="book-detail-pattern">
-                            <p className="book-detail-pattern-line">
-                              {hasEnoughBookPatternRecords
-                                ? `한 번 읽을 때 평균 ${formatCompactMinutes(
-                                    selectedBookPattern.averageSessionSeconds,
-                                  )} 정도 읽어요.`
-                                : "아직 기록을 모으고 있어요."}
-                            </p>
-                            <p className="book-detail-pattern-summary">
-                              {hasEnoughBookPatternRecords
-                                ? `한 번에 평균 ${selectedBookAveragePagesPerSession}p를 읽고 있어요.`
-                                : "조금 더 읽으면 나만의 독서 패턴을 알려드릴게요."}
-                            </p>
-                            <div className="book-detail-pattern-grid">
-                              <div>
-                                <span>평균 독서 시간</span>
-                                <strong>
-                                  {formatCompactMinutes(
-                                    selectedBookPattern.averageSessionSeconds,
-                                  )}
-                                </strong>
-                              </div>
-                              <div>
-                                <span>평균 읽은 분량</span>
-                                <strong>
-                                  {selectedBookAveragePagesPerSession}p
-                                </strong>
-                              </div>
-                              {hasEnoughBookPatternRecords && (
-                                <>
-                                  <div>
-                                    <span>자주 읽은 요일</span>
-                                    <strong>
-                                      {selectedBookPattern.topWeekday}
-                                    </strong>
-                                  </div>
-                                  <div>
-                                    <span>주로 읽은 시간</span>
-                                    <strong>
-                                      {selectedBookPattern.topTimeBand}
-                                    </strong>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="book-detail-empty-state">
-                            독서 기록을 남기면 패턴이 계산됩니다.
-                          </p>
-                        )}
-                      </section>
                     </>
                   )}
 
@@ -2709,6 +2701,80 @@ export const LibraryScreen = ({
           )}
         </section>
       )}
+
+      <BottomSheetModal
+        isOpen={Boolean(selectedBook && isPageEditing)}
+        ariaLabel="페이지 수정"
+        backdropClassName="modal-backdrop-top"
+        panelClassName="book-page-edit-sheet"
+        onBackdropClick={closePageEditSheet}
+      >
+        {selectedBook && (
+          <>
+            <div className="book-page-edit-sheet-header">
+              <div>
+                <h2>페이지 수정</h2>
+                <p>{selectedBook.title}</p>
+              </div>
+              <button
+                type="button"
+                className="book-page-edit-sheet-close"
+                onClick={closePageEditSheet}
+                aria-label="페이지 수정 닫기"
+              >
+                <Icon name="close" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="book-page-edit-fields">
+              <label className="book-page-edit-field" htmlFor="book-current-page">
+                <span>현재 페이지</span>
+                <div>
+                  <input
+                    id="book-current-page"
+                    type="text"
+                    inputMode="numeric"
+                    min={1}
+                    max={totalPagesDraft || undefined}
+                    value={currentPageDraft || ""}
+                    onChange={(event) =>
+                      setCurrentPageDraft(parsePageInput(event.target.value))
+                    }
+                  />
+                  <em>쪽</em>
+                </div>
+              </label>
+              <label className="book-page-edit-field" htmlFor="book-total-pages">
+                <span>전체 페이지</span>
+                <div>
+                  <input
+                    id="book-total-pages"
+                    type="text"
+                    inputMode="numeric"
+                    min={1}
+                    value={totalPagesDraft || ""}
+                    placeholder="입력"
+                    onChange={(event) =>
+                      setTotalPagesDraft(parsePageInput(event.target.value))
+                    }
+                  />
+                  <em>쪽</em>
+                </div>
+              </label>
+            </div>
+
+            <button
+              type="button"
+              className="book-page-edit-sheet-save"
+              onClick={saveBookPages}
+              disabled={isMutating}
+            >
+              <Icon name="save" className="h-4 w-4" />
+              저장
+            </button>
+          </>
+        )}
+      </BottomSheetModal>
 
       <BottomSheetModal
         isOpen={Boolean(selectedBook && isBookChatOpen)}
@@ -3571,6 +3637,7 @@ export const LibraryScreen = ({
 type BookShelfSectionProps = {
   tone: "reading" | "completed";
   books: Book[];
+  records: ReadingRecord[];
   tierBoard: TierBoard;
   onSelectBook: (bookId: string) => void;
   transitionBookId: string | null;
@@ -3584,12 +3651,24 @@ type BookShelfSectionProps = {
 const BookShelfSection = ({
   tone,
   books,
+  records,
   tierBoard,
   onSelectBook,
   transitionBookId,
   transitionState,
   registerBookButton,
 }: BookShelfSectionProps) => {
+  const latestRecordByBookId = new Map<string, ReadingRecord>();
+  records.forEach((record) => {
+    const currentLatestRecord = latestRecordByBookId.get(record.bookId);
+
+    if (
+      !currentLatestRecord ||
+      getReadingRecordTime(record) > getReadingRecordTime(currentLatestRecord)
+    ) {
+      latestRecordByBookId.set(record.bookId, record);
+    }
+  });
   const completedPages = books.reduce(
     (sum, book) => sum + (book.totalPages ?? book.currentPage),
     0,
@@ -3687,6 +3766,8 @@ const BookShelfSection = ({
         <div className="library-reading-list">
           {books.map((book) => {
             const progress = getBookProgress(book.currentPage, book.totalPages);
+            const latestRecord = latestRecordByBookId.get(book.id);
+            const hasStartedReading = Boolean(latestRecord) || book.currentPage > 1;
             const transitionKey = getBookTransitionKey(book.id);
             const isTransitionBook = transitionBookId === book.id;
             const isTransitioningFromList =
@@ -3711,16 +3792,20 @@ const BookShelfSection = ({
                 <div className="library-book-card-main">
                   <MiniBook
                     book={book}
+                    compact
+                    supportingText={formatLastReadLabel(latestRecord)}
                     coverTransitionKey={transitionKey}
                     coverStyle={{ viewTransitionName: transitionKey }}
                   />
-                  <span className="library-book-progress-badge">
-                    {progress !== null
-                      ? `${progress}%`
-                      : `${book.currentPage}p`}
-                  </span>
+                  {hasStartedReading && (
+                    <span className="library-book-progress-badge">
+                      {progress !== null
+                        ? `${progress}%`
+                        : `${book.currentPage}p`}
+                    </span>
+                  )}
                 </div>
-                {progress !== null && (
+                {hasStartedReading && progress !== null && (
                   <div className="library-book-progress-track">
                     <div
                       className="library-book-progress-fill"
